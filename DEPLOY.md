@@ -91,6 +91,8 @@ Link KV and env vars in the dashboard, then `vercel --prod` again.
 
 | Issue | Fix |
 |-------|-----|
+| **`/api/health` shows HTML or a SvelteKit 404** | Wrong app is deployed. In Vercel → **Settings** → **Git**, connect `YimingDing0413/concert-tracker`. Redeploy. Health JSON must include `"service": "concert-tracker"`. |
+| **Production checklist still says "Connect Git"** | The project was created without your repo. Import/connect Git, then redeploy. |
 | `Cannot GET /` on root | Open the Vercel URL (not `:3001`); SPA is served from `dist` |
 | **Cannot log in** | Open `https://YOUR_APP.vercel.app/api/health` — must show JSON with `"ok": true`. If you see HTML or 404, redeploy after latest code and check Vercel **Functions** logs |
 | API 404 | Check `api/index.ts` exists; redeploy |
