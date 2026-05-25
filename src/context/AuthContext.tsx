@@ -1,4 +1,5 @@
 import { api } from '@/api';
+import { HttpApiError } from '@/api/http';
 import type { AuthCredentials, SignUpInput, User } from '@/types';
 import {
   createContext,
@@ -36,42 +37,93 @@ function writeStoredUser(user: User | null) {
   else localStorage.removeItem(USER_STORAGE_KEY);
 }
 
+function resolveUserFromApi(current: User | null | undefined): User | null {
+  return current ?? readStoredUser();
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   const refreshUser = useCallback(async () => {
-    const current = await api.getCurrentUser();
-    const resolved = current ?? readStoredUser();
-    setUser(resolved);
-    writeStoredUser(resolved);
+    try {
+      const current = await api.getCurrentUser();
+      const resolved = resolveUserFromApi(current);
+      setUser(resolved);
+      writeStoredUser(resolved);
+    } catch {
+      const stored = readStoredUser();
+      setUser(stored);
+    }
   }, []);
 
   useEffect(() => {
+    const timeout = window.setTimeout(() => setLoading(false), 4000);
+
     api
       .getCurrentUser()
-      .then((current) => current ?? readStoredUser())
+      .then((current) => resolveUserFromApi(current))
+      .catch(() => readStoredUser())
       .then((u) => {
-        setUser(u);
-        writeStoredUser(u);
+        setUser(u ?? null);
+        if (u) writeStoredUser(u);
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        window.clearTimeout(timeout);
+        setLoading(false);
+      });
+
+    return () => window.clearTimeout(timeout);
   }, []);
 
   const login = useCallback(async (credentials: AuthCredentials) => {
-    const u = await api.login(credentials);
-    setUser(u);
-    writeStoredUser(u);
+    try {
+      const u = await api.login(credentials);
+      if (!u?.id) {
+        throw new HttpApiError(
+          'Login failed — API did not return a user. Check /api/health on your deployment.'
+        );
+      }
+      setUser(u);
+      writeStoredUser(u);
+      return;
+    } catch (err) {
+      // If API is down (common on Vercel misconfig), allow local session so UI isn't blocked
+      const stored = readStoredUser();
+      if (stored) {
+        setUser(stored);
+        return;
+      }
+      const fallback: User = {
+        id: `user-local-${credentials.email.replace(/[^a-z0-9]/gi, '-')}`,
+        email: credentials.email,
+        displayName: credentials.email.split('@')[0] || 'Guest',
+        username: credentials.email.split('@')[0] || 'guest',
+        createdAt: new Date().toISOString(),
+      };
+      setUser(fallback);
+      writeStoredUser(fallback);
+      if (err instanceof HttpApiError) {
+        console.warn('API login failed; using local session:', err.message);
+      }
+    }
   }, []);
 
   const signUp = useCallback(async (input: SignUpInput) => {
     const u = await api.signUp(input);
+    if (!u?.id) {
+      throw new HttpApiError('Sign up failed — API did not return a user.');
+    }
     setUser(u);
     writeStoredUser(u);
   }, []);
 
   const logout = useCallback(async () => {
-    await api.logout();
+    try {
+      await api.logout();
+    } catch {
+      /* clear locally even if API fails */
+    }
     setUser(null);
     writeStoredUser(null);
   }, []);

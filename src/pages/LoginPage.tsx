@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/Button';
+import { HttpApiError } from '@/api/http';
 import { useAuth } from '@/context/AuthContext';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -19,7 +20,13 @@ export function LoginPage() {
       await login({ email, password });
       navigate('/');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      const msg =
+        err instanceof HttpApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : 'Login failed';
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -60,7 +67,10 @@ export function LoginPage() {
         <p className="auth-switch">
           New here? <Link to="/signup">Create an account</Link>
         </p>
-        <p className="auth-hint muted">Demo: any email works with mock auth.</p>
+        <p className="auth-hint muted">
+          Use any email and any password (e.g. <strong>demo@encore.app</strong> / <strong>demo</strong>).
+          Password is not checked.
+        </p>
       </form>
     </div>
   );

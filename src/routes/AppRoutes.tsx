@@ -23,8 +23,8 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
 
 function PublicOnlyRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
-  if (loading) return <LoadingSpinner />;
-  if (user) return <Navigate to="/" replace />;
+  // Show login/signup immediately — don't block on /api/auth/me (often hangs on Vercel cold start)
+  if (!loading && user) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 

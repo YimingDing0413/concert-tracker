@@ -92,7 +92,9 @@ Link KV and env vars in the dashboard, then `vercel --prod` again.
 | Issue | Fix |
 |-------|-----|
 | `Cannot GET /` on root | Open the Vercel URL (not `:3001`); SPA is served from `dist` |
+| **Cannot log in** | Open `https://YOUR_APP.vercel.app/api/health` — must show JSON with `"ok": true`. If you see HTML or 404, redeploy after latest code and check Vercel **Functions** logs |
 | API 404 | Check `api/index.ts` exists; redeploy |
+| Login error mentions "invalid response" | API route not running — env vars + redeploy; check Function logs in Vercel dashboard |
 | Search works, My Shows empty after redeploy | Connect **Upstash Redis** and redeploy |
 | API timeout | Large artist pages may take time; `maxDuration` is 60s in `api/index.ts` |
 
