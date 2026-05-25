@@ -1,0 +1,97 @@
+import { AppShell } from '@/components/layout/AppShell';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { useAuth } from '@/context/AuthContext';
+import { AddConcertPage } from '@/pages/AddConcertPage';
+import { ArtistDetailPage } from '@/pages/ArtistDetailPage';
+import { ConcertDetailPage } from '@/pages/ConcertDetailPage';
+import { HomePage } from '@/pages/HomePage';
+import { LoginPage } from '@/pages/LoginPage';
+import { MyConcertsPage } from '@/pages/MyConcertsPage';
+import { ProfilePage } from '@/pages/ProfilePage';
+import { RatingPage } from '@/pages/RatingPage';
+import { SignUpPage } from '@/pages/SignUpPage';
+import { VenueDetailPage } from '@/pages/VenueDetailPage';
+import type { ReactNode } from 'react';
+import { Navigate, Route, Routes } from 'react-router-dom';
+
+function ProtectedRoute({ children }: { children: ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) return <LoadingSpinner />;
+  if (!user) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+}
+
+function PublicOnlyRoute({ children }: { children: ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) return <LoadingSpinner />;
+  if (user) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
+export function AppRoutes() {
+  return (
+    <Routes>
+      <Route
+        path="/login"
+        element={
+          <PublicOnlyRoute>
+            <LoginPage />
+          </PublicOnlyRoute>
+        }
+      />
+      <Route
+        path="/signup"
+        element={
+          <PublicOnlyRoute>
+            <SignUpPage />
+          </PublicOnlyRoute>
+        }
+      />
+      <Route
+        element={
+          <ProtectedRoute>
+            <AppShell />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<HomePage />} />
+        <Route path="my-concerts" element={<MyConcertsPage />} />
+        <Route path="add" element={<AddConcertPage />} />
+        <Route path="profile" element={<ProfilePage />} />
+      </Route>
+      <Route
+        path="/artist/:id"
+        element={
+          <ProtectedRoute>
+            <ArtistDetailPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/venue/:id"
+        element={
+          <ProtectedRoute>
+            <VenueDetailPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/concert/:id"
+        element={
+          <ProtectedRoute>
+            <ConcertDetailPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/concert/:id/rate"
+        element={
+          <ProtectedRoute>
+            <RatingPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
