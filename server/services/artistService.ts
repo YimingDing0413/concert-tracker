@@ -5,9 +5,8 @@ import { hasBandsintown, hasSetlistFm, hasTicketmaster } from '../env.js';
 import { mockArtists, mockEvents, mockSetlists } from '../mock/fallbackData.js';
 import { normalizeBitArtist, normalizeBitEvents } from '../normalize/bandsintown.js';
 import {
-  buildPredictedSetlist,
+  buildPredictedSetlistWithTourFallback,
   normalizeSlSetlistsPage,
-  predictSetlistFromSameTour,
   setlistToPastEvent,
 } from '../normalize/setlistfm.js';
 import {
@@ -18,20 +17,6 @@ import {
 import { withFallback } from '../lib/withFallback.js';
 import { concertEventToConcert, slugify } from '../../shared/mappers.js';
 import type { Artist, ArtistDetail, ConcertEvent, Setlist } from '../../shared/types/index.js';
-
-function buildPredictedSetlistForArtist(
-  artistName: string,
-  setlists: Setlist[],
-  concertId: string,
-  tourName?: string
-): Setlist {
-  const actual = setlists.filter((s) => s.source === 'actual');
-  if (tourName?.trim()) {
-    const fromTour = predictSetlistFromSameTour(actual, tourName, artistName, concertId);
-    if (fromTour) return fromTour;
-  }
-  return buildPredictedSetlist(artistName, actual, concertId);
-}
 
 export function resolveArtistName(idOrName: string, artist?: Artist): string {
   if (artist?.name) return artist.name;
@@ -213,12 +198,17 @@ export async function getArtistDetail(idOrName: string): Promise<{
     source: artist.source ?? profileRes.data.source,
   };
 
-  const upcomingTour = upcoming[0]?.tourName;
-  const predicted = buildPredictedSetlistForArtist(
+  const nextUpcoming = upcoming[0];
+  const predicted = buildPredictedSetlistWithTourFallback(
     artistName,
-    setlists,
+    setlists.filter((s) => s.source === 'actual'),
     `predicted:${artist.id}`,
-    upcomingTour
+    {
+      tourName: nextUpcoming?.tourName,
+      date: nextUpcoming?.date,
+      city: nextUpcoming?.city,
+      venueName: nextUpcoming?.venueName,
+    }
   );
 
   const messages = [

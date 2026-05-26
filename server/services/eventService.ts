@@ -11,10 +11,10 @@ import {
 import { withFallback } from '../lib/withFallback.js';
 import type { ConcertEvent } from '../../shared/types/index.js';
 import {
-  buildPredictedSetlist,
+  buildPredictedSetlistWithTourFallback,
   normalizeSlSetlist,
-  predictSetlistFromSameTour,
   setlistToPastEvent,
+  type TourContext,
 } from '../normalize/setlistfm.js';
 import { getSetlistsForArtist } from './artistService.js';
 
@@ -109,7 +109,12 @@ export async function getEventSetlist(eventId: string, artistName?: string) {
     return { data: match ?? null, meta: setlistsRes.meta };
   }
 
-  const predictedRes = await getPredictedSetlist(name, eventId, event.tourName);
+  const predictedRes = await getPredictedSetlist(name, eventId, {
+    tourName: event.tourName,
+    date: event.date,
+    city: event.city,
+    venueName: event.venueName,
+  });
   return { data: predictedRes.data, meta: predictedRes.meta };
 }
 
@@ -157,28 +162,14 @@ function normalizeVenueName(value: string): string {
 export async function getPredictedSetlist(
   artistName: string,
   concertId?: string,
-  tourName?: string
+  context: TourContext = {}
 ) {
-  const pages = tourName?.trim() ? 8 : 1;
-  const setlistsRes = await getSetlistsForArtist(artistName, { pages });
+  const setlistsRes = await getSetlistsForArtist(artistName, { pages: 8 });
   const recent = setlistsRes.data.filter((s) => s.source === 'actual');
   const id = concertId ?? 'predicted';
 
-  if (tourName?.trim()) {
-    const fromTour = predictSetlistFromSameTour(recent, tourName, artistName, id);
-    if (fromTour) {
-      return { data: fromTour, meta: setlistsRes.meta };
-    }
-  }
-
-  if (!recent.length) {
-    return {
-      data: buildPredictedSetlist(artistName, [], id),
-      meta: setlistsRes.meta,
-    };
-  }
   return {
-    data: buildPredictedSetlist(artistName, recent, id),
+    data: buildPredictedSetlistWithTourFallback(artistName, recent, id, context),
     meta: setlistsRes.meta,
   };
 }

@@ -69,6 +69,72 @@ export function normalizeTourName(name: string): string {
     .trim();
 }
 
+export interface TourContext {
+  tourName?: string;
+  date?: string;
+  city?: string;
+  venueName?: string;
+}
+
+function normalizeCity(value?: string): string {
+  return value?.trim().toLowerCase().replace(/\s+/g, ' ') ?? '';
+}
+
+/**
+ * Ticketmaster often omits tour names. Setlist.fm lists upcoming shows with tour
+ * metadata, and recent past shows reveal the active tour leg.
+ */
+export function resolveTourNameForEvent(context: TourContext, setlists: Setlist[]): string | undefined {
+  if (context.tourName?.trim()) return context.tourName.trim();
+
+  const eventDate = context.date;
+  const cityNorm = normalizeCity(context.city);
+
+  if (eventDate) {
+    const sameDate = setlists.filter((s) => s.eventDate === eventDate && s.tourName?.trim());
+    if (sameDate.length) {
+      if (cityNorm) {
+        const cityMatch = sameDate.find((s) => normalizeCity(s.city) === cityNorm);
+        if (cityMatch?.tourName) return cityMatch.tourName;
+      }
+      return sameDate[0].tourName;
+    }
+  }
+
+  const cutoff = eventDate ?? new Date().toISOString().slice(0, 10);
+  const recentPastWithTour = setlists
+    .filter(
+      (s) =>
+        s.source === 'actual' &&
+        s.tourName?.trim() &&
+        s.eventDate &&
+        s.eventDate < cutoff
+    )
+    .sort((a, b) => (b.eventDate ?? '').localeCompare(a.eventDate ?? ''));
+
+  return recentPastWithTour[0]?.tourName;
+}
+
+export function buildPredictedSetlistWithTourFallback(
+  artistName: string,
+  recent: Setlist[],
+  concertId: string,
+  context: TourContext = {}
+): Setlist {
+  const resolvedTour = resolveTourNameForEvent(context, recent);
+  if (resolvedTour) {
+    const fromTour = predictSetlistFromSameTour(
+      recent,
+      resolvedTour,
+      artistName,
+      concertId,
+      context.date
+    );
+    if (fromTour) return fromTour;
+  }
+  return buildPredictedSetlist(artistName, recent, concertId);
+}
+
 export function normalizeSlSetlist(raw: SlSetlist, concertId?: string): Setlist {
   const date = parseSlDate(raw.eventDate);
   const location = parseLocation(raw);
@@ -116,10 +182,13 @@ export function predictSetlistFromSameTour(
   recent: Setlist[],
   tourName: string,
   artistName: string,
-  concertId: string
+  concertId: string,
+  beforeDate?: string
 ): Setlist | null {
   const target = normalizeTourName(tourName);
   if (!target) return null;
+
+  const cutoff = beforeDate ?? new Date().toISOString().slice(0, 10);
 
   const sameTour = recent
     .filter(
@@ -127,7 +196,9 @@ export function predictSetlistFromSameTour(
         s.source === 'actual' &&
         s.tourName &&
         normalizeTourName(s.tourName) === target &&
-        s.songs.length > 0
+        s.songs.length > 0 &&
+        s.eventDate &&
+        s.eventDate < cutoff
     )
     .sort((a, b) => (b.eventDate ?? '').localeCompare(a.eventDate ?? ''));
 
