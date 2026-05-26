@@ -4,6 +4,7 @@ import { ConcertTimingGrid } from '@/components/concert/ConcertTiming';
 import { SetlistDisplay } from '@/components/concert/SetlistDisplay';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { ApiNotice } from '@/components/ui/ApiNotice';
 import { StarRating } from '@/components/ui/StarRating';
 import { useAuth } from '@/context/AuthContext';
 import type { ConcertDetail, ConcertRating, UserConcert } from '@/types';
@@ -65,6 +66,7 @@ export function ConcertDetailPage() {
         subtitle={`${concert.venueName} · ${formatLocation(concert.city, concert.state, concert.country)}`}
         backTo="/"
       />
+      <ApiNotice source={concert.source} />
       {concert.imageUrl && (
         <img src={concert.imageUrl} alt="" className="detail-hero-img" />
       )}
