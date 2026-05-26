@@ -1,6 +1,23 @@
 import type { Artist, ConcertEvent, SearchResult, Venue } from '../../shared/types/index.js';
 import { slugify } from '../../shared/mappers.js';
 
+/** Best-effort tour name from a Ticketmaster event payload */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function extractTourNameFromTmEvent(raw: any): string | undefined {
+  const direct = raw?.tour?.name ?? raw?.attractions?.[0]?.tour?.name;
+  if (typeof direct === 'string' && direct.trim()) return direct.trim();
+
+  const eventName = raw?.name;
+  if (typeof eventName !== 'string') return undefined;
+
+  const dash = eventName.match(/\s[-–—|]\s+(.+)$/);
+  if (dash?.[1]) {
+    const candidate = dash[1].trim();
+    if (candidate.length > 2 && !/tickets?/i.test(candidate)) return candidate;
+  }
+  return undefined;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function pickImage(images: any[] | undefined, preferred = 16 / 9): string | undefined {
   if (!images?.length) return undefined;
@@ -42,6 +59,7 @@ export function normalizeTmEvent(raw: any): ConcertEvent | null {
     ticketUrl: e.url,
     imageUrl: pickImage(e.images),
     openers: openers.length ? openers : undefined,
+    tourName: extractTourNameFromTmEvent(e),
     rawSourceUrl: e.url,
     status: date >= new Date().toISOString().slice(0, 10) ? 'upcoming' : 'past',
   };

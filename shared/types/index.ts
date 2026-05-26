@@ -67,6 +67,9 @@ export interface Setlist {
   city?: string;
   state?: string;
   country?: string;
+  tourName?: string;
+  /** How an upcoming predicted setlist was derived */
+  predictionBasis?: 'same-tour' | 'recent-frequency';
   updatedAt: string;
 }
 
@@ -95,6 +98,7 @@ export interface ConcertEvent {
   rawSourceUrl?: string;
   status?: 'upcoming' | 'past';
   lineup?: string[];
+  tourName?: string;
 }
 
 export interface ConcertTiming {
@@ -118,6 +122,7 @@ export interface Concert {
   startTime?: string;
   status: 'upcoming' | 'past';
   openers?: string[];
+  tourName?: string;
   ticketUrl?: string;
   timing?: ConcertTiming;
   setlistId?: string;

@@ -54,6 +54,7 @@ export interface SlSetlistsPage {
 export interface SlSetlist {
   id: string;
   eventDate: string;
+  tour?: { name?: string };
   artist: { mbid: string; name: string };
   venue: {
     name: string;

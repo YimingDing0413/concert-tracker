@@ -10,7 +10,12 @@ import {
 } from '../normalize/ticketmaster.js';
 import { withFallback } from '../lib/withFallback.js';
 import type { ConcertEvent } from '../../shared/types/index.js';
-import { buildPredictedSetlist, normalizeSlSetlist, setlistToPastEvent } from '../normalize/setlistfm.js';
+import {
+  buildPredictedSetlist,
+  normalizeSlSetlist,
+  predictSetlistFromSameTour,
+  setlistToPastEvent,
+} from '../normalize/setlistfm.js';
 import { getSetlistsForArtist } from './artistService.js';
 
 export async function listEvents(params: {
@@ -104,7 +109,7 @@ export async function getEventSetlist(eventId: string, artistName?: string) {
     return { data: match ?? null, meta: setlistsRes.meta };
   }
 
-  const predictedRes = await getPredictedSetlist(name, eventId);
+  const predictedRes = await getPredictedSetlist(name, eventId, event.tourName);
   return { data: predictedRes.data, meta: predictedRes.meta };
 }
 
@@ -149,17 +154,31 @@ function normalizeVenueName(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
-export async function getPredictedSetlist(artistName: string, concertId?: string) {
-  const setlistsRes = await getSetlistsForArtist(artistName);
+export async function getPredictedSetlist(
+  artistName: string,
+  concertId?: string,
+  tourName?: string
+) {
+  const pages = tourName?.trim() ? 8 : 1;
+  const setlistsRes = await getSetlistsForArtist(artistName, { pages });
   const recent = setlistsRes.data.filter((s) => s.source === 'actual');
+  const id = concertId ?? 'predicted';
+
+  if (tourName?.trim()) {
+    const fromTour = predictSetlistFromSameTour(recent, tourName, artistName, id);
+    if (fromTour) {
+      return { data: fromTour, meta: setlistsRes.meta };
+    }
+  }
+
   if (!recent.length) {
     return {
-      data: buildPredictedSetlist(artistName, [], concertId ?? 'predicted'),
+      data: buildPredictedSetlist(artistName, [], id),
       meta: setlistsRes.meta,
     };
   }
   return {
-    data: buildPredictedSetlist(artistName, recent, concertId ?? 'predicted'),
+    data: buildPredictedSetlist(artistName, recent, id),
     meta: setlistsRes.meta,
   };
 }

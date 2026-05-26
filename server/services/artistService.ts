@@ -7,6 +7,7 @@ import { normalizeBitArtist, normalizeBitEvents } from '../normalize/bandsintown
 import {
   buildPredictedSetlist,
   normalizeSlSetlistsPage,
+  predictSetlistFromSameTour,
   setlistToPastEvent,
 } from '../normalize/setlistfm.js';
 import {
@@ -16,7 +17,21 @@ import {
 } from '../normalize/ticketmaster.js';
 import { withFallback } from '../lib/withFallback.js';
 import { concertEventToConcert, slugify } from '../../shared/mappers.js';
-import type { Artist, ArtistDetail, ConcertEvent } from '../../shared/types/index.js';
+import type { Artist, ArtistDetail, ConcertEvent, Setlist } from '../../shared/types/index.js';
+
+function buildPredictedSetlistForArtist(
+  artistName: string,
+  setlists: Setlist[],
+  concertId: string,
+  tourName?: string
+): Setlist {
+  const actual = setlists.filter((s) => s.source === 'actual');
+  if (tourName?.trim()) {
+    const fromTour = predictSetlistFromSameTour(actual, tourName, artistName, concertId);
+    if (fromTour) return fromTour;
+  }
+  return buildPredictedSetlist(artistName, actual, concertId);
+}
 
 export function resolveArtistName(idOrName: string, artist?: Artist): string {
   if (artist?.name) return artist.name;
@@ -62,13 +77,21 @@ export async function getArtistEvents(artistName: string) {
   );
 }
 
-export async function getSetlistsForArtist(artistName: string) {
+export async function getSetlistsForArtist(artistName: string, options?: { pages?: number }) {
   return withFallback(
     async () => {
       const found = await sl.slSearchArtist(artistName);
       if (!found?.mbid) return [];
-      const page = await sl.slGetArtistSetlists(found.mbid, 1);
-      return normalizeSlSetlistsPage(page.setlist ?? []);
+      const maxPages = options?.pages ?? 1;
+      const all: Setlist[] = [];
+      for (let p = 1; p <= maxPages; p++) {
+        const page = await sl.slGetArtistSetlists(found.mbid, p);
+        all.push(...normalizeSlSetlistsPage(page.setlist ?? []));
+        const perPage = page.itemsPerPage || 20;
+        const totalPages = Math.max(1, Math.ceil((page.total ?? 0) / perPage));
+        if (p >= totalPages) break;
+      }
+      return all;
     },
     () => mockSetlists,
     hasSetlistFm(),
@@ -190,7 +213,13 @@ export async function getArtistDetail(idOrName: string): Promise<{
     source: artist.source ?? profileRes.data.source,
   };
 
-  const predicted = buildPredictedSetlist(artistName, setlists, `predicted:${artist.id}`);
+  const upcomingTour = upcoming[0]?.tourName;
+  const predicted = buildPredictedSetlistForArtist(
+    artistName,
+    setlists,
+    `predicted:${artist.id}`,
+    upcomingTour
+  );
 
   const messages = [
     bitEventsRes.meta?.message,

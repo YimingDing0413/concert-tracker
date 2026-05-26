@@ -21,7 +21,18 @@ export function SetlistDisplay({ setlist, title }: SetlistDisplayProps) {
         <h3>{heading}</h3>
         <Badge type={setlist.source} />
       </div>
-      {setlist.source === 'predicted' && (
+      {setlist.source === 'predicted' && setlist.predictionBasis === 'same-tour' && (
+        <p className="setlist-hint muted">
+          Copied from the latest show on the same tour
+          {setlist.tourName ? ` (${setlist.tourName})` : ''}. Actual setlist may vary.
+        </p>
+      )}
+      {setlist.source === 'predicted' && setlist.predictionBasis === 'recent-frequency' && (
+        <p className="setlist-hint muted">
+          Based on songs played most often on recent shows — actual setlist may vary.
+        </p>
+      )}
+      {setlist.source === 'predicted' && !setlist.predictionBasis && (
         <p className="setlist-hint muted">
           Based on recent shows — actual setlist may vary.
         </p>

@@ -60,9 +60,19 @@ function parseLocation(raw: SlSetlist): { city?: string; state?: string; country
   return { city, state, country };
 }
 
+export function normalizeTourName(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .replace(/\btour\b$/i, '')
+    .trim();
+}
+
 export function normalizeSlSetlist(raw: SlSetlist, concertId?: string): Setlist {
   const date = parseSlDate(raw.eventDate);
   const location = parseLocation(raw);
+  const tourName = raw.tour?.name?.trim() || undefined;
   return {
     id: `sl:${raw.id}`,
     concertId: concertId ?? `sl:event:${raw.id}`,
@@ -74,6 +84,7 @@ export function normalizeSlSetlist(raw: SlSetlist, concertId?: string): Setlist 
     city: location.city,
     state: location.state,
     country: location.country,
+    tourName,
     updatedAt: new Date().toISOString(),
   };
 }
@@ -100,7 +111,42 @@ export function setlistToPastEvent(setlist: Setlist, artistName: string): Concer
   };
 }
 
-/** Build predicted setlist from recent actual setlists */
+/** Use the latest past show on the same tour as the prediction. */
+export function predictSetlistFromSameTour(
+  recent: Setlist[],
+  tourName: string,
+  artistName: string,
+  concertId: string
+): Setlist | null {
+  const target = normalizeTourName(tourName);
+  if (!target) return null;
+
+  const sameTour = recent
+    .filter(
+      (s) =>
+        s.source === 'actual' &&
+        s.tourName &&
+        normalizeTourName(s.tourName) === target &&
+        s.songs.length > 0
+    )
+    .sort((a, b) => (b.eventDate ?? '').localeCompare(a.eventDate ?? ''));
+
+  const latest = sameTour[0];
+  if (!latest) return null;
+
+  return {
+    ...latest,
+    id: `predicted:${slugify(artistName)}:tour:${slugify(tourName)}`,
+    concertId,
+    source: 'predicted',
+    predictionBasis: 'same-tour',
+    tourName: latest.tourName ?? tourName,
+    songs: latest.songs.map((song) => ({ ...song })),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+/** Build predicted setlist from recent actual setlists (frequency fallback). */
 export function buildPredictedSetlist(
   artistName: string,
   recent: Setlist[],
@@ -140,6 +186,7 @@ export function buildPredictedSetlist(
     id: `predicted:${slugify(artistName)}`,
     concertId,
     source: 'predicted',
+    predictionBasis: 'recent-frequency',
     songs,
     updatedAt: new Date().toISOString(),
   };
