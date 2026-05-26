@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { storageLabel } from '../storage/persist.js';
+import { storageLabel, storageWarning } from '../storage/persist.js';
 import { searchRouter } from './search.js';
 import { eventsRouter } from './events.js';
 import { venuesRouter } from './venues.js';
@@ -25,5 +25,6 @@ apiRouter.get('/health', (_req, res) => {
       setlistfm: Boolean(process.env.SETLISTFM_API_KEY),
     },
     storage: storageLabel(),
+    storageWarning: storageWarning(),
   });
 });
