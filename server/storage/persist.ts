@@ -1,3 +1,4 @@
+import type { UserConcert } from '../../shared/types/index.js';
 import type { UserDb } from './fileStore.js';
 import { isServerlessHost, loadUserDb, saveUserDb } from './fileStore.js';
 
@@ -58,11 +59,59 @@ export async function loadPersistedDb(): Promise<UserDb> {
     }
   }
 
+  // In-memory cache only for local disk / ephemeral serverless (not shared across instances).
   if (memoryDb) return memoryDb;
 
   const fromDisk = loadUserDb();
   memoryDb = fromDisk;
   return fromDisk;
+}
+
+function userConcertsRedisKey(userId: string): string {
+  return `encore:ucs:${userId}`;
+}
+
+/** Per-user list — avoids whole-DB races on serverless. */
+export async function loadUserConcertsForUser(userId: string): Promise<UserConcert[]> {
+  if (usesUpstash()) {
+    try {
+      const { Redis } = await import('@upstash/redis');
+      const redis = Redis.fromEnv();
+      const list = await redis.get<UserConcert[]>(userConcertsRedisKey(userId));
+      if (list && Array.isArray(list)) return list;
+    } catch (err) {
+      console.warn('[storage] Upstash user concerts load failed:', err);
+    }
+  }
+
+  if (usesVercelKv()) {
+    try {
+      const { kv } = await import('@vercel/kv');
+      const list = await kv.get<UserConcert[]>(userConcertsRedisKey(userId));
+      if (list && Array.isArray(list)) return list;
+    } catch (err) {
+      console.warn('[storage] KV user concerts load failed:', err);
+    }
+  }
+
+  const db = await loadPersistedDb();
+  return db.userConcerts.filter((uc) => uc.userId === userId);
+}
+
+export async function saveUserConcertsForUser(userId: string, list: UserConcert[]): Promise<void> {
+  if (usesUpstash()) {
+    const { Redis } = await import('@upstash/redis');
+    const redis = Redis.fromEnv();
+    await redis.set(userConcertsRedisKey(userId), list);
+  } else if (usesVercelKv()) {
+    const { kv } = await import('@vercel/kv');
+    await kv.set(userConcertsRedisKey(userId), list);
+  }
+
+  await mutatePersistedDb((db) => ({
+    ...db,
+    userConcerts: [...db.userConcerts.filter((uc) => uc.userId !== userId), ...list],
+  }));
 }
 
 export async function savePersistedDb(db: UserDb): Promise<void> {

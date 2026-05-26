@@ -101,7 +101,7 @@ export function MyConcertsPage() {
           <p className="page-subtitle muted">
             {totalTracked === 0
               ? 'Track as many concerts as you like — each show is saved separately.'
-              : `${totalTracked} show${totalTracked === 1 ? '' : 's'} tracked`}
+              : `${totalTracked} show${totalTracked === 1 ? '' : 's'} tracked · saved on this device`}
           </p>
         </div>
         <Link to="/add-concert" className="btn btn-secondary btn-sm">

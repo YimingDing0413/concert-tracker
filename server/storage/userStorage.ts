@@ -12,7 +12,13 @@ import type {
   UserShowReport,
 } from '../../shared/types/index.js';
 import { aggregateShowReports, normalizeTime, parseOpenerNames } from '../../shared/showReports.js';
-import { loadPersistedDb, mutatePersistedDb, savePersistedDb } from './persist.js';
+import {
+  loadPersistedDb,
+  loadUserConcertsForUser,
+  mutatePersistedDb,
+  savePersistedDb,
+  saveUserConcertsForUser,
+} from './persist.js';
 import { getEventById } from '../services/eventService.js';
 import { concertEventToConcert } from '../../shared/mappers.js';
 
@@ -119,8 +125,9 @@ export async function getCurrentUser(): Promise<User | null> {
 
 export async function getUserConcerts(userId: string): Promise<UserConcert[]> {
   await ensureStorageReady();
+  const list = await loadUserConcertsForUser(userId);
   await refreshFromDb();
-  return userConcerts.filter((uc) => uc.userId === userId);
+  return list;
 }
 
 export async function setConcertStatus(
@@ -129,57 +136,47 @@ export async function setConcertStatus(
   status: UserConcertStatus
 ): Promise<UserConcert> {
   await ensureStorageReady();
-  const existing = userConcerts.find((uc) => uc.userId === userId && uc.concertId === concertId);
+  const list = await loadUserConcertsForUser(userId);
+  const existing = list.find((uc) => uc.userId === userId && uc.concertId === concertId);
   const now = new Date().toISOString();
   const snapshot =
     existing?.concertSnapshot ?? (await fetchConcertSnapshot(concertId));
 
-  let saved: UserConcert | null = null;
+  const uc: UserConcert = existing
+    ? {
+        ...existing,
+        status,
+        concertSnapshot: snapshot ?? existing.concertSnapshot,
+        updatedAt: now,
+      }
+    : {
+        id: generateId('uc'),
+        userId,
+        concertId,
+        status,
+        concertSnapshot: snapshot,
+        createdAt: now,
+        updatedAt: now,
+      };
 
-  await mutatePersistedDb((db) => {
-    const list = [...db.userConcerts];
-    const idx = list.findIndex((uc) => uc.userId === userId && uc.concertId === concertId);
-    const prev = idx >= 0 ? list[idx] : undefined;
-    const uc: UserConcert = prev
-      ? {
-          ...prev,
-          status,
-          concertSnapshot: snapshot ?? prev.concertSnapshot,
-          updatedAt: now,
-        }
-      : {
-          id: generateId('uc'),
-          userId,
-          concertId,
-          status,
-          concertSnapshot: snapshot,
-          createdAt: now,
-          updatedAt: now,
-        };
-    saved = uc;
-    const next =
-      idx >= 0 ? list.map((item, i) => (i === idx ? uc : item)) : [...list, uc];
-    return { ...db, userConcerts: next };
-  });
+  const idx = list.findIndex((item) => item.id === uc.id);
+  const next =
+    idx >= 0 ? list.map((item, i) => (i === idx ? uc : item)) : [...list, uc];
 
+  await saveUserConcertsForUser(userId, next);
   await refreshFromDb();
-  if (!saved) throw new Error('Failed to save concert status');
-  return saved;
+  return uc;
 }
 
 export async function removeUserConcert(userId: string, userConcertId: string): Promise<void> {
   await ensureStorageReady();
+  const list = await loadUserConcertsForUser(userId);
+  const next = list.filter((uc) => uc.id !== userConcertId);
+  await saveUserConcertsForUser(userId, next);
   await mutatePersistedDb((db) => ({
     ...db,
-    userConcerts: db.userConcerts.filter(
-      (uc) => !(uc.id === userConcertId && uc.userId === userId)
-    ),
     ratings: db.ratings.filter(
-      (r) =>
-        !(
-          r.userConcertId === userConcertId &&
-          r.userId === userId
-        )
+      (r) => !(r.userConcertId === userConcertId && r.userId === userId)
     ),
   }));
   await refreshFromDb();
@@ -213,10 +210,8 @@ export async function addManualConcert(userId: string, input: ManualConcertInput
     createdAt: now,
     updatedAt: now,
   };
-  await mutatePersistedDb((db) => ({
-    ...db,
-    userConcerts: [...db.userConcerts, uc],
-  }));
+  const list = await loadUserConcertsForUser(userId);
+  await saveUserConcertsForUser(userId, [...list, uc]);
   await refreshFromDb();
   return uc;
 }
