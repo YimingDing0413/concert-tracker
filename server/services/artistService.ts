@@ -194,7 +194,7 @@ export async function getArtistDetail(idOrName: string): Promise<{
   const messages = [
     bitEventsRes.meta?.message,
     setlistsRes.meta?.message,
-    tmPastRes.meta?.message,
+    (tmPastRes.meta as { message?: string } | undefined)?.message,
   ].filter(Boolean);
 
   return {

@@ -51,7 +51,6 @@ export interface SlSetlist {
   artist: { mbid: string; name: string };
   venue: { name: string; city: { name: string }; country?: { name: string } };
   url?: string;
-  song?: { name: string; encore?: { encore: number }; info?: string }[];
   sets?:
     | {
         set?: {

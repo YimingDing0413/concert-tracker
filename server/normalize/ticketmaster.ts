@@ -50,7 +50,11 @@ export function normalizeTmEvent(raw: any): ConcertEvent | null {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function normalizeTmEventsResponse(payload: any): ConcertEvent[] {
   const events = payload?._embedded?.events ?? [];
-  return events.map(normalizeTmEvent).filter((e): e is ConcertEvent => e !== null);
+  return events
+    .map(normalizeTmEvent)
+    .filter(
+      (e: ConcertEvent | null): e is ConcertEvent => e !== null
+    );
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -71,7 +75,9 @@ export function normalizeTmAttraction(raw: any): Artist | null {
 export function normalizeTmAttractionsSearch(payload: any): Artist[] {
   return (payload?._embedded?.attractions ?? [])
     .map(normalizeTmAttraction)
-    .filter((a): a is Artist => a !== null);
+    .filter(
+      (a: Artist | null): a is Artist => a !== null
+    );
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -98,7 +104,9 @@ export function normalizeTmVenue(raw: any): Venue | null {
 export function normalizeTmVenuesSearch(payload: any): Venue[] {
   return (payload?._embedded?.venues ?? [])
     .map(normalizeTmVenue)
-    .filter((v): v is Venue => v !== null);
+    .filter(
+      (v: Venue | null): v is Venue => v !== null
+    );
 }
 
 export function normalizeTmSearchResults(
