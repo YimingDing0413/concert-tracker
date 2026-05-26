@@ -6,7 +6,7 @@ import { StarRating } from '@/components/ui/StarRating';
 import { useAuth } from '@/context/AuthContext';
 import type { ConcertDetail, RatingInput, UserConcert } from '@/types';
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 const defaultRatings: RatingInput = {
   overall: 0,
@@ -21,6 +21,7 @@ export function RatingPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [concert, setConcert] = useState<ConcertDetail | null>(null);
   const [userConcert, setUserConcert] = useState<UserConcert | null>(null);
   const [input, setInput] = useState<RatingInput>(defaultRatings);
@@ -62,7 +63,7 @@ export function RatingPage() {
     setSaving(true);
     try {
       await api.saveRating(user.id, uc.id, id, input);
-      navigate(`/concert/${id}`);
+      navigate(`/concert/${id}`, { state: location.state });
     } finally {
       setSaving(false);
     }

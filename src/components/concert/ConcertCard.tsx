@@ -9,9 +9,11 @@ interface ConcertCardProps {
   userConcert?: UserConcert;
   rating?: ConcertRating | null;
   concertId?: string;
+  /** Where the back link on the concert detail page should return (e.g. artist past tab). */
+  backTo?: string;
 }
 
-export function ConcertCard({ concert, userConcert, rating, concertId }: ConcertCardProps) {
+export function ConcertCard({ concert, userConcert, rating, concertId, backTo }: ConcertCardProps) {
   const id = concertId ?? concert.id ?? userConcert?.concertId;
   const artist = concert.artistName ?? 'Unknown artist';
   const venue = concert.venueName ?? 'Unknown venue';
@@ -21,7 +23,7 @@ export function ConcertCard({ concert, userConcert, rating, concertId }: Concert
   return (
     <Link
       to={`/concert/${id}`}
-      state={{ concertSnapshot: concert }}
+      state={{ concertSnapshot: concert, ...(backTo ? { backTo } : {}) }}
       className="concert-card"
     >
       {concert.imageUrl && (

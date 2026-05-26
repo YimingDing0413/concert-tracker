@@ -54,7 +54,7 @@ export function VenueDetailPage() {
         ) : (
           <div className="card-list">
             {venue.upcomingEvents.map((c) => (
-              <ConcertCard key={c.id} concert={c} />
+              <ConcertCard key={c.id} concert={c} backTo={`/venue/${id}`} />
             ))}
           </div>
         )}

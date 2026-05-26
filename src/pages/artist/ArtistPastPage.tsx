@@ -1,9 +1,11 @@
 import { useArtistDetail } from '@/components/artist/ArtistLayout';
 import { ConcertCard } from '@/components/concert/ConcertCard';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { useLocation } from 'react-router-dom';
 
 export function ArtistPastPage() {
   const artist = useArtistDetail();
+  const { pathname } = useLocation();
   const concerts = artist.pastConcerts;
 
   return (
@@ -13,7 +15,7 @@ export function ArtistPastPage() {
       ) : (
         <div className="card-list">
           {concerts.map((c) => (
-            <ConcertCard key={c.id} concert={c} />
+            <ConcertCard key={c.id} concert={c} backTo={pathname} />
           ))}
         </div>
       )}

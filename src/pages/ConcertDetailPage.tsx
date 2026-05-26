@@ -15,18 +15,16 @@ import type {
   UserConcert,
 } from '@/types';
 import { formatDate, formatLocation, formatTime } from '@/utils/format';
+import { getConcertNavState } from '@/utils/concertNav';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-
-type ConcertLocationState = {
-  concertSnapshot?: Partial<ConcertDetail>;
-};
 
 export function ConcertDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const navState = getConcertNavState(location.state);
   const [concert, setConcert] = useState<ConcertDetail | null>(null);
   const [userConcert, setUserConcert] = useState<UserConcert | null>(null);
   const [rating, setRating] = useState<ConcertRating | null>(null);
@@ -42,8 +40,7 @@ export function ConcertDetailPage() {
     const timingPromise = api.getShowTiming(id, user?.id);
     if (!user) {
       const [c, timing] = await Promise.all([api.getConcert(id), timingPromise]);
-      const state = (location.state ?? {}) as ConcertLocationState;
-      const snapshot = state.concertSnapshot;
+      const snapshot = navState.concertSnapshot;
       const merged =
         snapshot && c?.source === 'mock' ? ({ ...c, ...snapshot, id: c.id } as ConcertDetail) : c;
       setConcert(merged);
@@ -59,8 +56,7 @@ export function ConcertDetailPage() {
       api.getRating(user.id, id),
       timingPromise,
     ]);
-    const state = (location.state ?? {}) as ConcertLocationState;
-    const snapshot = state.concertSnapshot;
+    const snapshot = navState.concertSnapshot;
     // If this concert came from a list (e.g. Setlist.fm-derived past shows),
     // keep the real artist/venue/date we already have even if the API falls back to mock.
     const merged =
@@ -70,7 +66,7 @@ export function ConcertDetailPage() {
     setRating(r);
     setShowTiming(timing.aggregated);
     setShowReportCount(timing.reports.length);
-  }, [id, user, location.state]);
+  }, [id, user, navState.concertSnapshot]);
 
   async function handleSubmitShowInfo(input: ShowReportInput) {
     if (!user || !id) {
@@ -115,7 +111,7 @@ export function ConcertDetailPage() {
       <PageHeader
         title={concert.artistName}
         subtitle={`${concert.venueName} · ${formatLocation(concert.city, concert.state, concert.country)}`}
-        backTo="/"
+        backTo={navState.backTo ?? '/'}
       />
       <ApiNotice source={concert.source} />
       {concert.imageUrl && (
@@ -151,7 +147,7 @@ export function ConcertDetailPage() {
           loading={actionLoading}
           onGoing={() => setStatus('going')}
           onAttended={() => setStatus('attended')}
-          onRate={() => navigate(`/concert/${id}/rate`)}
+          onRate={() => navigate(`/concert/${id}/rate`, { state: location.state })}
         />
       )}
       {rating && (
