@@ -26,6 +26,12 @@ export async function slGetArtistSetlists(mbid: string, page = 1) {
   return fetchJson<SlSetlistsPage>(url, { headers: headers() });
 }
 
+export async function slGetSetlist(setlistId: string) {
+  const rawId = setlistId.replace(/^sl:/, '');
+  const url = `${BASE}/setlist/${rawId}`;
+  return fetchJson<SlSetlist>(url, { headers: headers() });
+}
+
 export interface SlArtist {
   mbid: string;
   name: string;

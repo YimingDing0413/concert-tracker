@@ -1,6 +1,7 @@
 import * as bit from '../clients/bandsintown.js';
+import * as sl from '../clients/setlistfm.js';
 import * as tm from '../clients/ticketmaster.js';
-import { hasBandsintown, hasTicketmaster } from '../env.js';
+import { hasBandsintown, hasSetlistFm, hasTicketmaster } from '../env.js';
 import { mockEvents } from '../mock/fallbackData.js';
 import { normalizeBitEvents } from '../normalize/bandsintown.js';
 import {
@@ -9,7 +10,7 @@ import {
 } from '../normalize/ticketmaster.js';
 import { withFallback } from '../lib/withFallback.js';
 import type { ConcertEvent } from '../../shared/types/index.js';
-import { buildPredictedSetlist } from '../normalize/setlistfm.js';
+import { buildPredictedSetlist, normalizeSlSetlist, setlistToPastEvent } from '../normalize/setlistfm.js';
 import { getSetlistsForArtist } from './artistService.js';
 
 export async function listEvents(params: {
@@ -44,6 +45,23 @@ export async function getEventById(id: string) {
     );
   }
 
+  if (id.startsWith('sl:event:')) {
+    return withFallback(
+      async () => {
+        const setlistId = id.replace(/^sl:event:/, '');
+        const raw = await sl.slGetSetlist(setlistId);
+        const setlist = normalizeSlSetlist(raw, id);
+        const base = setlistToPastEvent(setlist, raw.artist?.name ?? 'Artist');
+        // Try to find the matching Ticketmaster event to enrich (openers, better location, etc.)
+        const enriched = await enrichFromTicketmasterSearch(base);
+        return enriched;
+      },
+      () => mockEvents.find((e) => e.id === id) ?? mockEvents[0],
+      hasSetlistFm(),
+      'Setlist.fm event'
+    );
+  }
+
   return withFallback(
     async () => {
       const payload = await tm.tmGetEvent(id);
@@ -58,6 +76,18 @@ export async function getEventById(id: string) {
 }
 
 export async function getEventSetlist(eventId: string, artistName?: string) {
+  if (eventId.startsWith('sl:event:')) {
+    return withFallback(
+      async () => {
+        const setlistId = eventId.replace(/^sl:event:/, '');
+        const raw = await sl.slGetSetlist(setlistId);
+        return normalizeSlSetlist(raw, eventId);
+      },
+      () => null,
+      hasSetlistFm(),
+      'Setlist.fm'
+    );
+  }
   const eventRes = await getEventById(eventId);
   const event = eventRes.data;
   const name = artistName ?? event.artistName;
@@ -76,6 +106,47 @@ export async function getEventSetlist(eventId: string, artistName?: string) {
 
   const predictedRes = await getPredictedSetlist(name, eventId);
   return { data: predictedRes.data, meta: predictedRes.meta };
+}
+
+async function enrichFromTicketmasterSearch(base: ConcertEvent): Promise<ConcertEvent> {
+  if (!hasTicketmaster()) return base;
+  if (!base.artistName || !base.date || !base.city) return base;
+
+  const startDateTime = `${base.date}T00:00:00Z`;
+  const endDateTime = `${base.date}T23:59:59Z`;
+  const payload = await tm.tmSearchEvents({
+    keyword: base.artistName,
+    city: base.city,
+    startDateTime,
+    endDateTime,
+    size: 20,
+  });
+  const candidates = normalizeTmEventsResponse(payload);
+  const match = candidates.find((e) => sameVenueName(e.venueName, base.venueName));
+  if (!match) return base;
+
+  return {
+    ...base,
+    venueId: match.venueId ?? base.venueId,
+    city: match.city || base.city,
+    state: match.state ?? base.state,
+    country: match.country ?? base.country,
+    time: match.time ?? base.time,
+    openers: match.openers ?? base.openers,
+    imageUrl: match.imageUrl ?? base.imageUrl,
+    ticketUrl: match.ticketUrl ?? base.ticketUrl,
+  };
+}
+
+function sameVenueName(a: string, b: string): boolean {
+  const na = normalizeVenueName(a);
+  const nb = normalizeVenueName(b);
+  if (!na || !nb) return false;
+  return na === nb || na.includes(nb) || nb.includes(na);
+}
+
+function normalizeVenueName(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
 export async function getPredictedSetlist(artistName: string, concertId?: string) {
