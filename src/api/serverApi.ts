@@ -81,8 +81,11 @@ export const serverApi: ConcertApiClient = {
     });
   },
 
-  async removeUserConcert() {
-    /* not implemented on server yet */
+  async removeUserConcert(userId, userConcertId) {
+    await apiFetchData<null>(
+      `/api/user/concerts/${encodeURIComponent(userConcertId)}?userId=${encodeURIComponent(userId)}`,
+      { method: 'DELETE' }
+    );
   },
 
   async addManualConcert(userId, input) {

@@ -31,6 +31,20 @@ userRouter.post('/concerts/status', async (req, res, next) => {
   }
 });
 
+userRouter.delete('/concerts/:userConcertId', async (req, res, next) => {
+  try {
+    const userId = String(req.query.userId ?? req.body?.userId ?? store.getSessionUserId() ?? '');
+    if (!userId) {
+      res.status(401).json({ error: 'Not authenticated' });
+      return;
+    }
+    await store.removeUserConcert(userId, req.params.userConcertId);
+    res.json({ data: null });
+  } catch (err) {
+    next(err);
+  }
+});
+
 userRouter.post('/concerts/manual', async (req, res, next) => {
   try {
     const { userId, ...input } = req.body ?? {};

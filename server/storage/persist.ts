@@ -84,6 +84,19 @@ export async function savePersistedDb(db: UserDb): Promise<void> {
   saveUserDb(db);
 }
 
+/** Read-modify-write so concurrent serverless requests do not drop entries. */
+export async function mutatePersistedDb(mutator: (db: UserDb) => UserDb): Promise<UserDb> {
+  const current = await loadPersistedDb();
+  const next = mutator({
+    users: current.users ?? [],
+    userConcerts: current.userConcerts ?? [],
+    ratings: current.ratings ?? [],
+    showReports: current.showReports ?? [],
+  });
+  await savePersistedDb(next);
+  return next;
+}
+
 export function storageLabel(): string {
   if (usesUpstash()) return 'upstash-redis';
   if (usesVercelKv()) return 'vercel-kv';

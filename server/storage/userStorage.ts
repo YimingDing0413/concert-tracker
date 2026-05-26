@@ -12,7 +12,7 @@ import type {
   UserShowReport,
 } from '../../shared/types/index.js';
 import { aggregateShowReports, normalizeTime, parseOpenerNames } from '../../shared/showReports.js';
-import { loadPersistedDb, savePersistedDb } from './persist.js';
+import { loadPersistedDb, mutatePersistedDb, savePersistedDb } from './persist.js';
 import { getEventById } from '../services/eventService.js';
 import { concertEventToConcert } from '../../shared/mappers.js';
 
@@ -34,15 +34,23 @@ let showReports: UserShowReport[] = [];
 const sessions = new Map<string, string>();
 let storageReady: Promise<void> | null = null;
 
-async function hydrate() {
-  const db = await loadPersistedDb();
+function applyDb(db: Awaited<ReturnType<typeof loadPersistedDb>>) {
   users = db.users.length ? db.users : [DEMO_USER];
-  userConcerts = db.userConcerts;
-  ratings = db.ratings;
+  userConcerts = db.userConcerts ?? [];
+  ratings = db.ratings ?? [];
   showReports = db.showReports ?? [];
+}
+
+async function refreshFromDb() {
+  applyDb(await loadPersistedDb());
+}
+
+async function hydrate() {
+  await refreshFromDb();
   if (!users.some((u) => u.id === DEMO_USER.id)) {
     users = [DEMO_USER, ...users];
-    await persist();
+    await savePersistedDb({ users, userConcerts, ratings, showReports });
+    await refreshFromDb();
   }
 }
 
@@ -53,6 +61,7 @@ export function ensureStorageReady(): Promise<void> {
 
 async function persist() {
   await savePersistedDb({ users, userConcerts, ratings, showReports });
+  await refreshFromDb();
 }
 
 function generateId(prefix: string) {
@@ -110,6 +119,7 @@ export async function getCurrentUser(): Promise<User | null> {
 
 export async function getUserConcerts(userId: string): Promise<UserConcert[]> {
   await ensureStorageReady();
+  await refreshFromDb();
   return userConcerts.filter((uc) => uc.userId === userId);
 }
 
@@ -124,23 +134,55 @@ export async function setConcertStatus(
   const snapshot =
     existing?.concertSnapshot ?? (await fetchConcertSnapshot(concertId));
 
-  const uc: UserConcert = existing
-    ? { ...existing, status, concertSnapshot: snapshot ?? existing.concertSnapshot, updatedAt: now }
-    : {
-        id: generateId('uc'),
-        userId,
-        concertId,
-        status,
-        concertSnapshot: snapshot,
-        createdAt: now,
-        updatedAt: now,
-      };
+  let saved: UserConcert | null = null;
 
-  const idx = userConcerts.findIndex((u) => u.id === uc.id);
-  userConcerts =
-    idx >= 0 ? userConcerts.map((u, i) => (i === idx ? uc : u)) : [...userConcerts, uc];
-  await persist();
-  return uc;
+  await mutatePersistedDb((db) => {
+    const list = [...db.userConcerts];
+    const idx = list.findIndex((uc) => uc.userId === userId && uc.concertId === concertId);
+    const prev = idx >= 0 ? list[idx] : undefined;
+    const uc: UserConcert = prev
+      ? {
+          ...prev,
+          status,
+          concertSnapshot: snapshot ?? prev.concertSnapshot,
+          updatedAt: now,
+        }
+      : {
+          id: generateId('uc'),
+          userId,
+          concertId,
+          status,
+          concertSnapshot: snapshot,
+          createdAt: now,
+          updatedAt: now,
+        };
+    saved = uc;
+    const next =
+      idx >= 0 ? list.map((item, i) => (i === idx ? uc : item)) : [...list, uc];
+    return { ...db, userConcerts: next };
+  });
+
+  await refreshFromDb();
+  if (!saved) throw new Error('Failed to save concert status');
+  return saved;
+}
+
+export async function removeUserConcert(userId: string, userConcertId: string): Promise<void> {
+  await ensureStorageReady();
+  await mutatePersistedDb((db) => ({
+    ...db,
+    userConcerts: db.userConcerts.filter(
+      (uc) => !(uc.id === userConcertId && uc.userId === userId)
+    ),
+    ratings: db.ratings.filter(
+      (r) =>
+        !(
+          r.userConcertId === userConcertId &&
+          r.userId === userId
+        )
+    ),
+  }));
+  await refreshFromDb();
 }
 
 export async function addManualConcert(userId: string, input: ManualConcertInput) {
@@ -171,8 +213,11 @@ export async function addManualConcert(userId: string, input: ManualConcertInput
     createdAt: now,
     updatedAt: now,
   };
-  userConcerts = [...userConcerts, uc];
-  await persist();
+  await mutatePersistedDb((db) => ({
+    ...db,
+    userConcerts: [...db.userConcerts, uc],
+  }));
+  await refreshFromDb();
   return uc;
 }
 
@@ -201,15 +246,21 @@ export async function saveRating(
         createdAt: now,
         updatedAt: now,
       };
-  const idx = ratings.findIndex((r) => r.id === rating.id);
-  ratings = idx >= 0 ? ratings.map((r, i) => (i === idx ? rating : r)) : [...ratings, rating];
-  const ucIdx = userConcerts.findIndex((u) => u.id === userConcertId);
-  if (ucIdx >= 0) {
-    userConcerts = userConcerts.map((u, i) =>
-      i === ucIdx ? { ...u, ratingId: rating.id, status: 'attended' } : u
+  await mutatePersistedDb((db) => {
+    const ratingList = [...db.ratings];
+    const rIdx = ratingList.findIndex((r) => r.id === rating.id);
+    if (rIdx >= 0) ratingList[rIdx] = rating;
+    else ratingList.push(rating);
+
+    const concertList = db.userConcerts.map((u) =>
+      u.id === userConcertId && u.userId === userId
+        ? { ...u, ratingId: rating.id, status: 'attended' as const }
+        : u
     );
-  }
-  await persist();
+
+    return { ...db, ratings: ratingList, userConcerts: concertList };
+  });
+  await refreshFromDb();
   return rating;
 }
 
@@ -218,6 +269,7 @@ export async function getShowTiming(
   userId?: string
 ): Promise<ShowTimingResponse> {
   await ensureStorageReady();
+  await refreshFromDb();
   const reports = showReports.filter((r) => r.eventId === eventId);
   const aggregated = aggregateShowReports(eventId, reports);
   const userReport = userId
@@ -272,7 +324,10 @@ export async function createShowReport(
     throw new Error('Add at least one timing field or a note.');
   }
 
-  showReports = [...showReports, report];
-  await persist();
+  await mutatePersistedDb((db) => ({
+    ...db,
+    showReports: [...(db.showReports ?? []), report],
+  }));
+  await refreshFromDb();
   return report;
 }
