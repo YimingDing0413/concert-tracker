@@ -49,7 +49,16 @@ export interface SlSetlist {
   id: string;
   eventDate: string;
   artist: { mbid: string; name: string };
-  venue: { name: string; city: { name: string }; country?: { name: string } };
+  venue: {
+    name: string;
+    city: {
+      name: string;
+      state?: string;
+      stateCode?: string;
+      country?: { name?: string; code?: string };
+    };
+    country?: { name?: string; code?: string };
+  };
   url?: string;
   sets?:
     | {

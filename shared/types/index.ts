@@ -65,6 +65,8 @@ export interface Setlist {
   eventDate?: string;
   venueName?: string;
   city?: string;
+  state?: string;
+  country?: string;
   updatedAt: string;
 }
 

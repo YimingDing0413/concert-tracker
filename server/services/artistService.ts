@@ -165,7 +165,8 @@ export async function getArtistDetail(idOrName: string): Promise<{
   const setlists = setlistsRes.data;
   const pastFromSetlists = setlists
     .filter((s) => s.eventDate && s.eventDate < new Date().toISOString().slice(0, 10))
-    .map((s) => setlistToPastEvent(s, artistName));
+    .map((s) => setlistToPastEvent(s, artistName))
+    .map((s) => enrichSetlistPastEvent(s, tmPastRes.data));
 
   const allPastEvents = [...bitEventsRes.data, ...tmPastRes.data, ...pastFromSetlists];
   const allUpcomingEvents = [...bitEventsRes.data, ...tmUpcomingRes.data];
@@ -220,4 +221,43 @@ function dedupeEvents<T extends { id: string; date: string; venueName: string }>
     seen.add(key);
     return true;
   });
+}
+
+function enrichSetlistPastEvent(
+  setlistEvent: ConcertEvent,
+  tmPastEvents: ConcertEvent[]
+): ConcertEvent {
+  const tmMatch = tmPastEvents.find(
+    (tmEvent) =>
+      tmEvent.date === setlistEvent.date &&
+      sameVenueName(tmEvent.venueName, setlistEvent.venueName)
+  );
+
+  if (!tmMatch) return setlistEvent;
+
+  return {
+    ...setlistEvent,
+    // Keep Setlist.fm event id so setlist linking still works.
+    artistName: tmMatch.artistName ?? setlistEvent.artistName,
+    artistId: tmMatch.artistId ?? setlistEvent.artistId,
+    venueId: tmMatch.venueId ?? setlistEvent.venueId,
+    city: tmMatch.city || setlistEvent.city,
+    state: tmMatch.state ?? setlistEvent.state,
+    country: tmMatch.country ?? setlistEvent.country,
+    time: tmMatch.time ?? setlistEvent.time,
+    openers: tmMatch.openers ?? setlistEvent.openers,
+    imageUrl: tmMatch.imageUrl ?? setlistEvent.imageUrl,
+    ticketUrl: tmMatch.ticketUrl ?? setlistEvent.ticketUrl,
+  };
+}
+
+function sameVenueName(a: string, b: string): boolean {
+  const na = normalizeVenueName(a);
+  const nb = normalizeVenueName(b);
+  if (!na || !nb) return false;
+  return na === nb || na.includes(nb) || nb.includes(na);
+}
+
+function normalizeVenueName(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, '');
 }

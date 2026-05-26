@@ -51,8 +51,18 @@ function extractSongs(setlist: SlSetlist): SetlistSong[] {
   return songs;
 }
 
+function parseLocation(raw: SlSetlist): { city?: string; state?: string; country?: string } {
+  const city = raw.venue?.city?.name;
+  const state = raw.venue?.city?.stateCode ?? raw.venue?.city?.state;
+  const country =
+    raw.venue?.city?.country?.name ??
+    raw.venue?.country?.name;
+  return { city, state, country };
+}
+
 export function normalizeSlSetlist(raw: SlSetlist, concertId?: string): Setlist {
   const date = parseSlDate(raw.eventDate);
+  const location = parseLocation(raw);
   return {
     id: `sl:${raw.id}`,
     concertId: concertId ?? `sl:event:${raw.id}`,
@@ -61,7 +71,9 @@ export function normalizeSlSetlist(raw: SlSetlist, concertId?: string): Setlist 
     setlistFmUrl: raw.url,
     eventDate: date,
     venueName: raw.venue.name,
-    city: raw.venue.city.name,
+    city: location.city,
+    state: location.state,
+    country: location.country,
     updatedAt: new Date().toISOString(),
   };
 }
@@ -80,6 +92,8 @@ export function setlistToPastEvent(setlist: Setlist, artistName: string): Concer
     venueName: setlist.venueName ?? 'Unknown venue',
     venueId: `sl:venue:${slugify(setlist.venueName ?? 'venue')}`,
     city: setlist.city ?? '',
+    state: setlist.state,
+    country: setlist.country,
     date,
     status: 'past',
     rawSourceUrl: setlist.setlistFmUrl,
