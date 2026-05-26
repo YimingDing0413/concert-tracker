@@ -19,7 +19,11 @@ export function ConcertCard({ concert, userConcert, rating, concertId }: Concert
   const city = concert.city ?? '';
 
   return (
-    <Link to={`/concert/${id}`} className="concert-card">
+    <Link
+      to={`/concert/${id}`}
+      state={{ concertSnapshot: concert }}
+      className="concert-card"
+    >
       {concert.imageUrl && (
         <img src={concert.imageUrl} alt="" className="concert-card-img" loading="lazy" />
       )}

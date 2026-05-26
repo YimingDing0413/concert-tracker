@@ -10,12 +10,17 @@ import { useAuth } from '@/context/AuthContext';
 import type { ConcertDetail, ConcertRating, UserConcert } from '@/types';
 import { formatDate, formatLocation, formatTime } from '@/utils/format';
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+
+type ConcertLocationState = {
+  concertSnapshot?: Partial<ConcertDetail>;
+};
 
 export function ConcertDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [concert, setConcert] = useState<ConcertDetail | null>(null);
   const [userConcert, setUserConcert] = useState<UserConcert | null>(null);
   const [rating, setRating] = useState<ConcertRating | null>(null);
@@ -30,10 +35,16 @@ export function ConcertDetailPage() {
       api.getUserConcerts(user.id),
       api.getRating(user.id, id),
     ]);
-    setConcert(c);
+    const state = (location.state ?? {}) as ConcertLocationState;
+    const snapshot = state.concertSnapshot;
+    // If this concert came from a list (e.g. Setlist.fm-derived past shows),
+    // keep the real artist/venue/date we already have even if the API falls back to mock.
+    const merged =
+      snapshot && c?.source === 'mock' ? ({ ...c, ...snapshot, id: c.id } as ConcertDetail) : c;
+    setConcert(merged);
     setUserConcert(ucs.find((uc) => uc.concertId === id) ?? null);
     setRating(r);
-  }, [id, user]);
+  }, [id, user, location.state]);
 
   useEffect(() => {
     if (!id) return;
