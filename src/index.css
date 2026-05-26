@@ -632,6 +632,157 @@ textarea {
   margin-bottom: 0.35rem;
 }
 
+.community-timing-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.community-timing-header h3 {
+  margin: 0;
+}
+
+.community-timing-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+.community-timing-row {
+  padding: 0.75rem;
+  background: var(--surface2);
+  border-radius: 8px;
+}
+
+.community-timing-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.community-timing-label {
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.community-timing-value {
+  margin: 0.35rem 0 0.15rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.community-timing-meta {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.community-timing-total {
+  margin: 0.85rem 0 0;
+  font-size: 0.8rem;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.modal-card {
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px 12px 0 0;
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+@media (min-width: 520px) {
+  .modal-overlay {
+    align-items: center;
+  }
+  .modal-card {
+    border-radius: 12px;
+  }
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+}
+
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.875rem;
+}
+
+.form-field span {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.form-field input,
+.form-field select,
+.form-field textarea {
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  font: inherit;
+}
+
+.form-error {
+  color: #f87171;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
 .api-notice {
   font-size: 0.8rem;
   color: #f5c542;

@@ -2,12 +2,16 @@ import type {
   Concert,
   ConcertRating,
   RatingInput,
+  ShowReportInput,
+  ShowTimingResponse,
   SignUpInput,
   User,
   UserConcert,
   UserConcertStatus,
   ManualConcertInput,
+  UserShowReport,
 } from '../../shared/types/index.js';
+import { aggregateShowReports, normalizeTime, parseOpenerNames } from '../../shared/showReports.js';
 import { loadPersistedDb, savePersistedDb } from './persist.js';
 import { getEventById } from '../services/eventService.js';
 import { concertEventToConcert } from '../../shared/mappers.js';
@@ -26,6 +30,7 @@ export const DEMO_USER: User = {
 let users: User[] = [];
 let userConcerts: UserConcert[] = [];
 let ratings: ConcertRating[] = [];
+let showReports: UserShowReport[] = [];
 const sessions = new Map<string, string>();
 let storageReady: Promise<void> | null = null;
 
@@ -34,6 +39,7 @@ async function hydrate() {
   users = db.users.length ? db.users : [DEMO_USER];
   userConcerts = db.userConcerts;
   ratings = db.ratings;
+  showReports = db.showReports ?? [];
   if (!users.some((u) => u.id === DEMO_USER.id)) {
     users = [DEMO_USER, ...users];
     await persist();
@@ -46,7 +52,7 @@ export function ensureStorageReady(): Promise<void> {
 }
 
 async function persist() {
-  await savePersistedDb({ users, userConcerts, ratings });
+  await savePersistedDb({ users, userConcerts, ratings, showReports });
 }
 
 function generateId(prefix: string) {
@@ -205,4 +211,68 @@ export async function saveRating(
   }
   await persist();
   return rating;
+}
+
+export async function getShowTiming(
+  eventId: string,
+  userId?: string
+): Promise<ShowTimingResponse> {
+  await ensureStorageReady();
+  const reports = showReports.filter((r) => r.eventId === eventId);
+  const aggregated = aggregateShowReports(eventId, reports);
+  const userReport = userId
+    ? [...reports].reverse().find((r) => r.userId === userId) ?? null
+    : null;
+  return { reports, aggregated, userReport };
+}
+
+export async function createShowReport(
+  eventId: string,
+  userId: string,
+  input: ShowReportInput
+): Promise<UserShowReport> {
+  await ensureStorageReady();
+  const now = new Date().toISOString();
+  const openerNames = input.openerNames ? parseOpenerNames(input.openerNames) : undefined;
+
+  const report: UserShowReport = {
+    id: generateId('sr'),
+    eventId,
+    userId,
+    doorsOpenTime: input.doorsOpenTime
+      ? (normalizeTime(input.doorsOpenTime) ?? input.doorsOpenTime.trim())
+      : undefined,
+    openerNames: openerNames?.length ? openerNames : undefined,
+    openerStartTime: input.openerStartTime
+      ? (normalizeTime(input.openerStartTime) ?? input.openerStartTime.trim())
+      : undefined,
+    headlinerStartTime: input.headlinerStartTime
+      ? (normalizeTime(input.headlinerStartTime) ?? input.headlinerStartTime.trim())
+      : undefined,
+    endTime: input.endTime
+      ? (normalizeTime(input.endTime) ?? input.endTime.trim())
+      : undefined,
+    notes: input.notes?.trim() || undefined,
+    sourceType: input.sourceType,
+    sourceUrl: input.sourceUrl?.trim() || undefined,
+    confidence: input.confidence,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  const hasField =
+    report.doorsOpenTime ||
+    report.openerNames?.length ||
+    report.openerStartTime ||
+    report.headlinerStartTime ||
+    report.endTime ||
+    report.notes;
+
+  if (!hasField) {
+    throw new Error('Add at least one timing field or a note.');
+  }
+
+  showReports = [...showReports, report];
+  await persist();
+  return report;
 }

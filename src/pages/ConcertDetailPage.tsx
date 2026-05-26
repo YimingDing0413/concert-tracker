@@ -1,13 +1,19 @@
 import { api } from '@/api';
 import { ConcertActions } from '@/components/concert/ConcertActions';
-import { ConcertTimingGrid } from '@/components/concert/ConcertTiming';
+import { CommunityShowTiming } from '@/components/concert/CommunityShowTiming';
 import { SetlistDisplay } from '@/components/concert/SetlistDisplay';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { ApiNotice } from '@/components/ui/ApiNotice';
 import { StarRating } from '@/components/ui/StarRating';
 import { useAuth } from '@/context/AuthContext';
-import type { ConcertDetail, ConcertRating, UserConcert } from '@/types';
+import type {
+  AggregatedShowTiming,
+  ConcertDetail,
+  ConcertRating,
+  ShowReportInput,
+  UserConcert,
+} from '@/types';
 import { formatDate, formatLocation, formatTime } from '@/utils/format';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -27,13 +33,31 @@ export function ConcertDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [showTiming, setShowTiming] = useState<AggregatedShowTiming | null>(null);
+  const [showReportCount, setShowReportCount] = useState(0);
+  const [timingSubmitting, setTimingSubmitting] = useState(false);
 
   const load = useCallback(async () => {
-    if (!id || !user) return;
-    const [c, ucs, r] = await Promise.all([
+    if (!id) return;
+    const timingPromise = api.getShowTiming(id, user?.id);
+    if (!user) {
+      const [c, timing] = await Promise.all([api.getConcert(id), timingPromise]);
+      const state = (location.state ?? {}) as ConcertLocationState;
+      const snapshot = state.concertSnapshot;
+      const merged =
+        snapshot && c?.source === 'mock' ? ({ ...c, ...snapshot, id: c.id } as ConcertDetail) : c;
+      setConcert(merged);
+      setUserConcert(null);
+      setRating(null);
+      setShowTiming(timing.aggregated);
+      setShowReportCount(timing.reports.length);
+      return;
+    }
+    const [c, ucs, r, timing] = await Promise.all([
       api.getConcert(id),
       api.getUserConcerts(user.id),
       api.getRating(user.id, id),
+      timingPromise,
     ]);
     const state = (location.state ?? {}) as ConcertLocationState;
     const snapshot = state.concertSnapshot;
@@ -44,7 +68,23 @@ export function ConcertDetailPage() {
     setConcert(merged);
     setUserConcert(ucs.find((uc) => uc.concertId === id) ?? null);
     setRating(r);
+    setShowTiming(timing.aggregated);
+    setShowReportCount(timing.reports.length);
   }, [id, user, location.state]);
+
+  async function handleSubmitShowInfo(input: ShowReportInput) {
+    if (!user || !id) {
+      throw new Error('Sign in to submit show info.');
+    }
+    setTimingSubmitting(true);
+    try {
+      const result = await api.submitShowReport(id, user.id, input);
+      setShowTiming(result.aggregated);
+      setShowReportCount(result.reports.length);
+    } finally {
+      setTimingSubmitting(false);
+    }
+  }
 
   useEffect(() => {
     if (!id) return;
@@ -97,7 +137,14 @@ export function ConcertDetailPage() {
           </a>
         )}
       </div>
-      <ConcertTimingGrid timing={concert.timing} />
+      {showTiming && (
+        <CommunityShowTiming
+          aggregated={showTiming}
+          reportCount={showReportCount}
+          onSubmit={handleSubmitShowInfo}
+          submitting={timingSubmitting}
+        />
+      )}
       {user && (
         <ConcertActions
           status={userConcert?.status}

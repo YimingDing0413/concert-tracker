@@ -7,6 +7,7 @@ import {
 } from '../services/eventService.js';
 import { concertEventToConcert } from '../../shared/mappers.js';
 import type { ConcertDetail } from '../../shared/types/index.js';
+import * as store from '../storage/userStorage.js';
 
 export const eventsRouter = Router();
 
@@ -19,6 +20,35 @@ eventsRouter.get('/', async (req, res, next) => {
     });
     res.json(result);
   } catch (err) {
+    next(err);
+  }
+});
+
+eventsRouter.get('/:id/show-timing', async (req, res, next) => {
+  try {
+    const userId = req.query.userId as string | undefined;
+    const data = await store.getShowTiming(req.params.id, userId);
+    res.json({ data });
+  } catch (err) {
+    next(err);
+  }
+});
+
+eventsRouter.post('/:id/show-reports', async (req, res, next) => {
+  try {
+    const { userId, ...input } = req.body ?? {};
+    if (!userId) {
+      res.status(400).json({ error: 'userId required' });
+      return;
+    }
+    const report = await store.createShowReport(req.params.id, userId, input);
+    const timing = await store.getShowTiming(req.params.id, userId);
+    res.json({ data: { report, ...timing } });
+  } catch (err) {
+    if (err instanceof Error && err.message.includes('at least one')) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
     next(err);
   }
 });

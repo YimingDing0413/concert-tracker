@@ -7,3 +7,6 @@ dist-ssr
 .env.*
 data/user-db.json
 .vercel
+
+.vercel
+.env*

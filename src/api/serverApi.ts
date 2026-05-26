@@ -7,6 +7,7 @@ import type {
   ConcertEvent,
   ConcertRating,
   SearchResult,
+  ShowTimingResponse,
   User,
   UserConcert,
   VenueDetail,
@@ -106,5 +107,26 @@ export const serverApi: ConcertApiClient = {
       method: 'POST',
       body: JSON.stringify({ userId, userConcertId, concertId, ...input }),
     });
+  },
+
+  async getShowTiming(eventId, userId) {
+    const encoded = encodeURIComponent(eventId);
+    const q = userId ? `?userId=${encodeURIComponent(userId)}` : '';
+    return apiFetchData<ShowTimingResponse>(`/api/events/${encoded}/show-timing${q}`);
+  },
+
+  async submitShowReport(eventId, userId, input) {
+    const encoded = encodeURIComponent(eventId);
+    const res = await apiFetchData<{
+      report: import('@/types').UserShowReport;
+    } & ShowTimingResponse>(`/api/events/${encoded}/show-reports`, {
+      method: 'POST',
+      body: JSON.stringify({ userId, ...input }),
+    });
+    return {
+      reports: res.reports,
+      aggregated: res.aggregated,
+      userReport: res.userReport,
+    };
   },
 };

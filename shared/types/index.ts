@@ -223,6 +223,82 @@ export interface ConcertDetail extends Concert {
   predictedSetlist?: Setlist;
 }
 
+export type ShowReportSourceType =
+  | 'was_there'
+  | 'venue_email'
+  | 'artist_post'
+  | 'venue_post'
+  | 'ticket_email'
+  | 'other';
+
+export type ShowReportConfidence = 'low' | 'medium' | 'high';
+
+export interface UserShowReport {
+  id: string;
+  eventId: string;
+  userId: string;
+  doorsOpenTime?: string;
+  openerNames?: string[];
+  openerStartTime?: string;
+  headlinerStartTime?: string;
+  endTime?: string;
+  notes?: string;
+  sourceType?: ShowReportSourceType;
+  sourceUrl?: string;
+  confidence?: ShowReportConfidence;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ShowReportInput {
+  doorsOpenTime?: string;
+  /** Comma-separated opener names from the form */
+  openerNames?: string;
+  openerStartTime?: string;
+  headlinerStartTime?: string;
+  endTime?: string;
+  notes?: string;
+  sourceType?: ShowReportSourceType;
+  sourceUrl?: string;
+  confidence?: ShowReportConfidence;
+}
+
+export interface SourceBreakdown {
+  was_there: number;
+  venue_email: number;
+  artist_post: number;
+  venue_post: number;
+  ticket_email: number;
+  other: number;
+}
+
+export type AggregatedConfidenceLabel = 'high' | 'medium' | 'low';
+
+export interface AggregatedField {
+  value: string | string[];
+  reportCount: number;
+  totalReports: number;
+  confidenceScore: number;
+  confidenceLabel: AggregatedConfidenceLabel;
+  sourceBreakdown: SourceBreakdown;
+  lastUpdated: string;
+}
+
+export interface AggregatedShowTiming {
+  eventId: string;
+  doorsOpenTime?: AggregatedField;
+  openerNames?: AggregatedField;
+  openerStartTime?: AggregatedField;
+  headlinerStartTime?: AggregatedField;
+  endTime?: AggregatedField;
+}
+
+export interface ShowTimingResponse {
+  reports: UserShowReport[];
+  aggregated: AggregatedShowTiming;
+  userReport?: UserShowReport | null;
+}
+
 export interface ApiMeta {
   source: 'live' | 'mock' | 'partial';
   message?: string;

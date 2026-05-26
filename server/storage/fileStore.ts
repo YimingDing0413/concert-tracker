@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { ConcertRating, User, UserConcert } from '../../shared/types/index.js';
+import type { ConcertRating, User, UserConcert, UserShowReport } from '../../shared/types/index.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const dataDir = resolve(root, 'data');
@@ -11,12 +11,14 @@ export interface UserDb {
   users: User[];
   userConcerts: UserConcert[];
   ratings: ConcertRating[];
+  showReports: UserShowReport[];
 }
 
 const defaultDb: UserDb = {
   users: [],
   userConcerts: [],
   ratings: [],
+  showReports: [],
 };
 
 export function loadUserDb(): UserDb {
@@ -28,6 +30,7 @@ export function loadUserDb(): UserDb {
       users: parsed.users ?? [],
       userConcerts: parsed.userConcerts ?? [],
       ratings: parsed.ratings ?? [],
+      showReports: parsed.showReports ?? [],
     };
   } catch (err) {
     console.warn('[storage] Could not load user-db.json, starting fresh:', err);

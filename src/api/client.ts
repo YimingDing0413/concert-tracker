@@ -12,6 +12,8 @@ import type {
   ManualConcertInput,
   RatingInput,
   SearchResult,
+  ShowReportInput,
+  ShowTimingResponse,
   SignUpInput,
   User,
   UserConcert,
@@ -61,4 +63,12 @@ export interface ConcertApiClient {
     concertId: string,
     input: RatingInput
   ): Promise<ConcertRating>;
+
+  // Community show timing
+  getShowTiming(eventId: string, userId?: string): Promise<ShowTimingResponse>;
+  submitShowReport(
+    eventId: string,
+    userId: string,
+    input: ShowReportInput
+  ): Promise<ShowTimingResponse>;
 }

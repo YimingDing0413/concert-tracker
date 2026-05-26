@@ -13,11 +13,15 @@ import type {
   ConcertRating,
   SearchResult,
   Setlist,
+  ShowReportInput,
+  ShowTimingResponse,
   SignUpInput,
   User,
   UserConcert,
+  UserShowReport,
   VenueDetail,
 } from '@/types';
+import { aggregateShowReports, normalizeTime, parseOpenerNames } from '@shared/showReports';
 import { delay } from './delay';
 import {
   addUser,
@@ -35,6 +39,19 @@ import {
 
 function generateId(prefix: string): string {
   return `${prefix}-${crypto.randomUUID().slice(0, 8)}`;
+}
+
+const mockShowReports: UserShowReport[] = [];
+
+function buildShowTiming(eventId: string, userId?: string): ShowTimingResponse {
+  const reports = mockShowReports.filter((r) => r.eventId === eventId);
+  return {
+    reports,
+    aggregated: aggregateShowReports(eventId, reports),
+    userReport: userId
+      ? [...reports].reverse().find((r) => r.userId === userId) ?? null
+      : null,
+  };
 }
 
 function buildPredictedSetlist(concertId: string, artistId: string): Setlist | undefined {
@@ -288,6 +305,43 @@ export const mockApi: ConcertApiClient = {
     const uc = getUserConcerts().find((u) => u.id === userConcertId);
     if (uc) upsertUserConcert({ ...uc, ratingId: rating.id, status: 'attended' });
     return rating;
+  },
+
+  async getShowTiming(eventId, userId) {
+    await delay(120);
+    return buildShowTiming(eventId, userId);
+  },
+
+  async submitShowReport(eventId, userId, input: ShowReportInput) {
+    await delay();
+    const now = new Date().toISOString();
+    const openerNames = input.openerNames ? parseOpenerNames(input.openerNames) : undefined;
+    const report: UserShowReport = {
+      id: generateId('sr'),
+      eventId,
+      userId,
+      doorsOpenTime: input.doorsOpenTime
+        ? (normalizeTime(input.doorsOpenTime) ?? input.doorsOpenTime.trim())
+        : undefined,
+      openerNames: openerNames?.length ? openerNames : undefined,
+      openerStartTime: input.openerStartTime
+        ? (normalizeTime(input.openerStartTime) ?? input.openerStartTime.trim())
+        : undefined,
+      headlinerStartTime: input.headlinerStartTime
+        ? (normalizeTime(input.headlinerStartTime) ?? input.headlinerStartTime.trim())
+        : undefined,
+      endTime: input.endTime
+        ? (normalizeTime(input.endTime) ?? input.endTime.trim())
+        : undefined,
+      notes: input.notes?.trim() || undefined,
+      sourceType: input.sourceType,
+      sourceUrl: input.sourceUrl?.trim() || undefined,
+      confidence: input.confidence,
+      createdAt: now,
+      updatedAt: now,
+    };
+    mockShowReports.push(report);
+    return buildShowTiming(eventId, userId);
   },
 };
 

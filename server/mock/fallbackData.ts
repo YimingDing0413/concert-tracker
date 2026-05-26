@@ -106,8 +106,12 @@ export const mockSetlists: Setlist[] = [
 ];
 
 export function filterMockSearch(query: string): SearchResult[] {
-  const q = query.toLowerCase();
-  return mockSearchResults.filter(
+  const q = query.toLowerCase().trim();
+  if (!q) return mockSearchResults;
+  const matched = mockSearchResults.filter(
     (r) => r.title.toLowerCase().includes(q) || r.subtitle.toLowerCase().includes(q)
   );
+  // Without Ticketmaster keys, real artist names won't match sample data — still show samples
+  // so the UI isn't empty while developing locally.
+  return matched.length ? matched : mockSearchResults;
 }
