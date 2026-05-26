@@ -3,8 +3,6 @@ import { loadUserDb, saveUserDb } from './fileStore.js';
 
 const DB_KEY = 'encore-user-db';
 
-const emptyDb = (): UserDb => ({ users: [], userConcerts: [], ratings: [] });
-
 export function usesUpstash(): boolean {
   return Boolean(
     process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN

@@ -16,10 +16,10 @@ const AUTH_KEY = 'encore_auth_user_id';
 
 export const DEMO_USER: User = {
   id: 'user-demo',
-  email: 'demo@encore.app',
-  displayName: 'Alex Rivera',
-  username: 'alexr',
-  bio: 'Live music obsessed.',
+  email: 'user@example.com',
+  displayName: 'Demo user',
+  username: 'demouser',
+  bio: 'Placeholder profile.',
   createdAt: '2024-01-15T10:00:00Z',
 };
 

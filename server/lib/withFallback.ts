@@ -1,4 +1,4 @@
-import type { ApiMeta, ApiResponse } from '../../shared/types/index.js';
+import type { ApiResponse } from '../../shared/types/index.js';
 
 export async function withFallback<T>(
   live: () => Promise<T>,

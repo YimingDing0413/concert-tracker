@@ -2,11 +2,11 @@ import type { User, UserConcert, ConcertRating } from '@/types';
 
 export const DEMO_USER: User = {
   id: 'user-demo',
-  email: 'demo@encore.app',
-  displayName: 'Alex Rivera',
-  username: 'alexr',
-  bio: 'Live music obsessed. 47 shows and counting.',
-  avatarUrl: 'https://picsum.photos/seed/alexr/200/200',
+  email: 'user@example.com',
+  displayName: 'Demo user',
+  username: 'demouser',
+  bio: 'Placeholder profile for local testing.',
+  avatarUrl: 'https://picsum.photos/seed/encore-user/200/200',
   createdAt: '2024-01-15T10:00:00Z',
 };
 
@@ -19,7 +19,7 @@ export const mockUserConcerts: UserConcert[] = [
     concertId: 'concert-4',
     status: 'attended',
     ratingId: 'rating-1',
-    notes: 'Incredible vibes at the Greek. Laura Lee bass was unreal.',
+    notes: 'Sample note for local testing.',
     createdAt: '2025-09-20T12:00:00Z',
     updatedAt: '2025-09-20T12:00:00Z',
   },
@@ -61,7 +61,7 @@ export const mockRatings: ConcertRating[] = [
     crowd: 4,
     sound: 5,
     setlist: 5,
-    review: 'Perfect summer night. The encore run was chef\'s kiss.',
+    review: 'Sample review text for UI testing.',
     createdAt: '2025-09-20T12:00:00Z',
     updatedAt: '2025-09-20T12:00:00Z',
   },
@@ -75,7 +75,7 @@ export const mockRatings: ConcertRating[] = [
     crowd: 5,
     sound: 4,
     setlist: 5,
-    review: 'Cried three times. No notes.',
+    review: 'Another sample review for local development.',
     createdAt: '2025-11-05T12:00:00Z',
     updatedAt: '2025-11-05T12:00:00Z',
   },

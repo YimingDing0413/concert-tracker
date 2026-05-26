@@ -11,7 +11,6 @@ import {
   normalizeTmVenuesSearch,
 } from '../normalize/ticketmaster.js';
 import { withFallback } from '../lib/withFallback.js';
-import type { SearchResult } from '../../shared/types/index.js';
 
 export async function searchAll(query: string) {
   return withFallback(

@@ -15,7 +15,7 @@ export const artistsRouter = Router();
 artistsRouter.get('/', async (req, res, next) => {
   try {
     const keyword = String(req.query.keyword ?? '').trim();
-    const result = await searchArtists(keyword || 'a');
+    const result = await searchArtists(keyword || 'music');
     res.json(result);
   } catch (err) {
     next(err);

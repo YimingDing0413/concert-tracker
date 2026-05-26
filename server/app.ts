@@ -43,6 +43,8 @@ export function createApp() {
 
   app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     console.error(err);
+    // Prevent ESLint no-unused-vars for Express error middleware.
+    void _next;
     if (err instanceof ApiError) {
       res.status(err.status).json({ error: err.message, code: err.code });
       return;

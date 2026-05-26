@@ -7,8 +7,8 @@ import { Link, useNavigate } from 'react-router-dom';
 export function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('demo@encore.app');
-  const [password, setPassword] = useState('demo');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -68,8 +68,7 @@ export function LoginPage() {
           New here? <Link to="/signup">Create an account</Link>
         </p>
         <p className="auth-hint muted">
-          Use any email and any password (e.g. <strong>demo@encore.app</strong> / <strong>demo</strong>).
-          Password is not checked.
+          This build accepts any email/password for sign-in (password is not validated).
         </p>
       </form>
     </div>

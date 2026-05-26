@@ -2,7 +2,10 @@ import { AppShell } from '@/components/layout/AppShell';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useAuth } from '@/context/AuthContext';
 import { AddConcertPage } from '@/pages/AddConcertPage';
-import { ArtistDetailPage } from '@/pages/ArtistDetailPage';
+import { ArtistLayout } from '@/components/artist/ArtistLayout';
+import { ArtistPastPage } from '@/pages/artist/ArtistPastPage';
+import { ArtistSetlistsPage } from '@/pages/artist/ArtistSetlistsPage';
+import { ArtistUpcomingPage } from '@/pages/artist/ArtistUpcomingPage';
 import { ConcertDetailPage } from '@/pages/ConcertDetailPage';
 import { HomePage } from '@/pages/HomePage';
 import { LoginPage } from '@/pages/LoginPage';
@@ -63,10 +66,15 @@ export function AppRoutes() {
         path="/artist/:id"
         element={
           <ProtectedRoute>
-            <ArtistDetailPage />
+            <ArtistLayout />
           </ProtectedRoute>
         }
-      />
+      >
+        <Route index element={<Navigate to="upcoming" replace />} />
+        <Route path="upcoming" element={<ArtistUpcomingPage />} />
+        <Route path="past" element={<ArtistPastPage />} />
+        <Route path="setlists" element={<ArtistSetlistsPage />} />
+      </Route>
       <Route
         path="/venue/:id"
         element={

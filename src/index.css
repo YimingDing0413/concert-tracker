@@ -487,10 +487,95 @@ textarea {
 
 .detail-hero-img {
   width: 100%;
+  max-height: 160px;
   border-radius: var(--radius);
   margin-bottom: 1rem;
   aspect-ratio: 16/9;
   object-fit: cover;
+}
+
+/* Artist pages */
+.artist-page {
+  padding-bottom: 1.5rem;
+}
+
+.artist-header {
+  margin-bottom: 1.25rem;
+}
+
+.artist-header-main {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 0.5rem 0 1rem;
+}
+
+.artist-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 2px solid var(--border);
+}
+
+.artist-avatar-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface2);
+  color: var(--muted);
+  font-size: 1.5rem;
+}
+
+.artist-header-text h1 {
+  margin: 0;
+  font-size: 1.35rem;
+  line-height: 1.2;
+}
+
+.artist-header-text .page-subtitle {
+  margin-top: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.artist-tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.artist-tabs a {
+  flex: 1;
+  text-align: center;
+  padding: 0.65rem 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.artist-tabs a:hover {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.artist-tabs a.active {
+  color: var(--accent2);
+  border-bottom-color: var(--accent2);
+}
+
+.artist-section {
+  padding-top: 0.25rem;
+}
+
+.artist-setlists {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .info-grid {

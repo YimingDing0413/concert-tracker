@@ -11,7 +11,7 @@ export const venuesRouter = Router();
 venuesRouter.get('/', async (req, res, next) => {
   try {
     const keyword = String(req.query.keyword ?? '').trim();
-    const result = await searchVenues(keyword || 'arena');
+    const result = await searchVenues(keyword || 'theater');
     res.json(result);
   } catch (err) {
     next(err);

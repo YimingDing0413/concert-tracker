@@ -112,7 +112,6 @@ export async function getArtistDetail(idOrName: string): Promise<{
 }> {
   const decoded = decodeURIComponent(idOrName);
   let artist: Artist | null = null;
-  let meta: { source: string; message?: string } = { source: 'live' };
 
   if (decoded.startsWith('tm:attraction:') && hasTicketmaster()) {
     try {
@@ -131,7 +130,6 @@ export async function getArtistDetail(idOrName: string): Promise<{
       slug: slugify(decoded),
       source: 'mock',
     };
-    meta = searchRes.meta ?? meta;
   }
 
   const artistName = artist.name;

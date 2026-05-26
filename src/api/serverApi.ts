@@ -57,11 +57,11 @@ export const serverApi: ConcertApiClient = {
   },
 
   async getArtists() {
-    return apiFetchData<import('@/types').Artist[]>('/api/artists?keyword=a');
+    return apiFetchData<import('@/types').Artist[]>('/api/artists');
   },
 
   async getVenues() {
-    return apiFetchData<import('@/types').Venue[]>('/api/venues?keyword=arena');
+    return apiFetchData<import('@/types').Venue[]>('/api/venues');
   },
 
   async getConcerts() {

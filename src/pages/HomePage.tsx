@@ -49,14 +49,9 @@ export function HomePage() {
         {!loading &&
           results.map((r) => <SearchResultItem key={`${r.type}-${r.id}`} result={r} />)}
         {!debounced && (
-          <div className="home-suggestions">
-            <p className="muted">Try searching:</p>
-            <ul>
-              <li>Phoebe Bridgers</li>
-              <li>Madison Square Garden</li>
-              <li>Red Rocks</li>
-            </ul>
-          </div>
+          <p className="home-suggestions muted">
+            Search for an artist, venue, city, or concert name.
+          </p>
         )}
       </section>
     </div>

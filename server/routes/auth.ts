@@ -17,7 +17,7 @@ authRouter.post('/login', async (req, res, next) => {
   }
 });
 
-authRouter.post('/signup', async (req, res, next) => {
+authRouter.post('/signup', async (req, res) => {
   try {
     const user = await store.signUp(req.body);
     res.json({ data: user });
