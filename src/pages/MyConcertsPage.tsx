@@ -1,6 +1,6 @@
 import { api } from '@/api';
 import { ConcertCard } from '@/components/concert/ConcertCard';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/app-button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useAuth } from '@/context/AuthContext';

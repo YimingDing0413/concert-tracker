@@ -1,4 +1,4 @@
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/app-button';
 import type { ShowReportConfidence, ShowReportInput, ShowReportSourceType } from '@/types';
 import { useEffect, useState } from 'react';
 

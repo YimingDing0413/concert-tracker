@@ -1,4 +1,4 @@
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/app-button';
 import type { UserConcertStatus } from '@/types';
 
 interface ConcertActionsProps {

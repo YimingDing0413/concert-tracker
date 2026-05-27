@@ -1,5 +1,5 @@
 import { api } from '@/api';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/app-button';
 import { useAuth } from '@/context/AuthContext';
 import type { UserConcertStatus } from '@/types';
 import { useState } from 'react';

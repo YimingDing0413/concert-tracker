@@ -1,5 +1,5 @@
 import { SubmitShowInfoModal } from '@/components/concert/SubmitShowInfoModal';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/app-button';
 import type { AggregatedField, AggregatedShowTiming, ShowReportInput } from '@/types';
 import { formatTime } from '@/utils/format';
 import { confidenceLabelText } from '@shared/showReports';

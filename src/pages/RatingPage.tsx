@@ -1,5 +1,5 @@
 import { api } from '@/api';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/app-button';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { StarRating } from '@/components/ui/StarRating';

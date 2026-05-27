@@ -1,4 +1,4 @@
-import { Badge } from '@/components/ui/Badge';
+import { StatusBadge as Badge } from '@/components/ui/status-badge';
 import type { Setlist } from '@/types';
 
 interface SetlistDisplayProps {

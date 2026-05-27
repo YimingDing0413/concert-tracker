@@ -5,9 +5,11 @@ import { SearchBar } from '@/components/ui/SearchBar';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ApiNotice } from '@/components/ui/ApiNotice';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useDebounce } from '@/hooks/useDebounce';
 import type { SearchResult } from '@/types';
 import { useEffect, useState } from 'react';
+import { AlertCircle } from 'lucide-react';
 
 type ApiHealth = {
   ok: boolean;
@@ -55,22 +57,28 @@ export function HomePage() {
   }, [debounced]);
 
   return (
-    <div className="page home-page">
-      <header className="home-hero">
-        <h1 className="logo">Encore</h1>
-        <p className="home-tagline">Discover concerts. Track every show.</p>
+    <div className="space-y-6">
+      <header className="space-y-2 pt-2">
+        <h1 className="logo text-3xl">Encore</h1>
+        <p className="text-muted-foreground">Discover concerts. Track every show.</p>
       </header>
+
       <SearchBar value={query} onChange={setQuery} autoFocus />
+
       {apisConfigured === false && (
-        <ApiNotice
-          message="No API keys detected. Add TICKETMASTER_API_KEY (and SETLISTFM_API_KEY) to .env.local in the project folder, then restart npm run dev. Or run: npx vercel env pull .env.local"
-        />
+        <ApiNotice message="No API keys detected. Add TICKETMASTER_API_KEY (and SETLISTFM_API_KEY) to .env.local in the project folder, then restart npm run dev. Or run: npx vercel env pull .env.local" />
       )}
       {searchMeta && apisConfigured !== false && (
         <ApiNotice message={searchMeta} source="mock" />
       )}
-      <section className="search-results" aria-live="polite">
-        {error && <p className="form-error">{error}</p>}
+
+      <section className="space-y-3" aria-live="polite">
+        {error && (
+          <Alert variant="destructive">
+            <AlertCircle className="size-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
         {loading && <LoadingSpinner label="Searching…" />}
         {!loading && debounced && !error && results.length === 0 && (
           <EmptyState title="No results" description="Try another artist, venue, or city." />
@@ -78,7 +86,7 @@ export function HomePage() {
         {!loading &&
           results.map((r) => <SearchResultItem key={`${r.type}-${r.id}`} result={r} />)}
         {!debounced && (
-          <p className="home-suggestions muted">
+          <p className="py-8 text-center text-sm text-muted-foreground">
             Search for an artist, venue, city, or concert name.
           </p>
         )}
