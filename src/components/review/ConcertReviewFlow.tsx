@@ -23,6 +23,7 @@ function emptyDraft(): ConcertReviewDraft {
 
 interface ConcertReviewFlowProps {
   concert: ConcertDetail;
+  userId: string;
   existingReview?: ConcertReview | null;
   onSave: (review: ConcertReview) => void;
   onCreateWrapUp: (review: ConcertReview) => void;
@@ -31,6 +32,7 @@ interface ConcertReviewFlowProps {
 
 export function ConcertReviewFlow({
   concert,
+  userId,
   existingReview,
   onSave,
   onCreateWrapUp,
@@ -53,6 +55,7 @@ export function ConcertReviewFlow({
     const now = new Date().toISOString();
     return {
       id: existingReview?.id ?? generateReviewId(),
+      userId,
       eventId: concert.id,
       artistName: concert.artistName,
       venueName: draft.venueName ?? concert.venueName,
@@ -73,7 +76,7 @@ export function ConcertReviewFlow({
       createdAt: existingReview?.createdAt ?? now,
       updatedAt: now,
     };
-  }, [concert, draft, existingReview]);
+  }, [concert, draft, existingReview, userId]);
 
   function patch(partial: Partial<ConcertReviewDraft>) {
     setDraft((prev) => ({ ...prev, ...partial }));

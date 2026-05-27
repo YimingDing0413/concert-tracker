@@ -6,6 +6,7 @@ import { Sparkles, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface ConcertDetailReviewSectionProps {
+  userId: string;
   eventId: string;
   review: ConcertReview | null;
   onReviewChange: () => void;
@@ -13,6 +14,7 @@ interface ConcertDetailReviewSectionProps {
 }
 
 export function ConcertDetailReviewSection({
+  userId,
   eventId,
   review,
   onReviewChange,
@@ -31,7 +33,7 @@ export function ConcertDetailReviewSection({
   function handleDelete() {
     if (!review) return;
     if (!window.confirm('Delete this review? This cannot be undone.')) return;
-    deleteConcertReview(eventId);
+    deleteConcertReview(userId, eventId);
     onReviewChange();
   }
 

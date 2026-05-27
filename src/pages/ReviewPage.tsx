@@ -2,12 +2,14 @@ import { api } from '@/api';
 import { ConcertReviewFlow } from '@/components/review/ConcertReviewFlow';
 import { getConcertReview, saveConcertReview } from '@/lib/concertReviewsLocal';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { useAuth } from '@/context/AuthContext';
 import type { ConcertDetail } from '@/types';
 import { useEffect, useState } from 'react';
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 export function ReviewPage() {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [concert, setConcert] = useState<ConcertDetail | null>(null);
@@ -23,6 +25,7 @@ export function ReviewPage() {
   }, [id]);
 
   if (!id) return <Navigate to="/" replace />;
+  if (!user) return <Navigate to="/login" replace />;
   if (loading) {
     return (
       <div className="flex min-h-dvh items-center justify-center">
@@ -38,11 +41,12 @@ export function ReviewPage() {
     );
   }
 
-  const existingReview = getConcertReview(id);
+  const existingReview = getConcertReview(user.id, id);
 
   return (
     <ConcertReviewFlow
       concert={concert}
+      userId={user.id}
       existingReview={existingReview}
       onSave={(review) => {
         saveConcertReview(review);

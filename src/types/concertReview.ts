@@ -1,5 +1,6 @@
 export type ConcertReview = {
   id: string;
+  userId: string;
   eventId: string;
   artistName: string;
   venueName?: string;
@@ -23,9 +24,9 @@ export type ConcertReview = {
 
 export type ConcertReviewDraft = Omit<
   ConcertReview,
-  'id' | 'eventId' | 'artistName' | 'createdAt' | 'updatedAt'
+  'id' | 'userId' | 'eventId' | 'artistName' | 'createdAt' | 'updatedAt'
 > &
-  Partial<Pick<ConcertReview, 'id' | 'eventId' | 'artistName' | 'createdAt' | 'updatedAt'>>;
+  Partial<Pick<ConcertReview, 'id' | 'userId' | 'eventId' | 'artistName' | 'createdAt' | 'updatedAt'>>;
 
 export type WrapUpTemplateId = 'poster' | 'stats' | 'collage';
 

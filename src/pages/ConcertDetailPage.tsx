@@ -40,8 +40,9 @@ export function ConcertDetailPage() {
   const [timingSubmitting, setTimingSubmitting] = useState(false);
 
   const refreshLocalReview = useCallback(() => {
-    if (id) setLocalReview(getConcertReview(id));
-  }, [id]);
+    if (id && user?.id) setLocalReview(getConcertReview(user.id, id));
+    else setLocalReview(null);
+  }, [id, user?.id]);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -93,7 +94,7 @@ export function ConcertDetailPage() {
 
   useEffect(() => {
     refreshLocalReview();
-  }, [location.pathname, refreshLocalReview]);
+  }, [location.pathname, user?.id, refreshLocalReview]);
 
   async function setStatus(status: 'going' | 'attended') {
     if (!user || !id || !concert) return;
@@ -157,8 +158,9 @@ export function ConcertDetailPage() {
       <div className="mx-auto max-w-lg space-y-6 px-4 py-6 md:max-w-3xl">
         {concert.ticketUrl && <TicketCtaLink href={concert.ticketUrl} />}
 
-        {id && (
+        {id && user && (
           <ConcertDetailReviewSection
+            userId={user.id}
             eventId={id}
             review={localReview}
             onReviewChange={refreshLocalReview}
