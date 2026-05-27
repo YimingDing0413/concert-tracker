@@ -7,11 +7,13 @@ import { ArtistPastPage } from '@/pages/artist/ArtistPastPage';
 import { ArtistSetlistsPage } from '@/pages/artist/ArtistSetlistsPage';
 import { ArtistUpcomingPage } from '@/pages/artist/ArtistUpcomingPage';
 import { ConcertDetailPage } from '@/pages/ConcertDetailPage';
-import { HomePage } from '@/pages/HomePage';
+import { DiscoverHomePage } from '@/pages/DiscoverHomePage';
+import { DiscoverMapPage } from '@/pages/DiscoverMapPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { MyConcertsPage } from '@/pages/MyConcertsPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { RatingPage } from '@/pages/RatingPage';
+import { SearchPage } from '@/pages/SearchPage';
 import { SignUpPage } from '@/pages/SignUpPage';
 import { VenueDetailPage } from '@/pages/VenueDetailPage';
 import type { ReactNode } from 'react';
@@ -57,7 +59,9 @@ export function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<HomePage />} />
+        <Route index element={<DiscoverHomePage />} />
+        <Route path="map" element={<DiscoverMapPage />} />
+        <Route path="search" element={<SearchPage />} />
         <Route path="my-concerts" element={<MyConcertsPage />} />
         <Route path="add" element={<AddConcertPage />} />
         <Route path="profile" element={<ProfilePage />} />

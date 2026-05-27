@@ -42,6 +42,17 @@ export function normalizeTmEvent(raw: any): ConcertEvent | null {
       ?.map((a: { name: string }) => a.name)
       .filter(Boolean) ?? [];
 
+  const latRaw = venue?.location?.latitude;
+  const lngRaw = venue?.location?.longitude;
+  const venueLatitude =
+    latRaw !== undefined && latRaw !== '' && latRaw !== null
+      ? Number(latRaw)
+      : undefined;
+  const venueLongitude =
+    lngRaw !== undefined && lngRaw !== '' && lngRaw !== null
+      ? Number(lngRaw)
+      : undefined;
+
   return {
     id: `tm:event:${e.id}`,
     source: 'ticketmaster',
@@ -50,6 +61,10 @@ export function normalizeTmEvent(raw: any): ConcertEvent | null {
     artistId: attraction?.id ? `tm:attraction:${attraction.id}` : undefined,
     venueName: venue?.name ?? 'TBA',
     venueId: venue?.id ? `tm:venue:${venue.id}` : undefined,
+    venueAddress:
+      typeof venue?.address?.line1 === 'string' && venue.address.line1.trim()
+        ? venue.address.line1.trim()
+        : undefined,
     city: venue?.city?.name ?? '',
     region: venue?.state?.stateCode,
     state: venue?.state?.stateCode,
@@ -62,6 +77,12 @@ export function normalizeTmEvent(raw: any): ConcertEvent | null {
     tourName: extractTourNameFromTmEvent(e),
     rawSourceUrl: e.url,
     status: date >= new Date().toISOString().slice(0, 10) ? 'upcoming' : 'past',
+    ...(venueLatitude !== undefined &&
+      !Number.isNaN(venueLatitude) &&
+      venueLongitude !== undefined &&
+      !Number.isNaN(venueLongitude)
+      ? { venueLatitude, venueLongitude }
+      : {}),
   };
 }
 

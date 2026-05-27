@@ -88,24 +88,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       writeStoredUser(u);
       return;
     } catch (err) {
-      // If API is down (common on Vercel misconfig), allow local session so UI isn't blocked
+      if (err instanceof HttpApiError && err.status === 401) {
+        throw err;
+      }
       const stored = readStoredUser();
-      if (stored) {
+      if (stored && stored.email.toLowerCase() === credentials.email.toLowerCase()) {
         setUser(stored);
         return;
       }
-      const fallback: User = {
-        id: `user-local-${credentials.email.replace(/[^a-z0-9]/gi, '-')}`,
-        email: credentials.email,
-        displayName: credentials.email.split('@')[0] || 'Guest',
-        username: credentials.email.split('@')[0] || 'guest',
-        createdAt: new Date().toISOString(),
-      };
-      setUser(fallback);
-      writeStoredUser(fallback);
       if (err instanceof HttpApiError) {
-        console.warn('API login failed; using local session:', err.message);
+        throw err;
       }
+      throw new HttpApiError('Cannot reach the API. Check /api/health on your deployment.');
     }
   }, []);
 

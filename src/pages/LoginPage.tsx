@@ -90,7 +90,7 @@ export function LoginPage() {
                 </Link>
               </p>
               <p className="text-center text-xs text-muted-foreground">
-                This build accepts any email/password for sign-in (password is not validated).
+                Use the email and password from your sign-up. Each account keeps its own saved shows.
               </p>
             </form>
           </CardContent>

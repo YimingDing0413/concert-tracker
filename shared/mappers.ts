@@ -44,6 +44,9 @@ export function concertEventToConcert(event: ConcertEvent): Concert {
     timing,
     imageUrl: event.imageUrl,
     source: event.source,
+    venueLatitude: event.venueLatitude,
+    venueLongitude: event.venueLongitude,
+    venueAddress: event.venueAddress,
     externalIds: {
       ticketmaster: event.source === 'ticketmaster' ? event.id.replace('tm:event:', '') : undefined,
       bandsintown: event.source === 'bandsintown' ? event.id.replace('bit:', '') : undefined,

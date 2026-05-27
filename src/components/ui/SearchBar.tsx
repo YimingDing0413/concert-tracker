@@ -31,7 +31,7 @@ export function SearchBar({
         placeholder={placeholder}
         autoFocus={autoFocus}
         aria-label="Search"
-        className="h-11 rounded-xl bg-card pl-10 pr-10 text-base shadow-sm"
+        className="h-12 rounded-2xl border-border/60 bg-card/90 pl-11 pr-11 text-base shadow-lg backdrop-blur-md focus-visible:ring-primary/40"
       />
       {value && (
         <Button

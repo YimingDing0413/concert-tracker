@@ -1,12 +1,14 @@
 import { Router } from 'express';
+import { concertEventToConcert } from '../../shared/mappers.js';
+import type { ConcertDetail } from '../../shared/types/index.js';
+import { isDynamoConfigured } from '../../src/lib/db/dynamodb.js';
+import { getShowTimingResponse } from '../../src/lib/db/concertRepository.js';
 import {
   getEventById,
   getEventSetlist,
   listEvents,
   mergeEventDetail,
 } from '../services/eventService.js';
-import { concertEventToConcert } from '../../shared/mappers.js';
-import type { ConcertDetail } from '../../shared/types/index.js';
 import * as store from '../storage/userStorage.js';
 
 export const eventsRouter = Router();
@@ -27,6 +29,11 @@ eventsRouter.get('/', async (req, res, next) => {
 eventsRouter.get('/:id/show-timing', async (req, res, next) => {
   try {
     const userId = req.query.userId as string | undefined;
+    if (isDynamoConfigured()) {
+      const data = await getShowTimingResponse(req.params.id, userId);
+      res.json({ data });
+      return;
+    }
     const data = await store.getShowTiming(req.params.id, userId);
     res.json({ data });
   } catch (err) {
@@ -41,6 +48,15 @@ eventsRouter.post('/:id/show-reports', async (req, res, next) => {
       res.status(400).json({ error: 'userId required' });
       return;
     }
+
+    if (isDynamoConfigured()) {
+      const { submitShowTimingReport } = await import('../../src/lib/db/concertRepository.js');
+      const report = await submitShowTimingReport(req.params.id, userId, input);
+      const timing = await getShowTimingResponse(req.params.id, userId);
+      res.json({ data: { report, ...timing } });
+      return;
+    }
+
     const report = await store.createShowReport(req.params.id, userId, input);
     const timing = await store.getShowTiming(req.params.id, userId);
     res.json({ data: { report, ...timing } });

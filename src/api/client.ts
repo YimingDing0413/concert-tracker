@@ -45,7 +45,8 @@ export interface ConcertApiClient {
   setConcertStatus(
     userId: string,
     concertId: string,
-    status: UserConcertStatus
+    status: UserConcertStatus,
+    eventSnapshot?: Partial<Concert>
   ): Promise<UserConcert>;
   removeUserConcert(userId: string, userConcertId: string): Promise<void>;
   addManualConcert(userId: string, input: ManualConcertInput): Promise<UserConcert>;

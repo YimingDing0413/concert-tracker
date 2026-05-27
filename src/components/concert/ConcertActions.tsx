@@ -17,14 +17,14 @@ export function ConcertActions({
   onRate,
 }: ConcertActionsProps) {
   return (
-    <div className="concert-actions">
+    <div className="grid gap-2 sm:grid-cols-3">
       <Button
         variant={status === 'going' ? 'primary' : 'secondary'}
         onClick={onGoing}
         disabled={loading}
         fullWidth
       >
-        {status === 'going' ? '✓ Going' : 'Mark Going'}
+        {status === 'going' ? '✓ Going' : 'Add to My Concerts'}
       </Button>
       <Button
         variant={status === 'attended' ? 'primary' : 'secondary'}
@@ -35,7 +35,7 @@ export function ConcertActions({
         {status === 'attended' ? '✓ Attended' : 'Mark Attended'}
       </Button>
       <Button variant="ghost" onClick={onRate} disabled={loading} fullWidth>
-        {status === 'attended' ? 'Edit rating' : 'Add rating'}
+        Rate concert
       </Button>
     </div>
   );

@@ -10,6 +10,7 @@ import {
 import { concertEventToConcert } from '@shared/mappers';
 import type {
   ArtistDetail,
+  Concert,
   ConcertDetail,
   ConcertEvent,
   ConcertRating,
@@ -19,6 +20,11 @@ import type {
   UserConcert,
   VenueDetail,
 } from '@/types';
+
+function eventSnapshotBody(eventSnapshot?: Partial<Concert>) {
+  if (!eventSnapshot) return {};
+  return { event: { ...eventSnapshot, id: eventSnapshot.id } };
+}
 
 /** Frontend client — calls internal backend only (never third-party APIs) */
 export const serverApi: ConcertApiClient = {
@@ -92,32 +98,64 @@ export const serverApi: ConcertApiClient = {
     return merged;
   },
 
-  async setConcertStatus(userId, concertId, status) {
+  async setConcertStatus(userId, concertId, status, eventSnapshot) {
     const now = new Date().toISOString();
     const existing = readLocalUserConcerts(userId).find(
       (uc) => uc.userId === userId && uc.concertId === concertId
     );
     const optimistic: UserConcert = existing
-      ? { ...existing, status, updatedAt: now }
+      ? {
+          ...existing,
+          status,
+          concertSnapshot: eventSnapshot ?? existing.concertSnapshot,
+          updatedAt: now,
+        }
       : {
           id: `uc-local-${crypto.randomUUID().slice(0, 8)}`,
           userId,
           concertId,
           status,
+          concertSnapshot: eventSnapshot,
           createdAt: now,
           updatedAt: now,
         };
     upsertLocalUserConcert(optimistic);
 
+    const snapshotPayload = eventSnapshotBody(eventSnapshot);
+    const body = {
+      userId,
+      eventId: concertId,
+      status,
+      ...snapshotPayload,
+    };
+
     try {
-      const saved = await apiFetchData<UserConcert>('/api/user/concerts/status', {
+      if (status === 'attended') {
+        const saved = await apiFetchData<UserConcert>('/api/user/concerts/attended', {
+          method: 'POST',
+          body: JSON.stringify(body),
+        });
+        upsertLocalUserConcert(saved);
+        return saved;
+      }
+
+      const saved = await apiFetchData<UserConcert>('/api/user/concerts/save', {
         method: 'POST',
-        body: JSON.stringify({ userId, concertId, status }),
+        body: JSON.stringify(body),
       });
       upsertLocalUserConcert(saved);
       return saved;
     } catch {
-      return optimistic;
+      try {
+        const saved = await apiFetchData<UserConcert>('/api/user/concerts/status', {
+          method: 'POST',
+          body: JSON.stringify({ userId, concertId, status, event: body.event }),
+        });
+        upsertLocalUserConcert(saved);
+        return saved;
+      } catch {
+        return optimistic;
+      }
     }
   },
 
@@ -182,36 +220,69 @@ export const serverApi: ConcertApiClient = {
   },
 
   async getRating(userId, concertId) {
-    return apiFetchData<ConcertRating | null>(
-      `/api/user/ratings?userId=${encodeURIComponent(userId)}&concertId=${encodeURIComponent(concertId)}`
-    );
+    const encoded = encodeURIComponent(concertId);
+    try {
+      return await apiFetchData<ConcertRating | null>(
+        `/api/concerts/${encoded}/ratings?userId=${encodeURIComponent(userId)}`
+      );
+    } catch {
+      return apiFetchData<ConcertRating | null>(
+        `/api/user/ratings?userId=${encodeURIComponent(userId)}&concertId=${encodeURIComponent(concertId)}`
+      );
+    }
   },
 
   async saveRating(userId, userConcertId, concertId, input) {
-    return apiFetchData<ConcertRating>('/api/user/ratings', {
-      method: 'POST',
-      body: JSON.stringify({ userId, userConcertId, concertId, ...input }),
-    });
+    const encoded = encodeURIComponent(concertId);
+    try {
+      return await apiFetchData<ConcertRating>(`/api/concerts/${encoded}/ratings`, {
+        method: 'POST',
+        body: JSON.stringify({ userId, userConcertId, ...input }),
+      });
+    } catch {
+      return apiFetchData<ConcertRating>('/api/user/ratings', {
+        method: 'POST',
+        body: JSON.stringify({ userId, userConcertId, concertId, ...input }),
+      });
+    }
   },
 
   async getShowTiming(eventId, userId) {
     const encoded = encodeURIComponent(eventId);
     const q = userId ? `?userId=${encodeURIComponent(userId)}` : '';
-    return apiFetchData<ShowTimingResponse>(`/api/events/${encoded}/show-timing${q}`);
+    try {
+      return apiFetchData<ShowTimingResponse>(`/api/concerts/${encoded}/show-timing${q}`);
+    } catch {
+      return apiFetchData<ShowTimingResponse>(`/api/events/${encoded}/show-timing${q}`);
+    }
   },
 
   async submitShowReport(eventId, userId, input) {
     const encoded = encodeURIComponent(eventId);
-    const res = await apiFetchData<{
-      report: import('@/types').UserShowReport;
-    } & ShowTimingResponse>(`/api/events/${encoded}/show-reports`, {
-      method: 'POST',
-      body: JSON.stringify({ userId, ...input }),
-    });
-    return {
-      reports: res.reports,
-      aggregated: res.aggregated,
-      userReport: res.userReport,
-    };
+    try {
+      const res = await apiFetchData<{
+        report: import('@/types').UserShowReport;
+      } & ShowTimingResponse>(`/api/concerts/${encoded}/show-reports`, {
+        method: 'POST',
+        body: JSON.stringify({ userId, ...input }),
+      });
+      return {
+        reports: res.reports,
+        aggregated: res.aggregated,
+        userReport: res.userReport,
+      };
+    } catch {
+      const res = await apiFetchData<{
+        report: import('@/types').UserShowReport;
+      } & ShowTimingResponse>(`/api/events/${encoded}/show-reports`, {
+        method: 'POST',
+        body: JSON.stringify({ userId, ...input }),
+      });
+      return {
+        reports: res.reports,
+        aggregated: res.aggregated,
+        userReport: res.userReport,
+      };
+    }
   },
 };

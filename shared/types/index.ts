@@ -99,6 +99,45 @@ export interface ConcertEvent {
   status?: 'upcoming' | 'past';
   lineup?: string[];
   tourName?: string;
+  /** Venue coordinates when available (e.g. map pins). */
+  venueLatitude?: number;
+  venueLongitude?: number;
+  /** Street line from venue provider (e.g. Ticketmaster). */
+  venueAddress?: string;
+}
+
+/** Map API: one upcoming show at a venue (Ticketmaster-sourced). */
+export interface MapConcertEvent {
+  id: string;
+  title: string;
+  artistName?: string;
+  /** Headliner TM attraction id when available (`tm:attraction:…`). */
+  artistId?: string;
+  date: string;
+  time?: string;
+  ticketUrl?: string;
+  imageUrl?: string;
+  source: 'ticketmaster' | 'mock';
+}
+
+/** Map API: venue cluster with upcoming music events. */
+export interface MapVenue {
+  id: string;
+  name: string;
+  address?: string;
+  city?: string;
+  region?: string;
+  country?: string;
+  latitude: number;
+  longitude: number;
+  upcomingEvents: MapConcertEvent[];
+}
+
+/** GET /api/map/events */
+export interface MapEventsPayload {
+  venues: MapVenue[];
+  /** Geocoded center for the search query (city/place), when `q` is provided. */
+  searchCenter?: { latitude: number; longitude: number };
 }
 
 export interface ConcertTiming {
@@ -128,6 +167,11 @@ export interface Concert {
   setlistId?: string;
   imageUrl?: string;
   source?: ConcertEvent['source'];
+  /** Populated when loaded from geo search — used for Discover map. */
+  venueLatitude?: number;
+  venueLongitude?: number;
+  /** Venue street line when provider returns it (e.g. Ticketmaster). */
+  venueAddress?: string;
   externalIds?: {
     ticketmaster?: string;
     bandsintown?: string;
@@ -219,6 +263,29 @@ export interface ArtistDetail extends Artist {
 
 export interface VenueDetail extends Venue {
   upcomingEvents: Concert[];
+}
+
+/** Venue cluster for the Discover map (shows at one venue). */
+export interface MapNearbyVenueGroup {
+  venueId: string;
+  venueName: string;
+  /** Street address when available from the event/venue payload. */
+  address?: string;
+  city: string;
+  state?: string;
+  country?: string;
+  latitude: number;
+  longitude: number;
+  upcomingShows: Concert[];
+}
+
+/** Geo search payload for Discover. */
+export interface MapNearbyPayload {
+  center: { latitude: number; longitude: number };
+  radiusKm: number;
+  venueGroups: MapNearbyVenueGroup[];
+  /** All upcoming geo-matched concerts, newest first within window */
+  concerts: Concert[];
 }
 
 export interface ConcertDetail extends Concert {

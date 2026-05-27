@@ -1,18 +1,23 @@
 import { api } from '@/api';
 import { ConcertCard } from '@/components/concert/ConcertCard';
+import { SectionHeader } from '@/components/ui/SectionHeader';
+import { StatCard } from '@/components/ui/StatCard';
+import { FilterChip } from '@/components/ui/FilterChip';
 import { Button } from '@/components/ui/app-button';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { ListRowSkeleton } from '@/components/ui/LoadingSkeleton';
 import { useAuth } from '@/context/AuthContext';
 import type { Concert, ConcertRating, UserConcert } from '@/types';
+import { averageRating } from '@/utils/format';
 import { resolveConcertForUserConcert, sortUserConcertsByDate } from '@/utils/userConcert';
+import { Calendar, MapPin, Plus, Star, Ticket } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 type Tab = 'going' | 'attended' | 'saved';
 
 const TAB_LABELS: Record<Tab, string> = {
-  going: 'Going',
+  going: 'Upcoming',
   attended: 'Attended',
   saved: 'Saved',
 };
@@ -48,7 +53,7 @@ export function MyConcertsPage() {
           const detail = await api.getConcert(uc.concertId);
           if (detail) map[uc.concertId] = detail;
         } catch {
-          /* keep placeholder from resolveConcertForUserConcert */
+          /* placeholder */
         }
       })
     );
@@ -78,6 +83,20 @@ export function MyConcertsPage() {
     return sortUserConcertsByDate(list, concertMap);
   }, [userConcerts, tab, concertMap]);
 
+  const stats = useMemo(() => {
+    const attended = userConcerts.filter((uc) => uc.status === 'attended');
+    const going = userConcerts.filter((uc) => uc.status === 'going');
+    const avg = averageRating(ratings.map((r) => r.overall));
+    const venueCounts = new Map<string, number>();
+    for (const uc of attended) {
+      const v = concertMap[uc.concertId]?.venueName;
+      if (v) venueCounts.set(v, (venueCounts.get(v) ?? 0) + 1);
+    }
+    const favoriteVenue =
+      [...venueCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '—';
+    return { attended: attended.length, going: going.length, avg, favoriteVenue };
+  }, [userConcerts, ratings, concertMap]);
+
   async function handleRemove(uc: UserConcert) {
     if (!user) return;
     setRemovingId(uc.id);
@@ -89,39 +108,47 @@ export function MyConcertsPage() {
     }
   }
 
-  if (loading) return <LoadingSpinner />;
-
-  const totalTracked = userConcerts.length;
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <SectionHeader title="My Concerts" subtitle="Loading your diary…" />
+        <ListRowSkeleton count={4} />
+      </div>
+    );
+  }
 
   return (
-    <div className="page my-concerts-page">
-      <header className="my-concerts-header">
+    <div className="space-y-8 pb-4">
+      <header className="flex items-start justify-between gap-4">
         <div>
-          <h1>My Shows</h1>
-          <p className="page-subtitle muted">
-            {totalTracked === 0
-              ? 'Track as many concerts as you like — each show is saved separately.'
-              : `${totalTracked} show${totalTracked === 1 ? '' : 's'} tracked · saved on this device`}
+          <h1 className="text-2xl font-bold tracking-tight">My Concerts</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Your shows, ratings, and memories — saved on this device.
           </p>
         </div>
-        <Link to="/add-concert" className="btn btn-secondary btn-sm">
-          Add show
-        </Link>
+        <Button render={<Link to="/add" />} size="sm" className="shrink-0 gap-1">
+          <Plus className="size-4" aria-hidden />
+          Add
+        </Button>
       </header>
 
-      <div className="tabs" role="tablist">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatCard label="Attended" value={stats.attended} icon={Ticket} />
+        <StatCard label="Upcoming" value={stats.going} icon={Calendar} />
+        <StatCard label="Avg rating" value={stats.avg ?? '—'} icon={Star} />
+        <StatCard
+          label="Favorite venue"
+          value={stats.favoriteVenue.length > 14 ? `${stats.favoriteVenue.slice(0, 12)}…` : stats.favoriteVenue}
+          icon={MapPin}
+          className="col-span-2 lg:col-span-1"
+        />
+      </div>
+
+      <div className="flex flex-wrap gap-2" role="tablist">
         {(['going', 'attended', 'saved'] as Tab[]).map((t) => (
-          <button
-            key={t}
-            type="button"
-            role="tab"
-            aria-selected={tab === t}
-            className={`tab ${tab === t ? 'active' : ''}`}
-            onClick={() => setTab(t)}
-          >
-            {TAB_LABELS[t]}
-            <span className="tab-count">{counts[t]}</span>
-          </button>
+          <FilterChip key={t} active={tab === t} onClick={() => setTab(t)} aria-selected={tab === t}>
+            {TAB_LABELS[t]} ({counts[t]})
+          </FilterChip>
         ))}
       </div>
 
@@ -130,34 +157,42 @@ export function MyConcertsPage() {
           title={`No ${TAB_LABELS[tab].toLowerCase()} shows`}
           description={
             tab === 'going'
-              ? 'Open any concert and tap Mark Going. You can track multiple upcoming shows at once.'
+              ? 'Find a concert and tap Mark Going on the event page.'
               : tab === 'attended'
-                ? 'After a show, mark it attended or add a rating from the concert page.'
-                : 'Add a manual show and choose Saved as the status.'
+                ? 'After a show, mark it attended or leave a rating.'
+                : 'Save shows you are considering for later.'
+          }
+          action={
+            <Link to="/" className="text-sm font-medium text-primary">
+              Discover concerts →
+            </Link>
           }
         />
       ) : (
-        <div className="my-concerts-list">
+        <div className="space-y-3">
           {filtered.map((uc) => {
             const c = resolveConcertForUserConcert(uc, concertMap[uc.concertId]);
             const rating = ratings.find((r) => r.concertId === uc.concertId);
             return (
-              <div key={uc.id} className="my-concert-row">
+              <div key={uc.id} className="space-y-2">
                 <ConcertCard
                   concert={c}
                   userConcert={uc}
                   rating={rating}
                   concertId={uc.concertId}
+                  backTo="/my-concerts"
+                  variant="compact"
+                  showCta={false}
                 />
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="my-concert-remove"
+                  className="text-muted-foreground"
                   disabled={removingId === uc.id}
                   onClick={() => handleRemove(uc)}
                 >
-                  {removingId === uc.id ? 'Removing…' : 'Remove'}
+                  {removingId === uc.id ? 'Removing…' : 'Remove from my concerts'}
                 </Button>
               </div>
             );

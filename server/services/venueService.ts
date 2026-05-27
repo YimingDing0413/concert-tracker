@@ -13,7 +13,7 @@ import type { VenueDetail } from '../../shared/types/index.js';
 export async function searchVenues(keyword: string) {
   return withFallback(
     async () => {
-      const payload = await tm.tmSearchVenues(keyword, 15);
+      const payload = await tm.tmSearchVenues({ keyword, size: 15 });
       return normalizeTmVenuesSearch(payload);
     },
     () => mockVenues.filter((v) => v.name.toLowerCase().includes(keyword.toLowerCase())),

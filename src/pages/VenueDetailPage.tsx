@@ -1,7 +1,9 @@
 import { api } from '@/api';
 import { ConcertCard } from '@/components/concert/ConcertCard';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { EntityIconBadge } from '@/components/ui/EntityIconBadge';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { MapPin } from 'lucide-react';
 import type { VenueDetail } from '@/types';
 import { formatLocation } from '@/utils/format';
 import { useEffect, useState } from 'react';
@@ -30,9 +32,12 @@ export function VenueDetailPage() {
   const location = formatLocation(venue.city, venue.state, venue.country);
 
   return (
-    <div className="page detail-page">
-      <PageHeader title={venue.name} subtitle={location} backTo="/" />
-      {venue.imageUrl && <img src={venue.imageUrl} alt="" className="detail-hero-img" />}
+    <div className="mx-auto max-w-lg space-y-6 px-4 py-6 md:max-w-3xl">
+      <PageHeader title={venue.name} subtitle={location} backTo="/map" />
+      <div className="flex items-center gap-4 rounded-2xl border border-border/60 bg-card/40 p-4">
+        <EntityIconBadge name={venue.name} icon={MapPin} size="md" />
+        <p className="text-sm text-muted-foreground">{location}</p>
+      </div>
       <div className="info-grid">
         {venue.address && (
           <div>

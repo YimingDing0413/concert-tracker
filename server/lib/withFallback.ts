@@ -2,13 +2,13 @@ import type { ApiResponse } from '../../shared/types/index.js';
 
 export async function withFallback<T>(
   live: () => Promise<T>,
-  mock: () => T,
+  mock: () => T | Promise<T>,
   enabled: boolean,
   label: string
 ): Promise<ApiResponse<T>> {
   if (!enabled) {
     return {
-      data: mock(),
+      data: await mock(),
       meta: { source: 'mock', message: `${label}: API key not configured — using mock data` },
     };
   }
@@ -18,7 +18,7 @@ export async function withFallback<T>(
   } catch (err) {
     console.warn(`[${label}] live fetch failed, using mock:`, err);
     return {
-      data: mock(),
+      data: await mock(),
       meta: {
         source: 'mock',
         message: `${label}: live API failed — using mock fallback`,

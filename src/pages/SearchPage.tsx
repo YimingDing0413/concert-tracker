@@ -2,6 +2,7 @@ import { apiFetch } from '@/api/http';
 import { HttpApiError } from '@/api/http';
 import { SearchResultItem } from '@/components/search/SearchResultItem';
 import { SearchBar } from '@/components/ui/SearchBar';
+import { SectionHeader } from '@/components/ui/SectionHeader';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ApiNotice } from '@/components/ui/ApiNotice';
@@ -10,20 +11,28 @@ import { useDebounce } from '@/hooks/useDebounce';
 import type { SearchResult } from '@/types';
 import { useEffect, useState } from 'react';
 import { AlertCircle } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 
 type ApiHealth = {
   ok: boolean;
   apis: { ticketmaster: boolean; bandsintown: boolean; setlistfm: boolean };
 };
 
-export function HomePage() {
-  const [query, setQuery] = useState('');
+export function SearchPage() {
+  const [searchParams] = useSearchParams();
+  const initialQ = searchParams.get('q') ?? '';
+  const [query, setQuery] = useState(initialQ);
   const debounced = useDebounce(query);
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [searchMeta, setSearchMeta] = useState<string | undefined>();
   const [apisConfigured, setApisConfigured] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const q = searchParams.get('q');
+    if (q) setQuery(q);
+  }, [searchParams]);
 
   useEffect(() => {
     fetch('/api/health')
@@ -57,38 +66,52 @@ export function HomePage() {
   }, [debounced]);
 
   return (
-    <div className="space-y-6">
-      <header className="space-y-2 pt-2">
-        <h1 className="logo text-3xl">Encore</h1>
-        <p className="text-muted-foreground">Discover concerts. Track every show.</p>
+    <div className="space-y-6 pb-4">
+      <header className="space-y-2">
+        <h1 className="text-2xl font-bold tracking-tight">Search</h1>
+        <p className="text-sm text-muted-foreground">Artists, venues, and concerts worldwide.</p>
       </header>
 
       <SearchBar value={query} onChange={setQuery} autoFocus />
 
       {apisConfigured === false && (
-        <ApiNotice message="No API keys detected. Add TICKETMASTER_API_KEY (and SETLISTFM_API_KEY) to .env.local in the project folder, then restart npm run dev. Or run: npx vercel env pull .env.local" />
+        <ApiNotice message="No API keys detected. Add TICKETMASTER_API_KEY to .env.local and restart the dev server." />
       )}
       {searchMeta && apisConfigured !== false && (
         <ApiNotice message={searchMeta} source="mock" />
       )}
 
-      <section className="space-y-3" aria-live="polite">
+      <section aria-live="polite">
         {error && (
-          <Alert variant="destructive">
+          <Alert variant="destructive" className="mb-4">
             <AlertCircle className="size-4" />
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
         {loading && <LoadingSpinner label="Searching…" />}
-        {!loading && debounced && !error && results.length === 0 && (
-          <EmptyState title="No results" description="Try another artist, venue, or city." />
+        {!loading && debounced && results.length === 0 && !error && (
+          <EmptyState
+            title="No results"
+            description="Try a different spelling or search by city name."
+          />
         )}
-        {!loading &&
-          results.map((r) => <SearchResultItem key={`${r.type}-${r.id}`} result={r} />)}
-        {!debounced && (
-          <p className="py-8 text-center text-sm text-muted-foreground">
-            Search for an artist, venue, city, or concert name.
-          </p>
+        {!loading && !debounced && (
+          <EmptyState
+            title="Start typing"
+            description="Search for an artist like “Arctic Monkeys” or a city like “Chicago”."
+          />
+        )}
+        {results.length > 0 && (
+          <>
+            <SectionHeader title="Results" subtitle={`${results.length} matches`} />
+            <ul className="space-y-2">
+              {results.map((r) => (
+                <li key={`${r.type}-${r.id}`}>
+                  <SearchResultItem result={r} />
+                </li>
+              ))}
+            </ul>
+          </>
         )}
       </section>
     </div>

@@ -1,5 +1,4 @@
 import { StatusBadge as Badge } from '@/components/ui/status-badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
 import type { SearchResult } from '@/types';
 import { cn } from '@/lib/utils';
@@ -38,16 +37,16 @@ export function SearchResultItem({ result }: SearchResultItemProps) {
             <img
               src={result.imageUrl}
               alt=""
-              className="size-12 shrink-0 rounded-lg object-cover"
+              width={48}
+              height={48}
+              className="size-12 shrink-0 rounded-xl border border-border/50 object-cover object-center"
               loading="lazy"
+              decoding="async"
             />
           ) : (
-            <Avatar className="size-12 shrink-0 rounded-lg">
-              <AvatarImage src={undefined} alt="" />
-              <AvatarFallback className="rounded-lg bg-primary/15 text-primary">
-                <Icon className="size-5" />
-              </AvatarFallback>
-            </Avatar>
+            <div className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10">
+              <Icon className="size-5 text-primary" aria-hidden />
+            </div>
           )}
           <div className="min-w-0 flex-1">
             <div className="mb-1 flex items-center gap-2">

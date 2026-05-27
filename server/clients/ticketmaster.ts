@@ -24,6 +24,13 @@ export async function tmSearchEvents(params: {
   startDateTime?: string;
   endDateTime?: string;
   sort?: string;
+  /** Latitude,Longitude e.g. 40.7,-73.98 */
+  latlong?: string;
+  radius?: string;
+  /** miles | km */
+  unit?: string;
+  /** e.g. music — Discovery API classificationName */
+  classificationName?: string;
 }) {
   return fetchJson<TmPayload>(
     apiUrl('/events.json', {
@@ -35,6 +42,10 @@ export async function tmSearchEvents(params: {
       sort: params.sort ?? 'date,asc',
       startDateTime: params.startDateTime,
       endDateTime: params.endDateTime,
+      latlong: params.latlong,
+      radius: params.radius,
+      unit: params.unit,
+      classificationName: params.classificationName,
     })
   );
 }
@@ -55,9 +66,21 @@ export async function tmGetAttraction(id: string) {
   return fetchJson<TmPayload>(apiUrl(`/attractions/${rawId}.json`));
 }
 
-export async function tmSearchVenues(keyword: string, size = 10) {
+export async function tmSearchVenues(params: {
+  keyword: string;
+  size?: number;
+  latlong?: string;
+  radius?: string;
+  unit?: string;
+}) {
   return fetchJson<TmPayload>(
-    apiUrl('/venues.json', { keyword, size: String(size) })
+    apiUrl('/venues.json', {
+      keyword: params.keyword,
+      size: String(params.size ?? 10),
+      latlong: params.latlong,
+      radius: params.radius,
+      unit: params.unit,
+    })
   );
 }
 

@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/app-button';
 import type { AggregatedField, AggregatedShowTiming, ShowReportInput } from '@/types';
 import { formatTime } from '@/utils/format';
 import { confidenceLabelText } from '@shared/showReports';
+import { Clock } from 'lucide-react';
 import { useState } from 'react';
 
 interface CommunityShowTimingProps {
@@ -66,44 +67,52 @@ export function CommunityShowTiming({
   const hasReports = reportCount > 0;
 
   return (
-    <section className="timing-section card community-timing">
-      <div className="community-timing-header">
-        <h3>Show timing</h3>
+    <section className="rounded-2xl border border-border/60 bg-card p-4">
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <h2 className="flex items-center gap-2 text-lg font-semibold">
+            <Clock className="size-5 text-primary" aria-hidden />
+            Show timing
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Community-sourced — ticketing APIs rarely include this detail.
+          </p>
+        </div>
         <Button size="sm" variant="secondary" onClick={() => setModalOpen(true)}>
-          {hasReports ? 'Update info' : 'Add info'}
+          {hasReports ? 'Update' : 'Add info'}
         </Button>
       </div>
-      <p className="timing-hint muted">
-        Detailed show times are community-sourced because public ticketing APIs rarely provide
-        this information. The most commonly reported answer is shown first.
-      </p>
-      <div className="community-timing-list">
+      <div className="grid gap-3 sm:grid-cols-2">
         {FIELDS.map(({ key, label, isTime, isOpeners }) => {
           const field = aggregated[key];
+          const unknown = !field;
           const value = formatFieldValue(field, { isTime, isOpeners });
           const meta = metaLine(field);
-          const unknown = !field;
 
           return (
-            <div key={key} className="community-timing-row">
-              <div className="community-timing-row-top">
-                <span className="community-timing-label">{label}</span>
-                <Button size="sm" variant="ghost" onClick={() => setModalOpen(true)}>
-                  {hasReports ? 'Update' : 'Add'}
-                </Button>
-              </div>
-              <p className={`community-timing-value ${unknown ? 'timing-na' : ''}`}>{value}</p>
-              {meta ? (
-                <p className="community-timing-meta muted">{meta}</p>
+            <div
+              key={key}
+              className="rounded-xl border border-border/50 bg-muted/20 p-3"
+            >
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {label}
+              </p>
+              <p className={`mt-1 text-base font-medium ${unknown ? 'text-muted-foreground' : ''}`}>
+                {value}
+              </p>
+              {unknown ? (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Help the community by adding this info
+                </p>
               ) : (
-                <p className="community-timing-meta muted">No reports yet</p>
+                meta && <p className="mt-1 text-xs text-muted-foreground">{meta}</p>
               )}
             </div>
           );
         })}
       </div>
       {reportCount > 0 && (
-        <p className="community-timing-total muted">
+        <p className="mt-4 text-center text-xs text-muted-foreground">
           {reportCount} community report{reportCount === 1 ? '' : 's'} for this show
         </p>
       )}

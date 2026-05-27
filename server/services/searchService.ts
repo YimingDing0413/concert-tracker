@@ -153,7 +153,7 @@ export async function searchAll(query: string): Promise<ApiResponse<SearchResult
   }
 
   const [venuesPayload, eventsPayload] = await Promise.all([
-    hasTicketmaster() ? safeFetch(() => tm.tmSearchVenues(q, 8), 'Ticketmaster venues') : null,
+    hasTicketmaster() ? safeFetch(() => tm.tmSearchVenues({ keyword: q, size: 8 }), 'Ticketmaster venues') : null,
     hasTicketmaster()
       ? safeFetch(() => tm.tmSearchEvents({ keyword: q, size: 25 }), 'Ticketmaster events')
       : null,

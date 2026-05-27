@@ -10,5 +10,5 @@
     "rootDir": "..",
     "types": ["node"]
   },
-  "include": ["./**/*", "../shared/**/*"]
+  "include": ["./**/*", "../shared/**/*", "../src/lib/db/**/*"]
 }

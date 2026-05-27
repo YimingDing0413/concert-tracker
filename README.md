@@ -66,6 +66,7 @@ Without API keys, the server returns **mock fallback data** and logs which provi
 | `GET /api/artists/:name/profile` | Bandsintown profile |
 | `GET /api/artists/:name/setlists` | Setlist.fm history |
 | `GET /api/artists/:name/predicted-setlist` | Predicted setlist |
+| `GET /api/map/nearby?lat=&lng=&radiusKm=` | Nearby upcoming shows + venue pins (Discover map) |
 | `POST /api/auth/login` | Mock auth |
 | `GET /api/user/concerts` | User's saved shows |
 

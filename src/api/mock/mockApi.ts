@@ -213,7 +213,8 @@ export const mockApi: ConcertApiClient = {
     return getUserConcerts().filter((uc) => uc.userId === userId);
   },
 
-  async setConcertStatus(userId, concertId, status) {
+  async setConcertStatus(userId, concertId, status, _eventSnapshot?) {
+    void _eventSnapshot;
     await delay();
     const existing = getUserConcerts().find(
       (uc) => uc.userId === userId && uc.concertId === concertId

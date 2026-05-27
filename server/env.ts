@@ -15,8 +15,14 @@ export const env = {
   ticketmasterApiKey: process.env.TICKETMASTER_API_KEY ?? '',
   bandsintownAppId: process.env.BANDSINTOWN_APP_ID ?? '',
   setlistFmApiKey: process.env.SETLISTFM_API_KEY ?? '',
+  awsRegion: process.env.AWS_REGION ?? '',
+  awsAccessKeyId: process.env.AWS_ACCESS_KEY_ID ?? '',
+  awsSecretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? '',
+  dynamoTableName: process.env.DYNAMODB_TABLE_NAME ?? 'ConcertTracker',
 };
 
 export const hasTicketmaster = () => Boolean(env.ticketmasterApiKey);
 export const hasBandsintown = () => Boolean(env.bandsintownAppId);
 export const hasSetlistFm = () => Boolean(env.setlistFmApiKey);
+export const hasDynamoDb = () =>
+  Boolean(env.awsRegion && env.awsAccessKeyId && env.awsSecretAccessKey && env.dynamoTableName);
