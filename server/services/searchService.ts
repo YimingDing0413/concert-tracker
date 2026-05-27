@@ -1,10 +1,12 @@
 import * as sl from '../clients/setlistfm.js';
 import * as tm from '../clients/ticketmaster.js';
 import { hasSetlistFm, hasTicketmaster } from '../env.js';
-import { artistDedupeKey, sortBySearchRelevance } from '../lib/searchRank.js';
 import {
-  filterMockSearch,
-} from '../mock/fallbackData.js';
+  artistDedupeKey,
+  scoreSearchMatch,
+  sortBySearchRelevance,
+} from '../lib/searchRank.js';
+import { filterMockSearch } from '../mock/fallbackData.js';
 import { normalizeSlArtistsSearch } from '../normalize/setlistfm.js';
 import {
   extractArtistsFromEvents,
@@ -19,6 +21,8 @@ import type {
   SearchResult,
   Venue,
 } from '../../shared/types/index.js';
+
+const MIN_ARTIST_MATCH = 35;
 
 async function safeFetch<T>(fn: () => Promise<T>, label: string): Promise<T | null> {
   try {
@@ -95,6 +99,44 @@ function eventsToSearchResults(events: ConcertEvent[]): SearchResult[] {
   }));
 }
 
+async function fetchArtistCandidates(query: string): Promise<Artist[]> {
+  const [attractionsPayload, eventsPayload, slArtistsRaw] = await Promise.all([
+    hasTicketmaster()
+      ? safeFetch(() => tm.tmSearchAttractions(query, 15), 'Ticketmaster attractions')
+      : null,
+    hasTicketmaster()
+      ? safeFetch(() => tm.tmSearchEvents({ keyword: query, size: 25 }), 'Ticketmaster events')
+      : null,
+    hasSetlistFm() ? safeFetch(() => sl.slSearchArtists(query, 15), 'Setlist.fm artists') : null,
+  ]);
+
+  const tmArtists = attractionsPayload ? normalizeTmAttractionsSearch(attractionsPayload) : [];
+  const tmEvents = eventsPayload ? normalizeTmEventsResponse(eventsPayload) : [];
+  const eventArtists = extractArtistsFromEvents(tmEvents);
+  const slArtists = slArtistsRaw ? normalizeSlArtistsSearch(slArtistsRaw) : [];
+
+  return mergeArtists(tmArtists, eventArtists, slArtists);
+}
+
+function buildArtistResults(candidates: Artist[], query: string): SearchResult[] {
+  const ranked = sortBySearchRelevance(candidates.map(artistToSearchResult), query);
+  return ranked.filter((r) => scoreSearchMatch(r.title, query) >= MIN_ARTIST_MATCH);
+}
+
+function expansionQueries(query: string): string[] {
+  const words = query.trim().split(/\s+/).filter(Boolean);
+  if (words.length < 2) return [];
+
+  const expansions: string[] = [];
+  expansions.push(words[0]);
+
+  if (words.length > 2) {
+    expansions.push(words.slice(0, -1).join(' '));
+  }
+
+  return [...new Set(expansions)].filter((candidate) => candidate !== query);
+}
+
 export async function searchAll(query: string): Promise<ApiResponse<SearchResult[]>> {
   const q = query.trim();
   if (!q) {
@@ -108,24 +150,26 @@ export async function searchAll(query: string): Promise<ApiResponse<SearchResult
     };
   }
 
-  const [attractionsPayload, venuesPayload, eventsPayload, slArtistsRaw] = await Promise.all([
-    hasTicketmaster() ? safeFetch(() => tm.tmSearchAttractions(q, 12), 'Ticketmaster attractions') : null,
+  const [venuesPayload, eventsPayload] = await Promise.all([
     hasTicketmaster() ? safeFetch(() => tm.tmSearchVenues(q, 8), 'Ticketmaster venues') : null,
     hasTicketmaster()
       ? safeFetch(() => tm.tmSearchEvents({ keyword: q, size: 25 }), 'Ticketmaster events')
       : null,
-    hasSetlistFm() ? safeFetch(() => sl.slSearchArtists(q, 12), 'Setlist.fm artists') : null,
   ]);
 
-  const tmArtists = attractionsPayload ? normalizeTmAttractionsSearch(attractionsPayload) : [];
-  const tmEvents = eventsPayload ? normalizeTmEventsResponse(eventsPayload) : [];
-  const eventArtists = extractArtistsFromEvents(tmEvents);
-  const slArtists = slArtistsRaw ? normalizeSlArtistsSearch(slArtistsRaw) : [];
+  let artistCandidates = await fetchArtistCandidates(q);
+  let artists = buildArtistResults(artistCandidates, q);
 
-  const artists = sortBySearchRelevance(
-    mergeArtists(tmArtists, eventArtists, slArtists).map(artistToSearchResult),
-    q
-  );
+  if (artists.length === 0) {
+    for (const broader of expansionQueries(q)) {
+      const extra = await fetchArtistCandidates(broader);
+      artistCandidates = mergeArtists(artistCandidates, extra);
+      artists = buildArtistResults(artistCandidates, q);
+      if (artists.length > 0) break;
+    }
+  }
+
+  const tmEvents = eventsPayload ? normalizeTmEventsResponse(eventsPayload) : [];
 
   const venues = sortBySearchRelevance(
     venuesToSearchResults(venuesPayload ? normalizeTmVenuesSearch(venuesPayload) : []),
@@ -150,9 +194,7 @@ export async function searchAll(query: string): Promise<ApiResponse<SearchResult
     meta: {
       source: 'live',
       message:
-        usedSources.size > 1
-          ? `Results from ${[...usedSources].join(', ')}`
-          : undefined,
+        usedSources.size > 1 ? `Results from ${[...usedSources].join(', ')}` : undefined,
     },
   };
 }
