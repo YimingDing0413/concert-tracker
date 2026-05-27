@@ -25,3 +25,13 @@ export function averageRating(values: number[]): number | null {
   if (!rated.length) return null;
   return Math.round((rated.reduce((a, b) => a + b, 0) / rated.length) * 10) / 10;
 }
+
+/** Average of Beli-style 1–10 overall ratings */
+export function averageOverallRating(values: number[]): number | null {
+  return averageRating(values);
+}
+
+export function formatOverallRating(avg: number | null): string {
+  if (avg == null) return '—';
+  return `${avg}/10`;
+}
