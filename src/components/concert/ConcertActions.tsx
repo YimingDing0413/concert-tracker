@@ -4,6 +4,7 @@ import type { UserConcertStatus } from '@/types';
 interface ConcertActionsProps {
   status?: UserConcertStatus;
   loading?: boolean;
+  hasReview?: boolean;
   onGoing: () => void;
   onAttended: () => void;
   onRate: () => void;
@@ -12,6 +13,7 @@ interface ConcertActionsProps {
 export function ConcertActions({
   status,
   loading,
+  hasReview,
   onGoing,
   onAttended,
   onRate,
@@ -35,7 +37,7 @@ export function ConcertActions({
         {status === 'attended' ? '✓ Attended' : 'Mark Attended'}
       </Button>
       <Button variant="ghost" onClick={onRate} disabled={loading} fullWidth>
-        Rate concert
+        {hasReview ? 'Edit rating' : 'Rate this concert'}
       </Button>
     </div>
   );

@@ -1,20 +1,21 @@
 import { api } from '@/api';
 import { ConcertActions } from '@/components/concert/ConcertActions';
 import { CommunityShowTiming } from '@/components/concert/CommunityShowTiming';
+import { ConcertDetailReviewSection } from '@/components/review/ConcertDetailReviewSection';
 import { SetlistDisplay } from '@/components/concert/SetlistDisplay';
 import { EntityIconBadge } from '@/components/ui/EntityIconBadge';
 import { SolidBackButton } from '@/components/ui/SolidBackButton';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { ApiNotice } from '@/components/ui/ApiNotice';
-import { RatingStars } from '@/components/ui/RatingStars';
 import { useAuth } from '@/context/AuthContext';
+import { getConcertReview } from '@/lib/concertReviewsLocal';
 import type {
   AggregatedShowTiming,
   ConcertDetail,
-  ConcertRating,
   ShowReportInput,
   UserConcert,
 } from '@/types';
+import type { ConcertReview } from '@/types/concertReview';
 import { formatDate, formatLocation, formatTime } from '@/utils/format';
 import { getConcertNavState } from '@/utils/concertNav';
 import { TicketCtaLink } from '@/components/ui/TicketCtaLink';
@@ -30,7 +31,7 @@ export function ConcertDetailPage() {
   const navState = getConcertNavState(location.state);
   const [concert, setConcert] = useState<ConcertDetail | null>(null);
   const [userConcert, setUserConcert] = useState<UserConcert | null>(null);
-  const [rating, setRating] = useState<ConcertRating | null>(null);
+  const [localReview, setLocalReview] = useState<ConcertReview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
@@ -38,8 +39,13 @@ export function ConcertDetailPage() {
   const [showReportCount, setShowReportCount] = useState(0);
   const [timingSubmitting, setTimingSubmitting] = useState(false);
 
+  const refreshLocalReview = useCallback(() => {
+    if (id) setLocalReview(getConcertReview(id));
+  }, [id]);
+
   const load = useCallback(async () => {
     if (!id) return;
+    refreshLocalReview();
     const timingPromise = api.getShowTiming(id, user?.id);
     if (!user) {
       const [c, timing] = await Promise.all([api.getConcert(id), timingPromise]);
@@ -48,15 +54,13 @@ export function ConcertDetailPage() {
         snapshot && c?.source === 'mock' ? ({ ...c, ...snapshot, id: c.id } as ConcertDetail) : c;
       setConcert(merged);
       setUserConcert(null);
-      setRating(null);
       setShowTiming(timing.aggregated);
       setShowReportCount(timing.reports.length);
       return;
     }
-    const [c, ucs, r, timing] = await Promise.all([
+    const [c, ucs, timing] = await Promise.all([
       api.getConcert(id),
       api.getUserConcerts(user.id),
-      api.getRating(user.id, id),
       timingPromise,
     ]);
     const snapshot = navState.concertSnapshot;
@@ -64,10 +68,9 @@ export function ConcertDetailPage() {
       snapshot && c?.source === 'mock' ? ({ ...c, ...snapshot, id: c.id } as ConcertDetail) : c;
     setConcert(merged);
     setUserConcert(ucs.find((uc) => uc.concertId === id) ?? null);
-    setRating(r);
     setShowTiming(timing.aggregated);
     setShowReportCount(timing.reports.length);
-  }, [id, user, navState.concertSnapshot]);
+  }, [id, user, navState.concertSnapshot, refreshLocalReview]);
 
   async function handleSubmitShowInfo(input: ShowReportInput) {
     if (!user || !id) throw new Error('Sign in to submit show info.');
@@ -87,6 +90,10 @@ export function ConcertDetailPage() {
     setError('');
     load().catch(() => setError('Could not load event')).finally(() => setLoading(false));
   }, [id, load]);
+
+  useEffect(() => {
+    refreshLocalReview();
+  }, [location.pathname, refreshLocalReview]);
 
   async function setStatus(status: 'going' | 'attended') {
     if (!user || !id || !concert) return;
@@ -150,6 +157,15 @@ export function ConcertDetailPage() {
       <div className="mx-auto max-w-lg space-y-6 px-4 py-6 md:max-w-3xl">
         {concert.ticketUrl && <TicketCtaLink href={concert.ticketUrl} />}
 
+        {id && (
+          <ConcertDetailReviewSection
+            eventId={id}
+            review={localReview}
+            onReviewChange={refreshLocalReview}
+            navState={location.state}
+          />
+        )}
+
         {user && (
           <section className="rounded-2xl border border-border/60 bg-card p-4 shadow-lg">
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
@@ -158,9 +174,10 @@ export function ConcertDetailPage() {
             <ConcertActions
               status={userConcert?.status}
               loading={actionLoading}
+              hasReview={Boolean(localReview)}
               onGoing={() => setStatus('going')}
               onAttended={() => setStatus('attended')}
-              onRate={() => navigate(`/concert/${id}/rate`, { state: location.state })}
+              onRate={() => navigate(`/concert/${id}/review`, { state: location.state })}
             />
           </section>
         )}
@@ -195,17 +212,6 @@ export function ConcertDetailPage() {
         )}
 
         <SetlistDisplay setlist={displaySetlist} />
-
-        {rating && (
-          <section className="rounded-2xl border border-border/60 bg-card p-4">
-            <h2 className="mb-2 text-lg font-semibold">Your rating</h2>
-            <RatingStars value={rating.overall} readonly />
-            {rating.review && <p className="mt-3 text-sm text-muted-foreground">{rating.review}</p>}
-            <Link to={`/concert/${id}/rate`} className="mt-3 inline-block text-sm font-medium text-primary">
-              Edit review →
-            </Link>
-          </section>
-        )}
 
         {userConcert?.notes && (
           <section className="rounded-2xl border border-border/60 bg-card p-4">

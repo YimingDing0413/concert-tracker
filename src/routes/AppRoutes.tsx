@@ -12,10 +12,11 @@ import { DiscoverMapPage } from '@/pages/DiscoverMapPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { MyConcertsPage } from '@/pages/MyConcertsPage';
 import { ProfilePage } from '@/pages/ProfilePage';
-import { RatingPage } from '@/pages/RatingPage';
+import { ReviewPage } from '@/pages/ReviewPage';
 import { SearchPage } from '@/pages/SearchPage';
 import { SignUpPage } from '@/pages/SignUpPage';
 import { VenueDetailPage } from '@/pages/VenueDetailPage';
+import { WrapUpPage } from '@/pages/WrapUpPage';
 import type { ReactNode } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 
@@ -28,7 +29,6 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
 
 function PublicOnlyRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
-  // Show login/signup immediately — don't block on /api/auth/me (often hangs on Vercel cold start)
   if (!loading && user) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
@@ -96,12 +96,24 @@ export function AppRoutes() {
         }
       />
       <Route
-        path="/concert/:id/rate"
+        path="/concert/:id/review"
         element={
           <ProtectedRoute>
-            <RatingPage />
+            <ReviewPage />
           </ProtectedRoute>
         }
+      />
+      <Route
+        path="/concert/:id/wrap-up"
+        element={
+          <ProtectedRoute>
+            <WrapUpPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/concert/:id/rate"
+        element={<Navigate to="review" replace relative="path" />}
       />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
