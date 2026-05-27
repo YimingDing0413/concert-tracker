@@ -120,7 +120,9 @@ async function fetchArtistCandidates(query: string): Promise<Artist[]> {
 
 function buildArtistResults(candidates: Artist[], query: string): SearchResult[] {
   const ranked = sortBySearchRelevance(candidates.map(artistToSearchResult), query);
-  return ranked.filter((r) => scoreSearchMatch(r.title, query) >= MIN_ARTIST_MATCH);
+  const wordCount = query.trim().split(/\s+/).filter(Boolean).length;
+  const minScore = wordCount > 1 ? 50 : MIN_ARTIST_MATCH;
+  return ranked.filter((r) => scoreSearchMatch(r.title, query) >= minScore);
 }
 
 function expansionQueries(query: string): string[] {
@@ -158,16 +160,11 @@ export async function searchAll(query: string): Promise<ApiResponse<SearchResult
   ]);
 
   let artistCandidates = await fetchArtistCandidates(q);
-  let artists = buildArtistResults(artistCandidates, q);
-
-  if (artists.length === 0) {
-    for (const broader of expansionQueries(q)) {
-      const extra = await fetchArtistCandidates(broader);
-      artistCandidates = mergeArtists(artistCandidates, extra);
-      artists = buildArtistResults(artistCandidates, q);
-      if (artists.length > 0) break;
-    }
+  for (const broader of expansionQueries(q)) {
+    const extra = await fetchArtistCandidates(broader);
+    artistCandidates = mergeArtists(artistCandidates, extra);
   }
+  const artists = buildArtistResults(artistCandidates, q);
 
   const tmEvents = eventsPayload ? normalizeTmEventsResponse(eventsPayload) : [];
 
