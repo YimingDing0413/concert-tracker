@@ -118,15 +118,26 @@ export function ProfilePage() {
           <p className="text-muted-foreground">@{user.username}</p>
           {user.bio && <p className="mt-2 text-sm text-foreground/90">{user.bio}</p>}
           <div className="mt-4 flex flex-wrap justify-center gap-2 md:justify-start">
-            <Button render={<Link to="/add" />} size="sm" className="gap-1">
-              <Plus className="size-4" aria-hidden />
+            <Link
+              to="/add"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-primary/50 bg-primary px-4 text-sm font-semibold !text-primary-foreground no-underline shadow-[0_0_20px_-4px] shadow-primary/40 transition-colors hover:bg-primary/90 hover:!text-primary-foreground hover:no-underline"
+            >
+              <Plus className="size-4 shrink-0" aria-hidden />
               Add concert
-            </Button>
-            <Button render={<Link to="/map" />} size="sm" variant="secondary" className="gap-1">
-              <MapPinned className="size-4" aria-hidden />
+            </Link>
+            <Link
+              to="/map"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-semibold text-foreground shadow-sm transition-colors hover:border-primary/30 hover:bg-muted"
+            >
+              <MapPinned className="size-4 shrink-0 text-primary" aria-hidden />
               Map
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => logout()} className="gap-1">
+            </Link>
+            <Button
+              variant="ghost"
+              size="default"
+              onClick={() => logout()}
+              className="h-10 gap-2 px-4 text-sm font-medium text-muted-foreground hover:text-foreground"
+            >
               <LogOut className="size-4" aria-hidden />
               Log out
             </Button>
