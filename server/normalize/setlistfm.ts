@@ -1,6 +1,7 @@
 import type { ConcertEvent, Setlist, SetlistSong } from '../../shared/types/index.js';
-import type { SlSetlist } from '../clients/setlistfm.js';
+import type { SlArtist, SlSetlist } from '../clients/setlistfm.js';
 import { slugify } from '../../shared/mappers.js';
+import type { Artist } from '../../shared/types/index.js';
 
 function parseSlDate(ddmmyyyy: string): string {
   const [d, m, y] = ddmmyyyy.split('-');
@@ -261,4 +262,18 @@ export function buildPredictedSetlist(
     songs,
     updatedAt: new Date().toISOString(),
   };
+}
+
+export function normalizeSlArtist(raw: SlArtist): Artist {
+  return {
+    id: `sl:artist:${raw.mbid}`,
+    name: raw.name,
+    slug: slugify(raw.name),
+    externalIds: { setlistFm: raw.mbid },
+    source: 'setlistfm',
+  };
+}
+
+export function normalizeSlArtistsSearch(raw: SlArtist[]): Artist[] {
+  return raw.map(normalizeSlArtist);
 }

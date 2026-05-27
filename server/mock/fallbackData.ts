@@ -108,10 +108,36 @@ export const mockSetlists: Setlist[] = [
 export function filterMockSearch(query: string): SearchResult[] {
   const q = query.toLowerCase().trim();
   if (!q) return mockSearchResults;
-  const matched = mockSearchResults.filter(
-    (r) => r.title.toLowerCase().includes(q) || r.subtitle.toLowerCase().includes(q)
+
+  const fromResults = mockSearchResults.filter(
+    (r) =>
+      r.title.toLowerCase().includes(q) ||
+      r.subtitle.toLowerCase().includes(q) ||
+      q.split(/\s+/).every((w) => r.title.toLowerCase().includes(w))
   );
-  // Without Ticketmaster keys, real artist names won't match sample data — still show samples
-  // so the UI isn't empty while developing locally.
-  return matched.length ? matched : mockSearchResults;
+
+  const fromArtists = mockArtists
+    .filter(
+      (a) =>
+        a.name.toLowerCase().includes(q) ||
+        q.split(/\s+/).every((w) => a.name.toLowerCase().includes(w))
+    )
+    .map((a) => ({
+      id: a.id,
+      type: 'artist' as const,
+      title: a.name,
+      subtitle: a.genres?.join(' · ') ?? 'Artist',
+      source: 'mock' as const,
+    }));
+
+  const merged = [...fromArtists, ...fromResults];
+  const seen = new Set<string>();
+  const unique = merged.filter((r) => {
+    const key = `${r.type}:${r.title.toLowerCase()}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  return unique.length ? unique : mockSearchResults;
 }

@@ -6,6 +6,7 @@ import { mockArtists, mockEvents, mockSetlists } from '../mock/fallbackData.js';
 import { normalizeBitArtist, normalizeBitEvents } from '../normalize/bandsintown.js';
 import {
   buildPredictedSetlistWithTourFallback,
+  normalizeSlArtist,
   normalizeSlSetlistsPage,
   setlistToPastEvent,
 } from '../normalize/setlistfm.js';
@@ -21,8 +22,12 @@ import type { Artist, ArtistDetail, ConcertEvent, Setlist } from '../../shared/t
 export function resolveArtistName(idOrName: string, artist?: Artist): string {
   if (artist?.name) return artist.name;
   const decoded = decodeURIComponent(idOrName);
+  if (decoded.startsWith('name:')) {
+    return decoded.slice(5).replace(/-/g, ' ');
+  }
   if (decoded.includes(':')) {
-    return decoded.split(':').pop() ?? decoded;
+    const tail = decoded.split(':').pop() ?? decoded;
+    return tail.includes('-') && !tail.includes(' ') ? tail.replace(/-/g, ' ') : tail;
   }
   return decoded.replace(/-/g, ' ');
 }
@@ -120,6 +125,18 @@ export async function getArtistDetail(idOrName: string): Promise<{
 }> {
   const decoded = decodeURIComponent(idOrName);
   let artist: Artist | null = null;
+
+  if (decoded.startsWith('sl:artist:') && hasSetlistFm()) {
+    try {
+      const mbid = decoded.replace('sl:artist:', '');
+      const raw = await sl.slGetArtist(mbid);
+      if (raw?.name) {
+        artist = normalizeSlArtist(raw);
+      }
+    } catch {
+      /* fall through */
+    }
+  }
 
   if (decoded.startsWith('tm:attraction:') && hasTicketmaster()) {
     try {

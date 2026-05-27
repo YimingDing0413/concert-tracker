@@ -127,6 +127,30 @@ export function normalizeTmVenuesSearch(payload: any): Venue[] {
     );
 }
 
+/** Pull headliners from event search when attraction search misses partial names. */
+export function extractArtistsFromEvents(events: ConcertEvent[]): Artist[] {
+  const map = new Map<string, Artist>();
+  for (const e of events) {
+    if (!e.artistName) continue;
+    const id =
+      e.artistId ??
+      (e.source === 'ticketmaster' ? `name:${slugify(e.artistName)}` : `name:${slugify(e.artistName)}`);
+    const key = e.artistName.toLowerCase().trim();
+    if (map.has(key)) continue;
+    map.set(key, {
+      id,
+      name: e.artistName,
+      slug: slugify(e.artistName),
+      imageUrl: e.imageUrl,
+      source: e.source === 'mock' ? 'mock' : 'ticketmaster',
+      externalIds: e.artistId?.startsWith('tm:attraction:')
+        ? { ticketmaster: e.artistId.replace('tm:attraction:', '') }
+        : undefined,
+    });
+  }
+  return [...map.values()];
+}
+
 export function normalizeTmSearchResults(
   attractions: Artist[],
   venues: Venue[],

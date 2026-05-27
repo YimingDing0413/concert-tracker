@@ -10,15 +10,31 @@ function headers() {
   };
 }
 
-export async function slSearchArtist(artistName: string) {
+export async function slGetArtist(mbid: string) {
+  const url = `${BASE}/artist/${mbid}`;
+  return fetchJson<SlArtist>(url, { headers: headers() });
+}
+
+export async function slSearchArtists(artistName: string, limit = 10): Promise<SlArtist[]> {
   const url = `${BASE}/search/artists?artistName=${encodeURIComponent(artistName)}&sort=relevance`;
   const res = await fetchJson<SlSearchArtists>(url, { headers: headers() });
-  const artists = res.artist ?? [];
+  return (res.artist ?? []).slice(0, limit);
+}
+
+export async function slSearchArtist(artistName: string) {
+  const artists = await slSearchArtists(artistName, 10);
   if (!artists.length) return undefined;
-  const exact = artists.find(
-    (a) => a.name.toLowerCase() === artistName.toLowerCase()
-  );
-  return exact ?? artists[0];
+  const q = artistName.toLowerCase().trim();
+  const exact = artists.find((a) => a.name.toLowerCase() === q);
+  if (exact) return exact;
+  const startsWith = artists.find((a) => a.name.toLowerCase().startsWith(q));
+  if (startsWith) return startsWith;
+  const containsAll = artists.find((a) => {
+    const words = q.split(/\s+/).filter(Boolean);
+    const name = a.name.toLowerCase();
+    return words.every((w) => name.includes(w));
+  });
+  return containsAll ?? artists[0];
 }
 
 export async function slGetArtistSetlists(mbid: string, page = 1) {
