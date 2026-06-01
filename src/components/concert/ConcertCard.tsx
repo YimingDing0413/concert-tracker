@@ -1,8 +1,10 @@
 import { StatusBadge as Badge } from '@/components/ui/status-badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { RatingStars } from '@/components/ui/RatingStars';
+import { cn } from '@/lib/utils';
 import type { Concert, ConcertRating, UserConcert } from '@/types';
 import { formatDate, formatLocation, formatTime } from '@/utils/format';
+import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, ChevronRight, MapPin } from 'lucide-react';
 
@@ -14,6 +16,8 @@ interface ConcertCardProps {
   backTo?: string;
   variant?: 'poster' | 'compact';
   showCta?: boolean;
+  /** Optional interactive content rendered inside the card body (e.g. a Rate button). */
+  action?: ReactNode;
 }
 
 function sourceLabel(source?: string) {
@@ -32,6 +36,7 @@ export function ConcertCard({
   backTo,
   variant = 'poster',
   showCta = true,
+  action,
 }: ConcertCardProps) {
   const id = concertId ?? concert.id ?? userConcert?.concertId;
   const artist = concert.artistName ?? 'Unknown artist';
@@ -63,10 +68,7 @@ export function ConcertCard({
             </Avatar>
           )}
           <div className="min-w-0 flex-1">
-            <div className="flex items-start justify-between gap-2">
-              <h3 className="truncate font-semibold text-foreground">{artist}</h3>
-              {userConcert && <Badge type={userConcert.status} />}
-            </div>
+            <h3 className="truncate font-semibold text-foreground">{artist}</h3>
             <p className="truncate text-sm text-muted-foreground">{venue}</p>
             {date && (
               <p className="mt-1 text-xs text-muted-foreground">
@@ -80,7 +82,15 @@ export function ConcertCard({
               </div>
             )}
           </div>
-          <ChevronRight className="size-4 shrink-0 self-center text-muted-foreground" aria-hidden />
+          <div
+            className={cn(
+              'flex shrink-0 flex-col items-end gap-2',
+              !userConcert && !action && 'justify-center'
+            )}
+          >
+            {userConcert && <Badge type={userConcert.status} />}
+            {action ?? <ChevronRight className="size-4 text-muted-foreground" aria-hidden />}
+          </div>
         </article>
       </Link>
     );

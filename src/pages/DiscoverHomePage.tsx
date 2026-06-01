@@ -2,14 +2,14 @@ import { apiFetch } from '@/api/http';
 import { api } from '@/api';
 import { ConcertCard } from '@/components/concert/ConcertCard';
 import { SectionHeader } from '@/components/ui/SectionHeader';
-import { SearchBar } from '@/components/ui/SearchBar';
+import { SearchAutocomplete } from '@/components/search/SearchAutocomplete';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ConcertCardSkeleton } from '@/components/ui/LoadingSkeleton';
 import { DISCOVER_DEFAULT_CENTER, requestUserPosition } from '@/lib/geolocation';
 import { mapVenueToNearbyGroup } from '@/lib/mapVenueAdapters';
 import type { Concert, MapEventsPayload, UserConcert } from '@/types';
 import { sortUserConcertsByDate } from '@/utils/userConcert';
-import { Sparkles, TrendingUp } from 'lucide-react';
+import { TrendingUp } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -26,7 +26,6 @@ function concertsFromMapPayload(data: MapEventsPayload): Concert[] {
 export function DiscoverHomePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [searchDraft, setSearchDraft] = useState('');
   const [center, setCenter] = useState<{ latitude: number; longitude: number }>(() => ({
     ...DISCOVER_DEFAULT_CENTER,
   }));
@@ -95,53 +94,10 @@ export function DiscoverHomePage() {
   const featured = nearbyConcerts.slice(0, 6);
   const upcoming = nearbyConcerts.slice(0, 12);
 
-  function handleSearchSubmit() {
-    const q = searchDraft.trim();
-    if (!q) return;
-    navigate(`/search?q=${encodeURIComponent(q)}`);
-  }
-
   return (
     <div className="space-y-10 pb-4">
-      <section className="relative overflow-hidden rounded-3xl border border-border/50 bg-gradient-to-br from-primary/25 via-card to-background p-6 shadow-xl md:p-8">
-        <div className="pointer-events-none absolute -right-8 -top-8 size-40 rounded-full bg-primary/20 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-10 -left-10 size-32 rounded-full bg-accent/15 blur-3xl" />
-        <p className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-primary">
-          <Sparkles className="size-3.5" aria-hidden />
-          Your concert universe
-        </p>
-        <h1 className="logo mb-2 text-4xl md:text-5xl">Encore</h1>
-        <p className="mb-5 max-w-md text-sm text-muted-foreground md:text-base">
-          Discover shows, explore venues on the map, and build your concert diary.
-        </p>
-        <form
-          className="max-w-lg"
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleSearchSubmit();
-          }}
-        >
-          <SearchBar
-            value={searchDraft}
-            onChange={setSearchDraft}
-            placeholder="Search artists, venues, cities…"
-            className="shadow-lg"
-          />
-        </form>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Link
-            to="/map"
-            className="rounded-full border border-border/60 bg-card/80 px-3 py-1.5 text-xs font-medium text-foreground backdrop-blur hover:border-primary/40"
-          >
-            Open map
-          </Link>
-          <Link
-            to="/my-concerts"
-            className="rounded-full border border-border/60 bg-card/80 px-3 py-1.5 text-xs font-medium text-foreground backdrop-blur hover:border-primary/40"
-          >
-            My concerts
-          </Link>
-        </div>
+      <section className="pt-2">
+        <SearchAutocomplete placeholder="Search artists, venues, cities…" />
       </section>
 
       <section>

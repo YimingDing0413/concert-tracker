@@ -1,37 +1,32 @@
 import { api } from '@/api';
 import { ConcertActions } from '@/components/concert/ConcertActions';
 import { CommunityShowTiming } from '@/components/concert/CommunityShowTiming';
-import { ConcertDetailReviewSection } from '@/components/review/ConcertDetailReviewSection';
 import { SetlistDisplay } from '@/components/concert/SetlistDisplay';
 import { EntityIconBadge } from '@/components/ui/EntityIconBadge';
 import { SolidBackButton } from '@/components/ui/SolidBackButton';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { ApiNotice } from '@/components/ui/ApiNotice';
 import { useAuth } from '@/context/AuthContext';
-import { getConcertReview } from '@/lib/concertReviewsLocal';
 import type {
   AggregatedShowTiming,
   ConcertDetail,
   ShowReportInput,
   UserConcert,
 } from '@/types';
-import type { ConcertReview } from '@/types/concertReview';
 import { formatDate, formatLocation, formatTime } from '@/utils/format';
 import { getConcertNavState } from '@/utils/concertNav';
 import { TicketCtaLink } from '@/components/ui/TicketCtaLink';
 import { Calendar, MapPin } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 
 export function ConcertDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
-  const navigate = useNavigate();
   const location = useLocation();
   const navState = getConcertNavState(location.state);
   const [concert, setConcert] = useState<ConcertDetail | null>(null);
   const [userConcert, setUserConcert] = useState<UserConcert | null>(null);
-  const [localReview, setLocalReview] = useState<ConcertReview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
@@ -39,14 +34,8 @@ export function ConcertDetailPage() {
   const [showReportCount, setShowReportCount] = useState(0);
   const [timingSubmitting, setTimingSubmitting] = useState(false);
 
-  const refreshLocalReview = useCallback(() => {
-    if (id && user?.id) setLocalReview(getConcertReview(user.id, id));
-    else setLocalReview(null);
-  }, [id, user?.id]);
-
   const load = useCallback(async () => {
     if (!id) return;
-    refreshLocalReview();
     const timingPromise = api.getShowTiming(id, user?.id);
     if (!user) {
       const [c, timing] = await Promise.all([api.getConcert(id), timingPromise]);
@@ -71,7 +60,7 @@ export function ConcertDetailPage() {
     setUserConcert(ucs.find((uc) => uc.concertId === id) ?? null);
     setShowTiming(timing.aggregated);
     setShowReportCount(timing.reports.length);
-  }, [id, user, navState.concertSnapshot, refreshLocalReview]);
+  }, [id, user, navState.concertSnapshot]);
 
   async function handleSubmitShowInfo(input: ShowReportInput) {
     if (!user || !id) throw new Error('Sign in to submit show info.');
@@ -91,10 +80,6 @@ export function ConcertDetailPage() {
     setError('');
     load().catch(() => setError('Could not load event')).finally(() => setLoading(false));
   }, [id, load]);
-
-  useEffect(() => {
-    refreshLocalReview();
-  }, [location.pathname, user?.id, refreshLocalReview]);
 
   async function setStatus(status: 'going' | 'attended') {
     if (!user || !id || !concert) return;
@@ -158,29 +143,27 @@ export function ConcertDetailPage() {
       <div className="mx-auto max-w-lg space-y-6 px-4 py-6 md:max-w-3xl">
         {concert.ticketUrl && <TicketCtaLink href={concert.ticketUrl} />}
 
-        {id && user && (
-          <ConcertDetailReviewSection
-            userId={user.id}
-            eventId={id}
-            review={localReview}
-            onReviewChange={refreshLocalReview}
-            navState={location.state}
-          />
-        )}
-
         {user && (
           <section className="rounded-2xl border border-border/60 bg-card p-4 shadow-lg">
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
               Your concert
             </h2>
             <ConcertActions
-              status={userConcert?.status}
+              concertStatus={concert.status}
+              userStatus={userConcert?.status}
               loading={actionLoading}
-              hasReview={Boolean(localReview)}
               onGoing={() => setStatus('going')}
               onAttended={() => setStatus('attended')}
-              onRate={() => navigate(`/concert/${id}/review`, { state: location.state })}
             />
+            {concert.status === 'past' && (
+              <p className="mt-3 text-xs text-muted-foreground">
+                Been to this show? Mark it attended, then rate it from{' '}
+                <Link to="/my-concerts" className="font-medium text-primary">
+                  My Concerts
+                </Link>
+                .
+              </p>
+            )}
           </section>
         )}
 

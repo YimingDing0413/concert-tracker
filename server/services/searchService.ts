@@ -61,6 +61,18 @@ function mergeArtists(...groups: Artist[][]): Artist[] {
   return [...map.values()];
 }
 
+function dedupeById(results: SearchResult[]): SearchResult[] {
+  const seen = new Set<string>();
+  const out: SearchResult[] = [];
+  for (const r of results) {
+    const key = `${r.type}:${r.id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(r);
+  }
+  return out;
+}
+
 function artistToSearchResult(artist: Artist): SearchResult {
   const id = artist.id.startsWith('tm:attraction:')
     ? artist.id
@@ -100,12 +112,15 @@ function eventsToSearchResults(events: ConcertEvent[]): SearchResult[] {
 }
 
 async function fetchArtistCandidates(query: string): Promise<Artist[]> {
-  const [attractionsPayload, eventsPayload, slArtistsRaw] = await Promise.all([
+  const [attractionsPayload, eventsPayload, suggestPayload, slArtistsRaw] = await Promise.all([
     hasTicketmaster()
       ? safeFetch(() => tm.tmSearchAttractions(query, 15), 'Ticketmaster attractions')
       : null,
     hasTicketmaster()
       ? safeFetch(() => tm.tmSearchEvents({ keyword: query, size: 25 }), 'Ticketmaster events')
+      : null,
+    hasTicketmaster()
+      ? safeFetch(() => tm.tmSuggest(query, 5), 'Ticketmaster suggest')
       : null,
     hasSetlistFm() ? safeFetch(() => sl.slSearchArtists(query, 15), 'Setlist.fm artists') : null,
   ]);
@@ -113,9 +128,14 @@ async function fetchArtistCandidates(query: string): Promise<Artist[]> {
   const tmArtists = attractionsPayload ? normalizeTmAttractionsSearch(attractionsPayload) : [];
   const tmEvents = eventsPayload ? normalizeTmEventsResponse(eventsPayload) : [];
   const eventArtists = extractArtistsFromEvents(tmEvents);
+  // /suggest does prefix matching (e.g. "joj" -> "Joji") that keyword search misses.
+  const suggestArtists = suggestPayload ? normalizeTmAttractionsSearch(suggestPayload) : [];
+  const suggestEventArtists = suggestPayload
+    ? extractArtistsFromEvents(normalizeTmEventsResponse(suggestPayload))
+    : [];
   const slArtists = slArtistsRaw ? normalizeSlArtistsSearch(slArtistsRaw) : [];
 
-  return mergeArtists(tmArtists, eventArtists, slArtists);
+  return mergeArtists(tmArtists, suggestArtists, eventArtists, suggestEventArtists, slArtists);
 }
 
 function buildArtistResults(candidates: Artist[], query: string): SearchResult[] {
@@ -152,11 +172,12 @@ export async function searchAll(query: string): Promise<ApiResponse<SearchResult
     };
   }
 
-  const [venuesPayload, eventsPayload] = await Promise.all([
+  const [venuesPayload, eventsPayload, suggestPayload] = await Promise.all([
     hasTicketmaster() ? safeFetch(() => tm.tmSearchVenues({ keyword: q, size: 8 }), 'Ticketmaster venues') : null,
     hasTicketmaster()
       ? safeFetch(() => tm.tmSearchEvents({ keyword: q, size: 25 }), 'Ticketmaster events')
       : null,
+    hasTicketmaster() ? safeFetch(() => tm.tmSuggest(q, 5), 'Ticketmaster suggest') : null,
   ]);
 
   let artistCandidates = await fetchArtistCandidates(q);
@@ -166,14 +187,21 @@ export async function searchAll(query: string): Promise<ApiResponse<SearchResult
   }
   const artists = buildArtistResults(artistCandidates, q);
 
-  const tmEvents = eventsPayload ? normalizeTmEventsResponse(eventsPayload) : [];
+  const tmEvents = [
+    ...(eventsPayload ? normalizeTmEventsResponse(eventsPayload) : []),
+    ...(suggestPayload ? normalizeTmEventsResponse(suggestPayload) : []),
+  ];
 
-  const venues = sortBySearchRelevance(
-    venuesToSearchResults(venuesPayload ? normalizeTmVenuesSearch(venuesPayload) : []),
-    q
+  const venueResults = [
+    ...(venuesPayload ? normalizeTmVenuesSearch(venuesPayload) : []),
+    ...(suggestPayload ? normalizeTmVenuesSearch(suggestPayload) : []),
+  ];
+
+  const venues = dedupeById(
+    sortBySearchRelevance(venuesToSearchResults(venueResults), q)
   );
 
-  const events = sortBySearchRelevance(eventsToSearchResults(tmEvents), q);
+  const events = dedupeById(sortBySearchRelevance(eventsToSearchResults(tmEvents), q));
 
   const data = [
     ...artists.slice(0, 10),

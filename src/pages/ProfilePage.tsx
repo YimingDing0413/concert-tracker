@@ -13,7 +13,7 @@ import { getAllConcertReviews } from '@/lib/concertReviewsLocal';
 import type { Concert, UserConcert } from '@/types';
 import type { ConcertReview } from '@/types/concertReview';
 import { averageOverallRating, formatOverallRating } from '@/utils/format';
-import { Calendar, LogOut, MapPinned, Music2, Plus, Star } from 'lucide-react';
+import { Calendar, LogOut, MapPinned, Music2, Star } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
@@ -60,17 +60,6 @@ export function ProfilePage() {
 
   const stats = useMemo(() => {
     const attended = userConcerts.filter((uc) => uc.status === 'attended');
-    const artistCounts = new Map<string, number>();
-    const venueCounts = new Map<string, number>();
-    for (const uc of attended) {
-      const c = concerts.find((x) => x.id === uc.concertId) ?? uc.concertSnapshot;
-      const artist = c?.artistName;
-      const venue = c?.venueName;
-      if (artist) artistCounts.set(artist, (artistCounts.get(artist) ?? 0) + 1);
-      if (venue) venueCounts.set(venue, (venueCounts.get(venue) ?? 0) + 1);
-    }
-    const topArtists = [...artistCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
-    const topVenues = [...venueCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
     const avgOverall = averageOverallRating(localReviews.map((r) => r.overallRating));
     return {
       attended: attended.length,
@@ -78,10 +67,8 @@ export function ProfilePage() {
       avgOverall,
       avgDisplay: formatOverallRating(avgOverall),
       reviewCount: localReviews.length,
-      topArtists,
-      topVenues,
     };
-  }, [userConcerts, concerts, localReviews]);
+  }, [userConcerts, localReviews]);
 
   const recent = useMemo(() => {
     return [...userConcerts]
@@ -118,20 +105,6 @@ export function ProfilePage() {
           <p className="text-muted-foreground">@{user.username}</p>
           {user.bio && <p className="mt-2 text-sm text-foreground/90">{user.bio}</p>}
           <div className="mt-4 flex flex-wrap justify-center gap-2 md:justify-start">
-            <Link
-              to="/add"
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-primary/50 bg-primary px-4 text-sm font-semibold !text-primary-foreground no-underline shadow-[0_0_20px_-4px] shadow-primary/40 transition-colors hover:bg-primary/90 hover:!text-primary-foreground hover:no-underline"
-            >
-              <Plus className="size-4 shrink-0" aria-hidden />
-              Add concert
-            </Link>
-            <Link
-              to="/map"
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-semibold text-foreground shadow-sm transition-colors hover:border-primary/30 hover:bg-muted"
-            >
-              <MapPinned className="size-4 shrink-0 text-primary" aria-hidden />
-              Map
-            </Link>
             <Button
               variant="ghost"
               size="default"
@@ -175,37 +148,6 @@ export function ProfilePage() {
 
       {tab === 'overview' && (
         <div className="space-y-8">
-          {(stats.topArtists.length > 0 || stats.topVenues.length > 0) && (
-            <div className="grid gap-6 md:grid-cols-2">
-              {stats.topArtists.length > 0 && (
-                <section className="rounded-2xl border border-border/60 bg-card/40 p-4">
-                  <SectionHeader title="Favorite artists" />
-                  <ul className="space-y-2 text-sm">
-                    {stats.topArtists.map(([name, count]) => (
-                      <li key={name} className="flex justify-between gap-2">
-                        <span className="truncate font-medium">{name}</span>
-                        <span className="shrink-0 text-muted-foreground">{count} shows</span>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              )}
-              {stats.topVenues.length > 0 && (
-                <section className="rounded-2xl border border-border/60 bg-card/40 p-4">
-                  <SectionHeader title="Favorite venues" />
-                  <ul className="space-y-2 text-sm">
-                    {stats.topVenues.map(([name, count]) => (
-                      <li key={name} className="flex justify-between gap-2">
-                        <span className="truncate font-medium">{name}</span>
-                        <span className="shrink-0 text-muted-foreground">{count}×</span>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              )}
-            </div>
-          )}
-
           <section>
             <SectionHeader title="Recent concerts" actionTo="/my-concerts" actionLabel="See all" />
             {recent.length === 0 ? (

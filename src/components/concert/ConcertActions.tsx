@@ -2,43 +2,44 @@ import { Button } from '@/components/ui/app-button';
 import type { UserConcertStatus } from '@/types';
 
 interface ConcertActionsProps {
-  status?: UserConcertStatus;
+  /** Whether the concert itself is upcoming or has already happened. */
+  concertStatus: 'upcoming' | 'past';
+  userStatus?: UserConcertStatus;
   loading?: boolean;
-  hasReview?: boolean;
   onGoing: () => void;
   onAttended: () => void;
-  onRate: () => void;
 }
 
 export function ConcertActions({
-  status,
+  concertStatus,
+  userStatus,
   loading,
-  hasReview,
   onGoing,
   onAttended,
-  onRate,
 }: ConcertActionsProps) {
-  return (
-    <div className="grid gap-2 sm:grid-cols-3">
+  if (concertStatus === 'upcoming') {
+    const going = userStatus === 'going';
+    return (
       <Button
-        variant={status === 'going' ? 'primary' : 'secondary'}
+        variant={going ? 'primary' : 'secondary'}
         onClick={onGoing}
         disabled={loading}
         fullWidth
       >
-        {status === 'going' ? '✓ Going' : 'Add to My Concerts'}
+        {going ? '✓ Going' : 'Mark going'}
       </Button>
-      <Button
-        variant={status === 'attended' ? 'primary' : 'secondary'}
-        onClick={onAttended}
-        disabled={loading}
-        fullWidth
-      >
-        {status === 'attended' ? '✓ Attended' : 'Mark Attended'}
-      </Button>
-      <Button variant="ghost" onClick={onRate} disabled={loading} fullWidth>
-        {hasReview ? 'Edit rating' : 'Rate this concert'}
-      </Button>
-    </div>
+    );
+  }
+
+  const attended = userStatus === 'attended';
+  return (
+    <Button
+      variant={attended ? 'primary' : 'secondary'}
+      onClick={onAttended}
+      disabled={loading}
+      fullWidth
+    >
+      {attended ? '✓ Attended' : 'Mark attended'}
+    </Button>
   );
 }

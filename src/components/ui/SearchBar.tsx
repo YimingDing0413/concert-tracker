@@ -9,6 +9,7 @@ interface SearchBarProps {
   placeholder?: string;
   autoFocus?: boolean;
   className?: string;
+  onFocus?: () => void;
 }
 
 export function SearchBar({
@@ -17,6 +18,7 @@ export function SearchBar({
   placeholder = 'Search artists, venues, concerts…',
   autoFocus,
   className,
+  onFocus,
 }: SearchBarProps) {
   return (
     <div className={cn('relative', className)}>
@@ -28,6 +30,7 @@ export function SearchBar({
         type="search"
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onFocus={onFocus}
         placeholder={placeholder}
         autoFocus={autoFocus}
         aria-label="Search"

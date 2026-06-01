@@ -61,6 +61,19 @@ export async function tmSearchAttractions(keyword: string, size = 10) {
   );
 }
 
+/**
+ * Typeahead/prefix search. Unlike keyword search on /attractions and /events
+ * (which behaves like whole-word matching), /suggest returns partial matches —
+ * e.g. "joj" surfaces "Joji". Returns _embedded.attractions/venues/events.
+ */
+export async function tmSuggest(keyword: string, size = 5) {
+  // The /suggest endpoint rejects size > 5 per resource with a 400.
+  const clamped = Math.min(Math.max(size, 1), 5);
+  return fetchJson<TmPayload>(
+    apiUrl('/suggest', { keyword, size: String(clamped), includeFuzzy: 'yes' })
+  );
+}
+
 export async function tmGetAttraction(id: string) {
   const rawId = id.replace(/^tm:attraction:/, '');
   return fetchJson<TmPayload>(apiUrl(`/attractions/${rawId}.json`));

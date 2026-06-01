@@ -86,9 +86,8 @@ export function AddConcertPage() {
         <label>
           Status
           <select value={status} onChange={(e) => setStatus(e.target.value as UserConcertStatus)}>
-            <option value="attended">Attended</option>
+            <option value="attended">Been</option>
             <option value="going">Going</option>
-            <option value="saved">Saved</option>
           </select>
         </label>
         <label>
