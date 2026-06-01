@@ -1,6 +1,7 @@
 import { api } from '@/api';
 import { ConcertCard } from '@/components/concert/ConcertCard';
 import { ProfileReviewListItem } from '@/components/review/ProfileReviewListItem';
+import { YearEndWrapUp } from '@/components/wrap-up/year-end/YearEndWrapUp';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { StatCard } from '@/components/ui/StatCard';
 import { Button } from '@/components/ui/app-button';
@@ -9,7 +10,7 @@ import { FilterChip } from '@/components/ui/FilterChip';
 import { ListRowSkeleton } from '@/components/ui/LoadingSkeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/context/AuthContext';
-import { getAllConcertReviews } from '@/lib/concertReviewsLocal';
+import { getAllConcertReviews, syncConcertReviewsFromServer } from '@/lib/concertReviewsLocal';
 import type { Concert, UserConcert } from '@/types';
 import type { ConcertReview } from '@/types/concertReview';
 import { averageOverallRating, formatOverallRating } from '@/utils/format';
@@ -17,7 +18,7 @@ import { Calendar, LogOut, MapPinned, Music2, Star } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
-type ProfileTab = 'overview' | 'ratings';
+type ProfileTab = 'overview' | 'ratings' | 'wrapped';
 
 export function ProfilePage() {
   const { user, logout } = useAuth();
@@ -40,10 +41,15 @@ export function ProfilePage() {
     if (!user) return;
     setLoading(true);
     refreshLocalReviews();
-    Promise.all([api.getUserConcerts(user.id), api.getConcerts()])
-      .then(([ucs, all]) => {
+    Promise.all([
+      api.getUserConcerts(user.id),
+      api.getConcerts(),
+      syncConcertReviewsFromServer(user.id),
+    ])
+      .then(([ucs, all, reviews]) => {
         setUserConcerts(ucs);
         setConcerts(all);
+        setLocalReviews(reviews);
       })
       .finally(() => setLoading(false));
   }, [user, refreshLocalReviews]);
@@ -144,6 +150,13 @@ export function ProfilePage() {
         >
           Ratings ({stats.reviewCount})
         </FilterChip>
+        <FilterChip
+          active={tab === 'wrapped'}
+          onClick={() => setTab('wrapped')}
+          aria-selected={tab === 'wrapped'}
+        >
+          Wrapped
+        </FilterChip>
       </div>
 
       {tab === 'overview' && (
@@ -237,6 +250,8 @@ export function ProfilePage() {
           )}
         </section>
       )}
+
+      {tab === 'wrapped' && user && <YearEndWrapUp userId={user.id} />}
     </div>
   );
 }

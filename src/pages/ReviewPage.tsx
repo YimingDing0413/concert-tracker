@@ -1,6 +1,10 @@
 import { api } from '@/api';
 import { ConcertReviewFlow } from '@/components/review/ConcertReviewFlow';
-import { getConcertReview, saveConcertReview } from '@/lib/concertReviewsLocal';
+import {
+  getConcertReview,
+  saveConcertReview,
+  syncConcertReviewsFromServer,
+} from '@/lib/concertReviewsLocal';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useAuth } from '@/context/AuthContext';
 import type { ConcertDetail } from '@/types';
@@ -18,11 +22,11 @@ export function ReviewPage() {
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    api
-      .getConcert(id)
-      .then(setConcert)
-      .finally(() => setLoading(false));
-  }, [id]);
+    Promise.all([
+      api.getConcert(id).then(setConcert),
+      user ? syncConcertReviewsFromServer(user.id) : Promise.resolve(),
+    ]).finally(() => setLoading(false));
+  }, [id, user]);
 
   if (!id) return <Navigate to="/" replace />;
   if (!user) return <Navigate to="/login" replace />;

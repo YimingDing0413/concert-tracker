@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/app-button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListRowSkeleton } from '@/components/ui/LoadingSkeleton';
 import { useAuth } from '@/context/AuthContext';
-import { getConcertReview } from '@/lib/concertReviewsLocal';
+import { getConcertReview, syncConcertReviewsFromServer } from '@/lib/concertReviewsLocal';
 import type { Concert, ConcertRating, UserConcert } from '@/types';
 import { resolveConcertForUserConcert, sortUserConcertsByDate } from '@/utils/userConcert';
 import { Sparkles, Star } from 'lucide-react';
@@ -35,6 +35,7 @@ export function MyConcertsPage() {
   const load = useCallback(async () => {
     if (!user) return;
     setLoading(true);
+    await syncConcertReviewsFromServer(user.id);
     const ucs = await api.getUserConcerts(user.id);
     setUserConcerts(ucs);
 

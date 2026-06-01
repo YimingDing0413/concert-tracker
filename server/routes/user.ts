@@ -8,6 +8,12 @@ import {
   markConcertAttended,
   saveConcertForUser,
 } from '../../src/lib/db/concertRepository.js';
+import {
+  deleteConcertReviewForUser,
+  getConcertReviewsForUser,
+  saveConcertReview as saveConcertReviewToDynamo,
+  type StoredConcertReview,
+} from '../../src/lib/db/concertReviewRepository.js';
 import { isDynamoConfigured } from '../../src/lib/db/dynamodb.js';
 import { resolveUserId } from '../lib/devUser.js';
 import { getEventById } from '../services/eventService.js';
@@ -159,6 +165,48 @@ userRouter.post('/concerts/manual', async (req, res, next) => {
     void _ignored;
     const data = await store.addManualConcert(userId, input);
     res.json({ data });
+  } catch (err) {
+    next(err);
+  }
+});
+
+userRouter.get('/reviews', async (req, res, next) => {
+  try {
+    const userId = resolveUserId(req.query.userId);
+    if (!isDynamoConfigured()) {
+      res.json({ data: [] });
+      return;
+    }
+    const data = await getConcertReviewsForUser(userId);
+    res.json({ data });
+  } catch (err) {
+    next(err);
+  }
+});
+
+userRouter.post('/reviews', requireDynamo, async (req, res, next) => {
+  try {
+    const review = (req.body ?? {}) as Partial<StoredConcertReview>;
+    const userId = resolveUserId(req.query.userId, review.userId);
+    if (!review.eventId) {
+      res.status(400).json({ error: 'review.eventId required' });
+      return;
+    }
+    const data = await saveConcertReviewToDynamo({
+      ...review,
+      userId,
+    } as StoredConcertReview);
+    res.json({ data });
+  } catch (err) {
+    next(err);
+  }
+});
+
+userRouter.delete('/reviews/:eventId', requireDynamo, async (req, res, next) => {
+  try {
+    const userId = resolveUserId(req.query.userId, req.body?.userId);
+    await deleteConcertReviewForUser(userId, req.params.eventId);
+    res.json({ data: null });
   } catch (err) {
     next(err);
   }

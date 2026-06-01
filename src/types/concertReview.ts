@@ -30,6 +30,19 @@ export type ConcertReviewDraft = Omit<
 
 export type WrapUpTemplateId = 'poster' | 'stats' | 'collage';
 
+export type YearEndTemplateId = 'collage' | 'stats' | 'scrapbook';
+
+export type YearEndStats = {
+  year: number;
+  totalConcerts: number;
+  averageRating?: number;
+  topArtists: { name: string; count: number }[];
+  topVenues: { name: string; count: number }[];
+  topTags: { tag: string; count: number }[];
+  favoriteSongs: string[];
+  totalPhotos: number;
+};
+
 export const REVIEW_MOOD_TAGS = [
   'best night ever',
   'great vocals',

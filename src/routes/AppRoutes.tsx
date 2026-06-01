@@ -17,6 +17,7 @@ import { SearchPage } from '@/pages/SearchPage';
 import { SignUpPage } from '@/pages/SignUpPage';
 import { VenueDetailPage } from '@/pages/VenueDetailPage';
 import { WrapUpPage } from '@/pages/WrapUpPage';
+import { YearEndWrapUpPage } from '@/pages/YearEndWrapUpPage';
 import type { ReactNode } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 
@@ -63,6 +64,7 @@ export function AppRoutes() {
         <Route path="map" element={<DiscoverMapPage />} />
         <Route path="search" element={<SearchPage />} />
         <Route path="my-concerts" element={<MyConcertsPage />} />
+        <Route path="wrap-up" element={<YearEndWrapUpPage />} />
         <Route path="add" element={<AddConcertPage />} />
         <Route path="profile" element={<ProfilePage />} />
       </Route>

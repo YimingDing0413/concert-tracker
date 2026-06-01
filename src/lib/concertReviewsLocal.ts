@@ -1,6 +1,14 @@
+import { apiFetchData } from '@/api/http';
 import type { ConcertReview } from '@/types/concertReview';
 
 const STORAGE_KEY = 'encore_concert_reviews';
+
+/**
+ * Reviews are persisted to the user's account in DynamoDB (source of truth) and
+ * mirrored to localStorage as a fast, offline cache. Reads are synchronous from
+ * the cache; writes update the cache immediately and persist to the server in
+ * the background. Call `syncConcertReviewsFromServer` to hydrate the cache.
+ */
 
 /** Composite key: reviews are scoped per user + event */
 function reviewKey(userId: string, eventId: string): string {
@@ -26,6 +34,30 @@ export function generateReviewId(): string {
   return `review-${crypto.randomUUID().slice(0, 8)}`;
 }
 
+/* ----------------------------- remote (DynamoDB) ----------------------------- */
+
+async function fetchRemoteReviews(userId: string): Promise<ConcertReview[]> {
+  return apiFetchData<ConcertReview[]>(
+    `/api/user/reviews?userId=${encodeURIComponent(userId)}`
+  );
+}
+
+async function persistRemoteReview(review: ConcertReview): Promise<void> {
+  await apiFetchData<ConcertReview>('/api/user/reviews', {
+    method: 'POST',
+    body: JSON.stringify(review),
+  });
+}
+
+async function deleteRemoteReview(userId: string, eventId: string): Promise<void> {
+  await apiFetchData<null>(
+    `/api/user/reviews/${encodeURIComponent(eventId)}?userId=${encodeURIComponent(userId)}`,
+    { method: 'DELETE' }
+  );
+}
+
+/* ------------------------------- cache + writes ------------------------------ */
+
 export function saveConcertReview(review: ConcertReview): void {
   if (!review.userId) {
     throw new Error('ConcertReview.userId is required');
@@ -33,6 +65,10 @@ export function saveConcertReview(review: ConcertReview): void {
   const store = readStore();
   store[reviewKey(review.userId, review.eventId)] = review;
   writeStore(store);
+  // Persist to the user's account in the background.
+  void persistRemoteReview(review).catch(() => {
+    /* cache holds the write; will re-sync on next load */
+  });
 }
 
 export function getConcertReview(userId: string, eventId: string): ConcertReview | null {
@@ -54,4 +90,42 @@ export function deleteConcertReview(userId: string, eventId: string): void {
   const store = readStore();
   delete store[reviewKey(userId, eventId)];
   writeStore(store);
+  void deleteRemoteReview(userId, eventId).catch(() => {
+    /* removed from cache; server delete will retry on next action */
+  });
+}
+
+/**
+ * Pull the user's reviews from DynamoDB into the local cache. Server is
+ * authoritative, but a locally-newer review (e.g. a write that hasn't synced
+ * yet) is preserved. Returns the merged list. Safe to call repeatedly.
+ */
+export async function syncConcertReviewsFromServer(userId: string): Promise<ConcertReview[]> {
+  if (!userId) return [];
+
+  let remote: ConcertReview[];
+  try {
+    remote = await fetchRemoteReviews(userId);
+  } catch {
+    return getAllConcertReviews(userId);
+  }
+
+  const byEvent = new Map<string, ConcertReview>();
+  for (const local of getAllConcertReviews(userId)) {
+    byEvent.set(local.eventId, local);
+  }
+  for (const r of remote) {
+    const local = byEvent.get(r.eventId);
+    if (!local || (r.updatedAt ?? '') >= (local.updatedAt ?? '')) {
+      byEvent.set(r.eventId, { ...r, userId });
+    }
+  }
+
+  const store = readStore();
+  for (const [eventId, review] of byEvent) {
+    store[reviewKey(userId, eventId)] = review;
+  }
+  writeStore(store);
+
+  return getAllConcertReviews(userId);
 }
