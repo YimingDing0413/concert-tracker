@@ -205,7 +205,7 @@ userRouter.post('/reviews', requireDynamo, async (req, res, next) => {
 userRouter.delete('/reviews/:eventId', requireDynamo, async (req, res, next) => {
   try {
     const userId = resolveUserId(req.query.userId, req.body?.userId);
-    await deleteConcertReviewForUser(userId, req.params.eventId);
+    await deleteConcertReviewForUser(userId, String(req.params.eventId));
     res.json({ data: null });
   } catch (err) {
     next(err);
