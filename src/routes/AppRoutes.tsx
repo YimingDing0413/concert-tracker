@@ -10,6 +10,7 @@ import { ConcertDetailPage } from '@/pages/ConcertDetailPage';
 import { DiscoverHomePage } from '@/pages/DiscoverHomePage';
 import { DiscoverMapPage } from '@/pages/DiscoverMapPage';
 import { LoginPage } from '@/pages/LoginPage';
+import { MemberProfilePage } from '@/pages/MemberProfilePage';
 import { MyConcertsPage } from '@/pages/MyConcertsPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { ReviewPage } from '@/pages/ReviewPage';
@@ -67,6 +68,7 @@ export function AppRoutes() {
         <Route path="wrap-up" element={<YearEndWrapUpPage />} />
         <Route path="add" element={<AddConcertPage />} />
         <Route path="profile" element={<ProfilePage />} />
+        <Route path="member/:userId" element={<MemberProfilePage />} />
       </Route>
       <Route
         path="/artist/:id"

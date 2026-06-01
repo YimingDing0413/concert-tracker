@@ -8,6 +8,9 @@ import { venuesRouter } from './venues.js';
 import { artistsRouter } from './artists.js';
 import { authRouter } from './auth.js';
 import { userRouter } from './user.js';
+import { usersRouter } from './users.js';
+import { membersRouter } from './members.js';
+import { friendsRouter } from './friends.js';
 import { mapRouter } from './map.js';
 import { concertsRouter } from './concerts.js';
 
@@ -19,6 +22,9 @@ apiRouter.use('/venues', venuesRouter);
 apiRouter.use('/artists', artistsRouter);
 apiRouter.use('/auth', authRouter);
 apiRouter.use('/user', userRouter);
+apiRouter.use('/users', usersRouter);
+apiRouter.use('/members', membersRouter);
+apiRouter.use('/friends', friendsRouter);
 apiRouter.use('/concerts', concertsRouter);
 apiRouter.use('/map', mapRouter);
 

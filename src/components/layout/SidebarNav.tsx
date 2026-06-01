@@ -1,9 +1,10 @@
 import { cn } from '@/lib/utils';
-import { Compass, ListMusic, MapPinned, UserRound } from 'lucide-react';
+import { Compass, ListMusic, MapPinned, Search, UserRound } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
 const tabs = [
   { to: '/', label: 'Discover', icon: Compass, end: true },
+  { to: '/search', label: 'Search', icon: Search, end: false },
   { to: '/map', label: 'Map', icon: MapPinned, end: false },
   { to: '/my-concerts', label: 'My Concerts', icon: ListMusic, end: false },
   { to: '/profile', label: 'Profile', icon: UserRound, end: false },

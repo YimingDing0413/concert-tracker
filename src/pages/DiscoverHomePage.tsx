@@ -96,8 +96,22 @@ export function DiscoverHomePage() {
 
   return (
     <div className="space-y-10 pb-4">
-      <section className="pt-2">
+      <section className="space-y-3 pt-2">
         <SearchAutocomplete placeholder="Search artists, venues, cities…" />
+        <div className="flex flex-wrap gap-2">
+          <Link
+            to="/search"
+            className="rounded-full border border-border/60 bg-card/80 px-3.5 py-1.5 text-xs font-semibold text-foreground no-underline transition-colors hover:border-primary/40 hover:bg-primary/10"
+          >
+            Browse all concerts
+          </Link>
+          <Link
+            to="/search?mode=members"
+            className="rounded-full border border-primary/40 bg-primary/10 px-3.5 py-1.5 text-xs font-semibold text-primary no-underline transition-colors hover:bg-primary/15"
+          >
+            Find members
+          </Link>
+        </div>
       </section>
 
       <section>

@@ -231,6 +231,48 @@ export interface User {
   createdAt: string;
 }
 
+/** Social profile — stored in DynamoDB under USER#{userId}/PROFILE. */
+export interface UserProfile {
+  userId: string;
+  username: string;
+  displayName?: string;
+  avatarUrl?: string;
+  bio?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** "Who I follow" relationship row (denormalized for cheap list rendering). */
+export interface FollowItem {
+  userId: string;
+  targetUserId: string;
+  targetUsername?: string;
+  targetDisplayName?: string;
+  targetAvatarUrl?: string;
+  createdAt: string;
+}
+
+/** "Who follows me" relationship row. */
+export interface FollowerItem {
+  userId: string;
+  followerUserId: string;
+  followerUsername?: string;
+  followerDisplayName?: string;
+  followerAvatarUrl?: string;
+  createdAt: string;
+}
+
+export interface FollowCounts {
+  followersCount: number;
+  followingCount: number;
+}
+
+/** Member search hit — a profile annotated for the current viewer. */
+export interface MemberSearchResult extends UserProfile {
+  followersCount?: number;
+  isFollowing?: boolean;
+}
+
 export interface AuthCredentials {
   email: string;
   password: string;
