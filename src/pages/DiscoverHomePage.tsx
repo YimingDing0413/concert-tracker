@@ -186,7 +186,7 @@ export function DiscoverHomePage() {
 
       {user && recentUserConcerts.length > 0 && (
         <section>
-          <SectionHeader title="Recently added" subtitle="From your concert diary" actionTo="/my-concerts" actionLabel="My concerts" />
+          <SectionHeader title="Recently added" subtitle="From your concert diary" actionTo="/profile" actionLabel="Profile" />
           <div className="space-y-3">
             {recentUserConcerts.map((uc) => (
               <ConcertCard

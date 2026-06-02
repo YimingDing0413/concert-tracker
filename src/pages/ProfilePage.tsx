@@ -1,11 +1,18 @@
-import { api } from '@/api';
 import { MemberCard } from '@/components/social/MemberCard';
 import { UsernameEditor } from '@/components/social/UsernameEditor';
+import {
+  ProfileContentTabs,
+  type ProfileContentTab,
+} from '@/components/profile/ProfileContentTabs';
+import { ProfileDesktopAside } from '@/components/profile/ProfileDesktopAside';
+import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { Button } from '@/components/ui/app-button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListRowSkeleton } from '@/components/ui/LoadingSkeleton';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/context/AuthContext';
+import { useProfileConcerts } from '@/hooks/useProfileConcerts';
+import { getAllConcertReviews, syncConcertReviewsFromServer } from '@/lib/concertReviewsLocal';
+import { buildProfileActivityStats } from '@/lib/profileStats';
 import {
   ensureMyProfile,
   getFollowCounts,
@@ -13,17 +20,22 @@ import {
   getFollowing,
 } from '@/lib/social/socialApi';
 import type { FollowCounts, FollowerItem, FollowItem, UserProfile } from '@/types';
-import { cn } from '@/lib/utils';
-import { LogOut, Pencil } from 'lucide-react';
+import type { ConcertReview } from '@/types/concertReview';
+import { Calendar, LogOut, Pencil, Sparkles, Star } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+
+function parseProfileTab(value: string | null): ProfileContentTab {
+  if (value === 'going' || value === 'reviews' || value === 'wrapped' || value === 'concerts') {
+    return value;
+  }
+  return 'concerts';
+}
 
 type SocialPanel = 'followers' | 'following' | null;
 
 export function ProfilePage() {
   const { user, logout } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [concertCount, setConcertCount] = useState(0);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [followCounts, setFollowCounts] = useState<FollowCounts>({
     followersCount: 0,
@@ -31,35 +43,73 @@ export function ProfilePage() {
   });
   const [followers, setFollowers] = useState<FollowerItem[]>([]);
   const [followingList, setFollowingList] = useState<FollowItem[]>([]);
+  const [reviews, setReviews] = useState<ConcertReview[]>([]);
   const [socialPanel, setSocialPanel] = useState<SocialPanel>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [contentTab, setContentTab] = useState<ProfileContentTab>(() =>
+    parseProfileTab(searchParams.get('tab'))
+  );
   const [editorOpen, setEditorOpen] = useState(false);
+  const [socialLoading, setSocialLoading] = useState(true);
+
+  const { userConcerts, concertMap, loading: concertsLoading } = useProfileConcerts(user?.id);
 
   const refreshSocial = useCallback(async () => {
     if (!user) return;
-    const [prof, counts, fwers, fwing] = await Promise.all([
+    const [prof, counts, fwers, fwing, syncedReviews] = await Promise.all([
       ensureMyProfile(user),
       getFollowCounts(user.id).catch(() => ({ followersCount: 0, followingCount: 0 })),
       getFollowers(user.id).catch(() => []),
       getFollowing(user.id).catch(() => []),
+      syncConcertReviewsFromServer(user.id),
     ]);
     setProfile(prof);
     setFollowCounts(counts);
     setFollowers(fwers);
     setFollowingList(fwing);
+    setReviews(syncedReviews);
+    setSocialLoading(false);
   }, [user]);
 
   useEffect(() => {
     if (!user) return;
-    setLoading(true);
-    Promise.all([api.getUserConcerts(user.id), refreshSocial()])
-      .then(([ucs]) => setConcertCount(ucs.length))
-      .finally(() => setLoading(false));
+    setSocialLoading(true);
+    void refreshSocial();
   }, [user, refreshSocial]);
+
+  useEffect(() => {
+    if (!user) return;
+    setReviews(getAllConcertReviews(user.id));
+  }, [user, contentTab]);
+
+  useEffect(() => {
+    setContentTab(parseProfileTab(searchParams.get('tab')));
+  }, [searchParams]);
+
+  const selectContentTab = useCallback(
+    (tab: ProfileContentTab) => {
+      setSocialPanel(null);
+      setContentTab(tab);
+      if (tab === 'concerts') {
+        setSearchParams({}, { replace: true });
+      } else {
+        setSearchParams({ tab }, { replace: true });
+      }
+    },
+    [setSearchParams]
+  );
 
   const followingIds = useMemo(
     () => new Set(followingList.map((f) => f.targetUserId)),
     [followingList]
   );
+
+  const activityStats = useMemo(
+    () => buildProfileActivityStats(userConcerts, concertMap, reviews),
+    [userConcerts, concertMap, reviews]
+  );
+
+  const loading = socialLoading || concertsLoading;
 
   if (!user) return null;
   if (loading) {
@@ -70,64 +120,31 @@ export function ProfilePage() {
     );
   }
 
+  function openContentTab(tab: ProfileContentTab) {
+    selectContentTab(tab);
+  }
+
   function toggleSocialPanel(panel: SocialPanel) {
     setSocialPanel((current) => (current === panel ? null : panel));
   }
 
   return (
-    <div className="space-y-6 pb-4">
-      <div className="flex flex-col items-center rounded-3xl border border-border/60 bg-card/50 p-6 text-center shadow-lg md:flex-row md:items-start md:text-left">
-        <Avatar className="size-20 border-2 border-primary/30 md:mr-5">
-          <AvatarImage src={profile?.avatarUrl ?? user.avatarUrl} alt="" />
-          <AvatarFallback className="bg-primary/20 text-2xl text-primary">
-            {(profile?.displayName || user.displayName).slice(0, 1).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-
-        <div className="mt-4 min-w-0 flex-1 md:mt-0">
-          <h1 className="text-2xl font-bold">{profile?.displayName || user.displayName}</h1>
-          <p className="text-muted-foreground">
-            {profile?.username || user.username
-              ? `@${profile?.username || user.username}`
-              : 'No username yet'}
-          </p>
-          {(profile?.bio ?? user.bio) && (
-            <p className="mt-2 text-sm text-foreground/90">{profile?.bio ?? user.bio}</p>
-          )}
-
-          <div className="mt-4 flex items-center justify-center gap-8 md:justify-start">
-            <Link
-              to="/my-concerts"
-              className="flex flex-col items-center text-center no-underline transition-opacity hover:opacity-80 md:items-start md:text-left"
-            >
-              <span className="text-lg font-bold text-foreground">{concertCount}</span>
-              <span className="text-xs text-muted-foreground">Concerts</span>
-            </Link>
-            <button
-              type="button"
-              onClick={() => toggleSocialPanel('followers')}
-              className={cn(
-                'flex flex-col items-center text-center transition-opacity hover:opacity-80 md:items-start md:text-left',
-                socialPanel === 'followers' && 'opacity-100'
-              )}
-            >
-              <span className="text-lg font-bold text-foreground">{followCounts.followersCount}</span>
-              <span className="text-xs text-muted-foreground">Followers</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => toggleSocialPanel('following')}
-              className={cn(
-                'flex flex-col items-center text-center transition-opacity hover:opacity-80 md:items-start md:text-left',
-                socialPanel === 'following' && 'opacity-100'
-              )}
-            >
-              <span className="text-lg font-bold text-foreground">{followCounts.followingCount}</span>
-              <span className="text-xs text-muted-foreground">Following</span>
-            </button>
-          </div>
-
-          <div className="mt-4 flex flex-wrap justify-center gap-2 md:justify-start">
+    <div className="space-y-5 pb-4">
+      <ProfileHeader
+        displayName={profile?.displayName || user.displayName}
+        username={profile?.username || user.username}
+        bio={profile?.bio ?? user.bio}
+        avatarUrl={profile?.avatarUrl ?? user.avatarUrl}
+        stats={activityStats}
+        followCounts={followCounts}
+        socialPanel={socialPanel}
+        onToggleFollowers={() => toggleSocialPanel('followers')}
+        onToggleFollowing={() => toggleSocialPanel('following')}
+        onConcertsClick={() => openContentTab('concerts')}
+        onReviewsClick={() => openContentTab('reviews')}
+        onWrapUpsClick={() => openContentTab('wrapped')}
+        trailingActions={
+          <>
             <Button
               variant="secondary"
               size="default"
@@ -138,16 +155,52 @@ export function ProfilePage() {
               {profile?.username ? 'Edit profile' : 'Set username'}
             </Button>
             <Button
+              variant="primary"
+              size="default"
+              onClick={() => openContentTab('wrapped')}
+              className="h-10 gap-2 rounded-full px-4 text-sm font-medium"
+            >
+              <Sparkles className="size-4" aria-hidden />
+              <span className="hidden sm:inline">Create Year Wrap-Up</span>
+              <span className="sm:hidden">Wrap-Up</span>
+            </Button>
+            <Button
               variant="ghost"
               size="default"
               onClick={() => logout()}
-              className="h-10 gap-2 px-4 text-sm font-medium text-muted-foreground hover:text-foreground"
+              className="h-10 gap-2 px-3 text-muted-foreground hover:text-foreground"
+              aria-label="Log out"
             >
-              <LogOut className="size-4" aria-hidden />
-              Log out
+              <LogOut className="size-4" />
             </Button>
+          </>
+        }
+      />
+
+      {/* Mobile-only highlights — no favorite artist/venue */}
+      <div className="flex flex-col gap-3 lg:hidden">
+        {activityStats.concertsThisYear > 0 && (
+          <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-card/50 px-4 py-3">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Calendar className="size-4" aria-hidden />
+              Concerts this year
+            </div>
+            <span className="text-lg font-bold tabular-nums">{activityStats.concertsThisYear}</span>
           </div>
-        </div>
+        )}
+        {activityStats.avgRating != null && (
+          <button
+            type="button"
+            onClick={() => openContentTab('reviews')}
+            className="flex items-center justify-between rounded-2xl border border-border/60 bg-card/50 px-4 py-3 text-left"
+          >
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Star className="size-4 text-primary" aria-hidden />
+              Average rating
+            </div>
+            <span className="text-lg font-bold tabular-nums">{activityStats.avgRatingDisplay}</span>
+          </button>
+        )}
       </div>
 
       {socialPanel === 'followers' && (
@@ -207,6 +260,28 @@ export function ProfilePage() {
             </ul>
           )}
         </section>
+      )}
+
+      {!socialPanel && (
+        <div className="lg:grid lg:grid-cols-[minmax(0,280px)_1fr] lg:gap-8 lg:items-start">
+          <ProfileDesktopAside
+            stats={activityStats}
+            userConcerts={userConcerts}
+            concertMap={concertMap}
+            reviews={reviews}
+            onOpenWrapTab={() => openContentTab('wrapped')}
+            onOpenReviewsTab={() => openContentTab('reviews')}
+          />
+          <ProfileContentTabs
+            userId={user.id}
+            backTo="/profile"
+            tab={contentTab}
+            onTabChange={selectContentTab}
+            userConcerts={userConcerts}
+            concertMap={concertMap}
+            reviews={reviews}
+          />
+        </div>
       )}
 
       <UsernameEditor

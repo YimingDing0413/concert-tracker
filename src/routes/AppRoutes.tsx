@@ -11,7 +11,7 @@ import { DiscoverHomePage } from '@/pages/DiscoverHomePage';
 import { DiscoverMapPage } from '@/pages/DiscoverMapPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { MemberProfilePage } from '@/pages/MemberProfilePage';
-import { MyConcertsPage } from '@/pages/MyConcertsPage';
+import { MyConcertsRedirect } from '@/pages/MyConcertsRedirect';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { ReviewPage } from '@/pages/ReviewPage';
 import { SearchPage } from '@/pages/SearchPage';
@@ -64,7 +64,7 @@ export function AppRoutes() {
         <Route index element={<DiscoverHomePage />} />
         <Route path="map" element={<DiscoverMapPage />} />
         <Route path="search" element={<SearchPage />} />
-        <Route path="my-concerts" element={<MyConcertsPage />} />
+        <Route path="my-concerts" element={<MyConcertsRedirect />} />
         <Route path="wrap-up" element={<YearEndWrapUpPage />} />
         <Route path="add" element={<AddConcertPage />} />
         <Route path="profile" element={<ProfilePage />} />

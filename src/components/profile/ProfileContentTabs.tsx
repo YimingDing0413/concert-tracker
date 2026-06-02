@@ -1,0 +1,229 @@
+import { ConcertCard } from '@/components/concert/ConcertCard';
+import { ProfileReviewListItem } from '@/components/review/ProfileReviewListItem';
+import { YearEndWrapUp } from '@/components/wrap-up/year-end/YearEndWrapUp';
+import { Button } from '@/components/ui/app-button';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { FilterChip } from '@/components/ui/FilterChip';
+import { getConcertReview } from '@/lib/concertReviewsLocal';
+import type { Concert, UserConcert } from '@/types';
+import type { ConcertReview } from '@/types/concertReview';
+import { averageOverallRating, formatOverallRating } from '@/utils/format';
+import { resolveConcertForUserConcert, sortUserConcertsByDate } from '@/utils/userConcert';
+import { Sparkles, Star } from 'lucide-react';
+import type { MouseEvent, ReactNode } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+
+export type ProfileContentTab = 'concerts' | 'going' | 'reviews' | 'wrapped';
+
+const TAB_LABELS: Record<ProfileContentTab, string> = {
+  concerts: 'Concerts',
+  going: 'Going',
+  reviews: 'Reviews',
+  wrapped: 'Wrap-Ups',
+};
+
+interface ProfileContentTabsProps {
+  userId: string;
+  backTo: string;
+  tab: ProfileContentTab;
+  onTabChange: (tab: ProfileContentTab) => void;
+  userConcerts: UserConcert[];
+  concertMap: Record<string, Partial<Concert>>;
+  reviews: ConcertReview[];
+  /** Public member profiles: concerts + going only */
+  mode?: 'full' | 'concerts-only';
+}
+
+export function ProfileContentTabs({
+  userId,
+  backTo,
+  tab,
+  onTabChange,
+  userConcerts,
+  concertMap,
+  reviews,
+  mode = 'full',
+}: ProfileContentTabsProps) {
+  const navigate = useNavigate();
+  const attended = userConcerts.filter((uc) => uc.status === 'attended');
+  const going = userConcerts.filter((uc) => uc.status === 'going');
+  const attendedSorted = sortUserConcertsByDate(attended, concertMap);
+  const goingSorted = sortUserConcertsByDate(going, concertMap);
+
+  const avg = averageOverallRating(reviews.map((r) => r.overallRating));
+  const tabs: ProfileContentTab[] =
+    mode === 'full' ? ['concerts', 'going', 'reviews', 'wrapped'] : ['concerts', 'going'];
+
+  return (
+    <section className="space-y-4">
+      <div
+        className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        role="tablist"
+        aria-label="Profile content"
+      >
+        {tabs.map((t) => (
+          <FilterChip
+            key={t}
+            active={tab === t}
+            onClick={() => onTabChange(t)}
+            aria-selected={tab === t}
+            className="shrink-0"
+          >
+            {TAB_LABELS[t]}
+            {t === 'concerts' && ` (${attended.length})`}
+            {t === 'going' && ` (${going.length})`}
+            {t === 'reviews' && mode === 'full' && ` (${reviews.length})`}
+          </FilterChip>
+        ))}
+      </div>
+
+      {tab === 'concerts' && (
+        <TabBody
+          emptyTitle="No concerts yet"
+          emptyDescription="Shows you've been to appear here after you mark them attended."
+          emptyAction={
+            <Link to="/" className="text-sm font-medium text-primary">
+              Discover concerts →
+            </Link>
+          }
+          isEmpty={attendedSorted.length === 0}
+        >
+          <ul className="grid gap-4 sm:grid-cols-2">
+            {attendedSorted.map((uc) => {
+              const hasReview = mode === 'full' && Boolean(getConcertReview(userId, uc.concertId));
+              const reviewState = {
+                backTo,
+                concertSnapshot: concertMap[uc.concertId],
+              };
+              const stop = (e: MouseEvent) => {
+                e.preventDefault();
+                e.stopPropagation();
+              };
+              const rateAction =
+                mode === 'full' ? (
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant={hasReview ? 'secondary' : 'primary'}
+                      size="sm"
+                      className="gap-1"
+                      onClick={(e) => {
+                        stop(e);
+                        navigate(`/concert/${uc.concertId}/review`, { state: reviewState });
+                      }}
+                    >
+                      <Star className="size-4" aria-hidden />
+                      {hasReview ? 'Edit rating' : 'Rate'}
+                    </Button>
+                    {hasReview && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="gap-1"
+                        onClick={(e) => {
+                          stop(e);
+                          navigate(`/concert/${uc.concertId}/wrap-up`, { state: reviewState });
+                        }}
+                      >
+                        <Sparkles className="size-4" aria-hidden />
+                        Wrap-up
+                      </Button>
+                    )}
+                  </div>
+                ) : undefined;
+              return (
+                <li key={uc.id} className="space-y-2">
+                  <ConcertCard
+                    concert={resolveConcertForUserConcert(uc, concertMap[uc.concertId])}
+                    userConcert={uc}
+                    concertId={uc.concertId}
+                    backTo={backTo}
+                    variant="poster"
+                    showCta={false}
+                    action={rateAction}
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        </TabBody>
+      )}
+
+      {tab === 'going' && (
+        <TabBody
+          emptyTitle="Nothing on the calendar"
+          emptyDescription="Mark an upcoming show as going and it will show up here."
+          emptyAction={
+            <Link to="/" className="text-sm font-medium text-primary">
+              Find shows →
+            </Link>
+          }
+          isEmpty={goingSorted.length === 0}
+        >
+          <ul className="grid gap-4 sm:grid-cols-2">
+            {goingSorted.map((uc) => (
+              <li key={uc.id}>
+                <ConcertCard
+                  concert={resolveConcertForUserConcert(uc, concertMap[uc.concertId])}
+                  userConcert={uc}
+                  concertId={uc.concertId}
+                  backTo={backTo}
+                  variant="poster"
+                  showCta={false}
+                />
+              </li>
+            ))}
+          </ul>
+        </TabBody>
+      )}
+
+      {mode === 'full' && tab === 'reviews' && (
+        <TabBody
+          emptyTitle="No reviews yet"
+          emptyDescription="Rate a concert from your Concerts tab."
+          emptyAction={
+            <Link to="/profile" className="text-sm font-medium text-primary">
+              View concerts →
+            </Link>
+          }
+          isEmpty={reviews.length === 0}
+        >
+          {avg != null && (
+            <p className="text-sm text-muted-foreground">
+              Average: <span className="font-semibold text-foreground">{formatOverallRating(avg)}</span>
+            </p>
+          )}
+          <ul className="space-y-3">
+            {reviews.map((review) => (
+              <li key={review.id}>
+                <ProfileReviewListItem review={review} />
+              </li>
+            ))}
+          </ul>
+        </TabBody>
+      )}
+
+      {mode === 'full' && tab === 'wrapped' && <YearEndWrapUp userId={userId} />}
+    </section>
+  );
+}
+
+function TabBody({
+  children,
+  isEmpty,
+  emptyTitle,
+  emptyDescription,
+  emptyAction,
+}: {
+  children: ReactNode;
+  isEmpty: boolean;
+  emptyTitle: string;
+  emptyDescription: string;
+  emptyAction?: React.ReactNode;
+}) {
+  if (isEmpty) {
+    return <EmptyState title={emptyTitle} description={emptyDescription} action={emptyAction} />;
+  }
+  return <div className="space-y-4">{children}</div>;
+}

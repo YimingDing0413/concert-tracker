@@ -158,8 +158,8 @@ export function ConcertDetailPage() {
             {concert.status === 'past' && (
               <p className="mt-3 text-xs text-muted-foreground">
                 Been to this show? Mark it attended, then rate it from{' '}
-                <Link to="/my-concerts" className="font-medium text-primary">
-                  My Concerts
+                <Link to="/profile" className="font-medium text-primary">
+                  Profile
                 </Link>
                 .
               </p>

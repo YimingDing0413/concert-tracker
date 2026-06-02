@@ -1,53 +1,85 @@
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { EmptyState } from '@/components/ui/EmptyState';
+import {
+  ProfileContentTabs,
+  type ProfileContentTab,
+} from '@/components/profile/ProfileContentTabs';
+import { ProfileHeader } from '@/components/profile/ProfileHeader';
+import { MemberCard } from '@/components/social/MemberCard';
 import { FollowButton } from '@/components/social/FollowButton';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { SolidBackButton } from '@/components/ui/SolidBackButton';
 import { useAuth } from '@/context/AuthContext';
+import { useProfileConcerts } from '@/hooks/useProfileConcerts';
+import { buildProfileActivityStats } from '@/lib/profileStats';
 import {
   getFollowCounts,
+  getFollowers,
+  getFollowing,
   getFollowStatus,
   getMyProfile,
 } from '@/lib/social/socialApi';
-import type { FollowCounts, UserProfile } from '@/types';
-import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import type { FollowCounts, FollowerItem, FollowItem, UserProfile } from '@/types';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Navigate, useParams } from 'react-router-dom';
+
+type SocialPanel = 'followers' | 'following' | null;
 
 export function MemberProfilePage() {
   const { userId } = useParams<{ userId: string }>();
   const { user } = useAuth();
   const currentUserId = user?.id ?? '';
+  const isSelf = Boolean(userId && currentUserId && userId === currentUserId);
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [counts, setCounts] = useState<FollowCounts>({ followersCount: 0, followingCount: 0 });
+  const [followCounts, setFollowCounts] = useState<FollowCounts>({ followersCount: 0, followingCount: 0 });
   const [following, setFollowing] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [followers, setFollowers] = useState<FollowerItem[]>([]);
+  const [followingList, setFollowingList] = useState<FollowItem[]>([]);
+  const [socialPanel, setSocialPanel] = useState<SocialPanel>(null);
+  const [contentTab, setContentTab] = useState<ProfileContentTab>('concerts');
+  const [myFollowingIds, setMyFollowingIds] = useState<Set<string>>(new Set());
+  const [socialLoading, setSocialLoading] = useState(true);
+
+  const { userConcerts, concertMap, loading: concertsLoading } = useProfileConcerts(userId);
+
+  const refreshSocial = useCallback(async () => {
+    if (!userId) return;
+    const [p, c, fwers, fwing, fStatus, myFollowing] = await Promise.all([
+      getMyProfile(userId),
+      getFollowCounts(userId),
+      getFollowers(userId).catch(() => []),
+      getFollowing(userId).catch(() => []),
+      currentUserId && !isSelf
+        ? getFollowStatus(currentUserId, userId)
+        : Promise.resolve(false),
+      currentUserId
+        ? getFollowing(currentUserId).catch(() => [])
+        : Promise.resolve([]),
+    ]);
+    setProfile(p);
+    setFollowCounts(c);
+    setFollowers(fwers);
+    setFollowingList(fwing);
+    setFollowing(fStatus);
+    setMyFollowingIds(new Set(myFollowing.map((f) => f.targetUserId)));
+    setSocialLoading(false);
+  }, [userId, currentUserId, isSelf]);
 
   useEffect(() => {
     if (!userId) return;
-    let active = true;
-    setLoading(true);
-    Promise.all([
-      getMyProfile(userId),
-      getFollowCounts(userId),
-      currentUserId ? getFollowStatus(currentUserId, userId) : Promise.resolve(false),
-    ])
-      .then(([p, c, f]) => {
-        if (!active) return;
-        setProfile(p);
-        setCounts(c);
-        setFollowing(f);
-      })
-      .catch(() => {
-        /* leave defaults */
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [userId, currentUserId]);
+    setSocialLoading(true);
+    void refreshSocial();
+  }, [userId, refreshSocial]);
+
+  const activityStats = useMemo(
+    () => buildProfileActivityStats(userConcerts, concertMap, []),
+    [userConcerts, concertMap]
+  );
+
+  const backTo = userId ? `/member/${encodeURIComponent(userId)}` : '/search?mode=members';
+  const loading = socialLoading || concertsLoading;
+
+  if (isSelf) return <Navigate to="/profile" replace />;
 
   if (loading) {
     return (
@@ -57,7 +89,7 @@ export function MemberProfilePage() {
     );
   }
 
-  if (!profile) {
+  if (!profile || !userId) {
     return (
       <div className="space-y-4">
         <SolidBackButton to="/search?mode=members" label="Back" />
@@ -66,54 +98,107 @@ export function MemberProfilePage() {
     );
   }
 
-  const name = profile.displayName?.trim() || (profile.username ? `@${profile.username}` : 'Member');
+  const displayName =
+    profile.displayName?.trim() || (profile.username ? `@${profile.username}` : 'Member');
+
+  function openContentTab(tab: ProfileContentTab) {
+    setSocialPanel(null);
+    setContentTab(tab);
+  }
 
   return (
-    <div className="space-y-6 pb-4">
+    <div className="space-y-5 pb-4">
       <SolidBackButton to="/search?mode=members" label="Back" />
 
-      <div className="flex flex-col items-center rounded-3xl border border-border/60 bg-card/50 p-6 text-center shadow-lg">
-        <Avatar className="size-24 border-2 border-primary/30">
-          <AvatarImage src={profile.avatarUrl} alt="" />
-          <AvatarFallback className="bg-primary/20 text-3xl text-primary">
-            {name.replace('@', '').slice(0, 1).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-
-        <h1 className="mt-4 text-2xl font-bold">{name}</h1>
-        {profile.username && <p className="text-muted-foreground">@{profile.username}</p>}
-        {profile.bio && <p className="mt-2 max-w-sm text-sm text-foreground/90">{profile.bio}</p>}
-
-        <div className="mt-4 flex items-center gap-6">
-          <div className="text-center">
-            <p className="text-lg font-bold">{counts.followersCount}</p>
-            <p className="text-xs text-muted-foreground">Followers</p>
-          </div>
-          <div className="text-center">
-            <p className="text-lg font-bold">{counts.followingCount}</p>
-            <p className="text-xs text-muted-foreground">Following</p>
-          </div>
-        </div>
-
-        <div className="mt-5">
-          <FollowButton
-            currentUserId={currentUserId}
-            targetUserId={profile.userId}
-            initialFollowing={following}
-            showSelfLabel
-            size="default"
-            onChange={(isFollowing, c) => {
-              setFollowing(isFollowing);
-              if (c) setCounts(c);
-            }}
-          />
-        </div>
-      </div>
-
-      <EmptyState
-        title="Concerts & reviews coming soon"
-        description="Public reviews and concert history will show up here."
+      <ProfileHeader
+        displayName={displayName}
+        username={profile.username}
+        bio={profile.bio}
+        avatarUrl={profile.avatarUrl}
+        stats={activityStats}
+        followCounts={followCounts}
+        socialPanel={socialPanel}
+        onToggleFollowers={() => setSocialPanel((p) => (p === 'followers' ? null : 'followers'))}
+        onToggleFollowing={() => setSocialPanel((p) => (p === 'following' ? null : 'following'))}
+        onConcertsClick={() => openContentTab('concerts')}
+        showReviewStats={false}
+        trailingActions={
+          !isSelf ? (
+            <FollowButton
+              currentUserId={currentUserId}
+              targetUserId={profile.userId}
+              initialFollowing={following}
+              showSelfLabel
+              size="default"
+              onChange={(isFollowing, c) => {
+                setFollowing(isFollowing);
+                if (c) setFollowCounts(c);
+              }}
+            />
+          ) : undefined
+        }
       />
+
+      {socialPanel === 'followers' && (
+        <section className="space-y-3">
+          {followers.length === 0 ? (
+            <EmptyState title="No followers yet" />
+          ) : (
+            <ul className="space-y-2">
+              {followers.map((f) => (
+                <li key={f.followerUserId}>
+                  <MemberCard
+                    currentUserId={currentUserId}
+                    userId={f.followerUserId}
+                    username={f.followerUsername}
+                    displayName={f.followerDisplayName}
+                    avatarUrl={f.followerAvatarUrl}
+                    initialFollowing={myFollowingIds.has(f.followerUserId)}
+                    onFollowChange={() => void refreshSocial()}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
+      {socialPanel === 'following' && (
+        <section className="space-y-3">
+          {followingList.length === 0 ? (
+            <EmptyState title="Not following anyone" />
+          ) : (
+            <ul className="space-y-2">
+              {followingList.map((f) => (
+                <li key={f.targetUserId}>
+                  <MemberCard
+                    currentUserId={currentUserId}
+                    userId={f.targetUserId}
+                    username={f.targetUsername}
+                    displayName={f.targetDisplayName}
+                    avatarUrl={f.targetAvatarUrl}
+                    initialFollowing={myFollowingIds.has(f.targetUserId)}
+                    onFollowChange={() => void refreshSocial()}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
+      {!socialPanel && (
+        <ProfileContentTabs
+          userId={userId}
+          backTo={backTo}
+          tab={contentTab}
+          onTabChange={setContentTab}
+          userConcerts={userConcerts}
+          concertMap={concertMap}
+          reviews={[]}
+          mode="concerts-only"
+        />
+      )}
     </div>
   );
 }
