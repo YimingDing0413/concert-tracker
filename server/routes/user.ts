@@ -192,9 +192,27 @@ userRouter.post('/reviews', requireDynamo, async (req, res, next) => {
       res.status(400).json({ error: 'review.eventId required' });
       return;
     }
+    const artistName =
+      typeof review.artistName === 'string' && review.artistName.trim()
+        ? review.artistName.trim()
+        : 'Unknown artist';
+    const now = new Date().toISOString();
     const data = await saveConcertReviewToDynamo({
       ...review,
       userId,
+      artistName,
+      id:
+        typeof review.id === 'string' && review.id.trim()
+          ? review.id.trim()
+          : `review-${crypto.randomUUID().slice(0, 8)}`,
+      createdAt:
+        typeof review.createdAt === 'string' && review.createdAt
+          ? review.createdAt
+          : now,
+      updatedAt:
+        typeof review.updatedAt === 'string' && review.updatedAt
+          ? review.updatedAt
+          : now,
     } as StoredConcertReview);
     res.json({ data });
   } catch (err) {

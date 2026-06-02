@@ -10,8 +10,10 @@ export const REVIEWS_SYNCED_EVENT = 'encore-reviews-synced';
  * Reviews are persisted to the user's account in DynamoDB (source of truth) and
  * mirrored to localStorage as a fast, offline cache. Reads are synchronous from
  * the cache; writes update the cache immediately and persist to the server.
- * Call `syncConcertReviewsFromServer` on app load and after login to hydrate
- * and to push any reviews that only exist on this device.
+ *
+ * Photo data URLs stay in localStorage only — they are stripped before upload so
+ * large payloads do not fail on Vercel/DynamoDB limits. Ratings, text, and tags
+ * sync across devices; photos remain on the device that added them (MVP).
  */
 
 /** Composite key: reviews are scoped per user + event */
@@ -40,8 +42,60 @@ function notifySynced(userId: string): void {
   );
 }
 
+function normalizeReview(userId: string, key: string, review: ConcertReview): ConcertReview {
+  const prefix = `${userId}::`;
+  const eventIdFromKey = key.startsWith(prefix) ? key.slice(prefix.length) : review.eventId;
+  return {
+    ...review,
+    userId,
+    eventId: review.eventId || eventIdFromKey,
+  };
+}
+
+/** Strip inline photos before upload — keeps request size within server limits. */
+export function reviewForServer(review: ConcertReview): ConcertReview {
+  const { photoDataUrls: _photos, ...rest } = review;
+  return rest;
+}
+
+function mergeLocalPhotos(server: ConcertReview, local?: ConcertReview): ConcertReview {
+  if (!local?.photoDataUrls?.length) return server;
+  return { ...server, photoDataUrls: local.photoDataUrls };
+}
+
 export function generateReviewId(): string {
   return `review-${crypto.randomUUID().slice(0, 8)}`;
+}
+
+const LEGACY_USER_IDS = ['dev-user', 'user-demo'] as const;
+
+/** Move reviews from placeholder accounts into the logged-in user (local cache only). */
+export function migrateLegacyLocalReviews(toUserId: string): void {
+  if (!toUserId) return;
+  const store = readStore();
+  let changed = false;
+
+  for (const legacyId of LEGACY_USER_IDS) {
+    if (legacyId === toUserId) continue;
+    const prefix = `${legacyId}::`;
+    for (const [key, raw] of Object.entries(store)) {
+      if (!key.startsWith(prefix)) continue;
+      const eventId = key.slice(prefix.length);
+      const targetKey = reviewKey(toUserId, eventId);
+      const existing = store[targetKey];
+      const incoming = normalizeReview(legacyId, key, raw);
+      if (
+        !existing ||
+        (incoming.updatedAt ?? '') >= (existing.updatedAt ?? '')
+      ) {
+        store[targetKey] = { ...incoming, userId: toUserId };
+      }
+      delete store[key];
+      changed = true;
+    }
+  }
+
+  if (changed) writeStore(store);
 }
 
 /* ----------------------------- remote (DynamoDB) ----------------------------- */
@@ -55,7 +109,7 @@ async function fetchRemoteReviews(userId: string): Promise<ConcertReview[]> {
 async function persistRemoteReview(review: ConcertReview): Promise<void> {
   await apiFetchData<ConcertReview>('/api/user/reviews', {
     method: 'POST',
-    body: JSON.stringify(review),
+    body: JSON.stringify(reviewForServer(review)),
   });
 }
 
@@ -86,7 +140,13 @@ async function pushLocalReviewsToServer(
   );
 
   const failed = results.filter((r) => r.status === 'rejected');
-  if (failed.length > 0 && failed.length === pending.length) {
+  if (failed.length > 0) {
+    console.warn(
+      `[reviews] ${failed.length}/${pending.length} review(s) failed to upload`,
+      failed.map((r) => (r.status === 'rejected' ? r.reason : null))
+    );
+  }
+  if (failed.length === pending.length) {
     throw failed[0].reason;
   }
 }
@@ -98,6 +158,9 @@ export async function saveConcertReview(review: ConcertReview): Promise<void> {
   if (!review.userId) {
     throw new Error('ConcertReview.userId is required');
   }
+  if (!review.eventId) {
+    throw new Error('ConcertReview.eventId is required');
+  }
   const store = readStore();
   store[reviewKey(review.userId, review.eventId)] = review;
   writeStore(store);
@@ -106,15 +169,17 @@ export async function saveConcertReview(review: ConcertReview): Promise<void> {
 
 export function getConcertReview(userId: string, eventId: string): ConcertReview | null {
   if (!userId) return null;
-  return readStore()[reviewKey(userId, eventId)] ?? null;
+  const raw = readStore()[reviewKey(userId, eventId)];
+  if (!raw) return null;
+  return normalizeReview(userId, reviewKey(userId, eventId), raw);
 }
 
 export function getAllConcertReviews(userId: string): ConcertReview[] {
   if (!userId) return [];
   const prefix = `${userId}::`;
   return Object.entries(readStore())
-    .filter(([key, review]) => key.startsWith(prefix) && review.userId === userId)
-    .map(([, review]) => review)
+    .filter(([key]) => key.startsWith(prefix))
+    .map(([key, review]) => normalizeReview(userId, key, review))
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
@@ -140,20 +205,32 @@ export async function syncConcertReviewsFromServer(userId: string): Promise<Conc
   let remote: ConcertReview[] = [];
   try {
     remote = await fetchRemoteReviews(userId);
-    await pushLocalReviewsToServer(userId, remote);
-    remote = await fetchRemoteReviews(userId);
-  } catch {
+  } catch (err) {
+    console.warn('[reviews] Could not fetch reviews from server', err);
     return getAllConcertReviews(userId);
   }
 
+  try {
+    await pushLocalReviewsToServer(userId, remote);
+    remote = await fetchRemoteReviews(userId);
+  } catch (err) {
+    console.warn('[reviews] Could not push local reviews to server', err);
+    /* still merge remote below */
+  }
+
+  const localByEvent = new Map(
+    getAllConcertReviews(userId).map((r) => [r.eventId, r] as const)
+  );
+
   const byEvent = new Map<string, ConcertReview>();
-  for (const local of getAllConcertReviews(userId)) {
-    byEvent.set(local.eventId, local);
+  for (const [eventId, local] of localByEvent) {
+    byEvent.set(eventId, local);
   }
   for (const r of remote) {
-    const local = byEvent.get(r.eventId);
+    const local = localByEvent.get(r.eventId);
+    const normalized = mergeLocalPhotos({ ...r, userId }, local);
     if (!local || (r.updatedAt ?? '') >= (local.updatedAt ?? '')) {
-      byEvent.set(r.eventId, { ...r, userId });
+      byEvent.set(r.eventId, normalized);
     }
   }
 

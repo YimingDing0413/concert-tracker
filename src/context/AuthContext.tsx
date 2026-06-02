@@ -1,5 +1,9 @@
 import { api } from '@/api';
 import { HttpApiError } from '@/api/http';
+import {
+  migrateLegacyLocalReviews,
+  syncConcertReviewsFromServer,
+} from '@/lib/concertReviewsLocal';
 import type { AuthCredentials, SignUpInput, User } from '@/types';
 import {
   createContext,
@@ -41,6 +45,13 @@ function resolveUserFromApi(current: User | null | undefined): User | null {
   return current ?? readStoredUser();
 }
 
+function hydrateReviewsForUser(userId: string): void {
+  migrateLegacyLocalReviews(userId);
+  void syncConcertReviewsFromServer(userId).catch((err) => {
+    console.warn('[reviews] Sync after auth failed', err);
+  });
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -66,7 +77,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .catch(() => readStoredUser())
       .then((u) => {
         setUser(u ?? null);
-        if (u) writeStoredUser(u);
+        if (u) {
+          writeStoredUser(u);
+          hydrateReviewsForUser(u.id);
+        }
       })
       .finally(() => {
         window.clearTimeout(timeout);
@@ -86,6 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       setUser(u);
       writeStoredUser(u);
+      hydrateReviewsForUser(u.id);
       return;
     } catch (err) {
       if (err instanceof HttpApiError && err.status === 401) {
@@ -110,6 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setUser(u);
     writeStoredUser(u);
+    hydrateReviewsForUser(u.id);
   }, []);
 
   const logout = useCallback(async () => {
