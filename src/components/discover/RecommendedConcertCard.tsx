@@ -12,7 +12,6 @@ export function RecommendedConcertCard({
   concert,
   backTo = '/',
 }: RecommendedConcertCardProps) {
-  const reason = concert.recommendationReasons[0]?.label;
   const genreLine = [concert.genreName, concert.subGenreName].filter(Boolean).join(' · ');
   const location = formatLocation(concert.city, concert.state, concert.country);
 
@@ -33,11 +32,6 @@ export function RecommendedConcertCard({
           <div className="flex size-full items-center justify-center bg-gradient-to-br from-primary/20 to-accent/10 text-4xl font-bold text-muted-foreground/40">
             {concert.artistName?.charAt(0) ?? '?'}
           </div>
-        )}
-        {reason && (
-          <span className="absolute bottom-2 left-2 right-2 rounded-lg bg-background/90 px-2.5 py-1 text-xs font-medium text-foreground shadow-sm backdrop-blur-sm">
-            {reason}
-          </span>
         )}
       </div>
       <div className="space-y-1 p-3">

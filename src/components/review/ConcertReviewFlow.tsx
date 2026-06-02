@@ -25,8 +25,8 @@ interface ConcertReviewFlowProps {
   concert: ConcertDetail;
   userId: string;
   existingReview?: ConcertReview | null;
-  onSave: (review: ConcertReview) => void;
-  onCreateWrapUp: (review: ConcertReview) => void;
+  onSave: (review: ConcertReview) => void | Promise<void>;
+  onCreateWrapUp: (review: ConcertReview) => void | Promise<void>;
   onCancel: () => void;
 }
 
@@ -39,6 +39,8 @@ export function ConcertReviewFlow({
   onCancel,
 }: ConcertReviewFlowProps) {
   const [stepIndex, setStepIndex] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [draft, setDraft] = useState<ConcertReviewDraft>(() =>
     existingReview
       ? { ...existingReview }
@@ -87,9 +89,29 @@ export function ConcertReviewFlow({
     return true;
   }
 
-  function handleSave() {
-    if (previewReview.overallRating <= 0) return;
-    onSave(previewReview);
+  async function handleSave() {
+    if (previewReview.overallRating <= 0 || saving) return;
+    setSaveError('');
+    setSaving(true);
+    try {
+      await onSave(previewReview);
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'Could not save review. Try again.');
+      setSaving(false);
+    }
+  }
+
+  async function handleSaveAndWrapUp() {
+    if (previewReview.overallRating <= 0 || saving) return;
+    setSaveError('');
+    setSaving(true);
+    try {
+      await onSave(previewReview);
+      await onCreateWrapUp(previewReview);
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'Could not save review. Try again.');
+      setSaving(false);
+    }
   }
 
   return (
@@ -256,16 +278,19 @@ export function ConcertReviewFlow({
         <div className="mx-auto flex max-w-lg flex-col gap-2 md:max-w-xl">
           {step === 'Preview' ? (
             <>
-              <Button fullWidth onClick={handleSave}>
-                Save review
+              {saveError && (
+                <p className="text-center text-sm text-destructive" role="alert">
+                  {saveError}
+                </p>
+              )}
+              <Button fullWidth onClick={() => void handleSave()} disabled={saving}>
+                {saving ? 'Saving…' : 'Save review'}
               </Button>
               <Button
                 fullWidth
                 variant="secondary"
-                onClick={() => {
-                  onSave(previewReview);
-                  onCreateWrapUp(previewReview);
-                }}
+                disabled={saving}
+                onClick={() => void handleSaveAndWrapUp()}
               >
                 Save & create wrap-up
               </Button>

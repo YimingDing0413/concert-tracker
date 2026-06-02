@@ -52,12 +52,12 @@ export function ReviewPage() {
       concert={concert}
       userId={user.id}
       existingReview={existingReview}
-      onSave={(review) => {
-        saveConcertReview(review);
+      onSave={async (review) => {
+        await saveConcertReview(review);
         navigate(`/concert/${id}`, { state: location.state });
       }}
-      onCreateWrapUp={(review) => {
-        saveConcertReview(review);
+      onCreateWrapUp={async (review) => {
+        await saveConcertReview(review);
         navigate(`/concert/${id}/wrap-up`, { state: location.state });
       }}
       onCancel={() => navigate(`/concert/${id}`, { state: location.state })}

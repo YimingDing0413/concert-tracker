@@ -3,11 +3,15 @@ import type { ConcertReview } from '@/types/concertReview';
 
 const STORAGE_KEY = 'encore_concert_reviews';
 
+/** Fired after a successful bidirectional sync (detail: { userId }). */
+export const REVIEWS_SYNCED_EVENT = 'encore-reviews-synced';
+
 /**
  * Reviews are persisted to the user's account in DynamoDB (source of truth) and
  * mirrored to localStorage as a fast, offline cache. Reads are synchronous from
- * the cache; writes update the cache immediately and persist to the server in
- * the background. Call `syncConcertReviewsFromServer` to hydrate the cache.
+ * the cache; writes update the cache immediately and persist to the server.
+ * Call `syncConcertReviewsFromServer` on app load and after login to hydrate
+ * and to push any reviews that only exist on this device.
  */
 
 /** Composite key: reviews are scoped per user + event */
@@ -28,6 +32,12 @@ function readStore(): Record<string, ConcertReview> {
 
 function writeStore(store: Record<string, ConcertReview>): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+}
+
+function notifySynced(userId: string): void {
+  window.dispatchEvent(
+    new CustomEvent(REVIEWS_SYNCED_EVENT, { detail: { userId } })
+  );
 }
 
 export function generateReviewId(): string {
@@ -56,19 +66,42 @@ async function deleteRemoteReview(userId: string, eventId: string): Promise<void
   );
 }
 
+/** Push local reviews that are missing or newer than the server copy. */
+async function pushLocalReviewsToServer(
+  userId: string,
+  remote: ConcertReview[]
+): Promise<void> {
+  const remoteByEvent = new Map(remote.map((r) => [r.eventId, r]));
+  const local = getAllConcertReviews(userId);
+  const pending = local.filter((localReview) => {
+    const serverReview = remoteByEvent.get(localReview.eventId);
+    if (!serverReview) return true;
+    return (localReview.updatedAt ?? '') > (serverReview.updatedAt ?? '');
+  });
+
+  if (pending.length === 0) return;
+
+  const results = await Promise.allSettled(
+    pending.map((review) => persistRemoteReview({ ...review, userId }))
+  );
+
+  const failed = results.filter((r) => r.status === 'rejected');
+  if (failed.length > 0 && failed.length === pending.length) {
+    throw failed[0].reason;
+  }
+}
+
 /* ------------------------------- cache + writes ------------------------------ */
 
-export function saveConcertReview(review: ConcertReview): void {
+/** Save to local cache and DynamoDB. Throws if the server write fails. */
+export async function saveConcertReview(review: ConcertReview): Promise<void> {
   if (!review.userId) {
     throw new Error('ConcertReview.userId is required');
   }
   const store = readStore();
   store[reviewKey(review.userId, review.eventId)] = review;
   writeStore(store);
-  // Persist to the user's account in the background.
-  void persistRemoteReview(review).catch(() => {
-    /* cache holds the write; will re-sync on next load */
-  });
+  await persistRemoteReview(review);
 }
 
 export function getConcertReview(userId: string, eventId: string): ConcertReview | null {
@@ -85,26 +118,29 @@ export function getAllConcertReviews(userId: string): ConcertReview[] {
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
-export function deleteConcertReview(userId: string, eventId: string): void {
+export async function deleteConcertReview(userId: string, eventId: string): Promise<void> {
   if (!userId) return;
   const store = readStore();
   delete store[reviewKey(userId, eventId)];
   writeStore(store);
-  void deleteRemoteReview(userId, eventId).catch(() => {
-    /* removed from cache; server delete will retry on next action */
-  });
+  try {
+    await deleteRemoteReview(userId, eventId);
+  } catch {
+    /* removed locally; server delete may retry on next sync */
+  }
 }
 
 /**
- * Pull the user's reviews from DynamoDB into the local cache. Server is
- * authoritative, but a locally-newer review (e.g. a write that hasn't synced
- * yet) is preserved. Returns the merged list. Safe to call repeatedly.
+ * Bidirectional sync: push local-only/newer reviews to DynamoDB, then merge
+ * remote into the local cache (newer copy wins per event). Safe to call often.
  */
 export async function syncConcertReviewsFromServer(userId: string): Promise<ConcertReview[]> {
   if (!userId) return [];
 
-  let remote: ConcertReview[];
+  let remote: ConcertReview[] = [];
   try {
+    remote = await fetchRemoteReviews(userId);
+    await pushLocalReviewsToServer(userId, remote);
     remote = await fetchRemoteReviews(userId);
   } catch {
     return getAllConcertReviews(userId);
@@ -127,5 +163,7 @@ export async function syncConcertReviewsFromServer(userId: string): Promise<Conc
   }
   writeStore(store);
 
-  return getAllConcertReviews(userId);
+  const merged = getAllConcertReviews(userId);
+  notifySynced(userId);
+  return merged;
 }

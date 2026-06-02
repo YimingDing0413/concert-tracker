@@ -10,6 +10,7 @@ import { useAuth } from '@/context/AuthContext';
 import { DISCOVER_DEFAULT_CENTER, requestUserPosition } from '@/lib/geolocation';
 import {
   getAllConcertReviews,
+  REVIEWS_SYNCED_EVENT,
   syncConcertReviewsFromServer,
 } from '@/lib/concertReviewsLocal';
 import { mapVenueToNearbyGroup } from '@/lib/mapVenueAdapters';
@@ -125,6 +126,18 @@ export function DiscoverHomePage() {
     return () => {
       cancelled = true;
     };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const onSynced = (e: Event) => {
+      const detail = (e as CustomEvent<{ userId: string }>).detail;
+      if (detail?.userId === user.id) {
+        setReviews(getAllConcertReviews(user.id));
+      }
+    };
+    window.addEventListener(REVIEWS_SYNCED_EVENT, onSynced);
+    return () => window.removeEventListener(REVIEWS_SYNCED_EVENT, onSynced);
   }, [user]);
 
   const trendingArtists = useMemo(() => {

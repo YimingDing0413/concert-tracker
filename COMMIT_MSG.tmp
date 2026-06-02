@@ -1,0 +1,3 @@
+Fix cross-device review sync and simplify For you cards.
+
+Bidirectional review sync on app load and focus, await server saves with errors surfaced, and remove recommendation reason labels from Discover cards.

@@ -11,7 +11,11 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ListRowSkeleton } from '@/components/ui/LoadingSkeleton';
 import { useAuth } from '@/context/AuthContext';
 import { useProfileConcerts } from '@/hooks/useProfileConcerts';
-import { getAllConcertReviews, syncConcertReviewsFromServer } from '@/lib/concertReviewsLocal';
+import {
+  getAllConcertReviews,
+  REVIEWS_SYNCED_EVENT,
+  syncConcertReviewsFromServer,
+} from '@/lib/concertReviewsLocal';
 import { buildProfileActivityStats } from '@/lib/profileStats';
 import {
   ensureMyProfile,
@@ -81,6 +85,18 @@ export function ProfilePage() {
     if (!user) return;
     setReviews(getAllConcertReviews(user.id));
   }, [user, contentTab]);
+
+  useEffect(() => {
+    if (!user) return;
+    const onSynced = (e: Event) => {
+      const detail = (e as CustomEvent<{ userId: string }>).detail;
+      if (detail?.userId === user.id) {
+        setReviews(getAllConcertReviews(user.id));
+      }
+    };
+    window.addEventListener(REVIEWS_SYNCED_EVENT, onSynced);
+    return () => window.removeEventListener(REVIEWS_SYNCED_EVENT, onSynced);
+  }, [user]);
 
   useEffect(() => {
     setContentTab(parseProfileTab(searchParams.get('tab')));

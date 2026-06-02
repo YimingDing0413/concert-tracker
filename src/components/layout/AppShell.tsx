@@ -1,9 +1,11 @@
 import { BottomNav } from '@/components/layout/BottomNav';
 import { SidebarNav } from '@/components/layout/SidebarNav';
+import { useReviewSync } from '@/hooks/useReviewSync';
 import { cn } from '@/lib/utils';
 import { Outlet, useLocation } from 'react-router-dom';
 
 export function AppShell() {
+  useReviewSync();
   const { pathname } = useLocation();
   const isMap = pathname === '/map';
 
