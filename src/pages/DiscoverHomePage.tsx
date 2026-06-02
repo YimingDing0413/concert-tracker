@@ -1,18 +1,31 @@
 import { apiFetch } from '@/api/http';
 import { api } from '@/api';
 import { ConcertCard } from '@/components/concert/ConcertCard';
+import { RecommendedConcertCard } from '@/components/discover/RecommendedConcertCard';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { SearchAutocomplete } from '@/components/search/SearchAutocomplete';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ConcertCardSkeleton } from '@/components/ui/LoadingSkeleton';
+import { useAuth } from '@/context/AuthContext';
 import { DISCOVER_DEFAULT_CENTER, requestUserPosition } from '@/lib/geolocation';
+import {
+  getAllConcertReviews,
+  syncConcertReviewsFromServer,
+} from '@/lib/concertReviewsLocal';
 import { mapVenueToNearbyGroup } from '@/lib/mapVenueAdapters';
+import { buildConcertHistory } from '@/lib/recommendations/buildHistory';
+import {
+  getRecommendedConcerts,
+  tasteProfileHasSignals,
+  buildUserTasteProfile,
+  type RecommendedConcert,
+} from '@/lib/recommendations/concertRecommendations';
 import type { Concert, MapEventsPayload, UserConcert } from '@/types';
+import type { ConcertReview } from '@/types/concertReview';
 import { sortUserConcertsByDate } from '@/utils/userConcert';
 import { TrendingUp } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
 
 function concertsFromMapPayload(data: MapEventsPayload): Concert[] {
   const list: Concert[] = [];
@@ -33,6 +46,9 @@ export function DiscoverHomePage() {
   const [loadingNearby, setLoadingNearby] = useState(true);
   const [recentUserConcerts, setRecentUserConcerts] = useState<UserConcert[]>([]);
   const [recentConcertMap, setRecentConcertMap] = useState<Record<string, Partial<Concert>>>({});
+  const [userConcerts, setUserConcerts] = useState<UserConcert[]>([]);
+  const [reviews, setReviews] = useState<ConcertReview[]>([]);
+  const [historyReady, setHistoryReady] = useState(false);
 
   useEffect(() => {
     requestUserPosition()
@@ -67,15 +83,48 @@ export function DiscoverHomePage() {
   }, [center.latitude, center.longitude]);
 
   useEffect(() => {
-    if (!user) return;
-    api.getUserConcerts(user.id).then((ucs) => {
-      setRecentUserConcerts(sortUserConcertsByDate(ucs, {}).slice(0, 6));
-      const map: Record<string, Partial<Concert>> = {};
-      for (const uc of ucs) {
-        if (uc.concertSnapshot) map[uc.concertId] = uc.concertSnapshot;
+    if (!user) {
+      setUserConcerts([]);
+      setReviews([]);
+      setHistoryReady(true);
+      return;
+    }
+    let cancelled = false;
+    setHistoryReady(false);
+    (async () => {
+      try {
+        const [ucs, syncedReviews] = await Promise.all([
+          api.getUserConcerts(user.id),
+          syncConcertReviewsFromServer(user.id),
+        ]);
+        if (cancelled) return;
+        setUserConcerts(ucs);
+        setReviews(syncedReviews);
+        setRecentUserConcerts(sortUserConcertsByDate(ucs, {}).slice(0, 6));
+        const map: Record<string, Partial<Concert>> = {};
+        for (const uc of ucs) {
+          if (uc.concertSnapshot) map[uc.concertId] = uc.concertSnapshot;
+        }
+        setRecentConcertMap(map);
+      } catch {
+        if (cancelled) return;
+        const ucs = await api.getUserConcerts(user.id);
+        if (cancelled) return;
+        setUserConcerts(ucs);
+        setReviews(getAllConcertReviews(user.id));
+        setRecentUserConcerts(sortUserConcertsByDate(ucs, {}).slice(0, 6));
+        const map: Record<string, Partial<Concert>> = {};
+        for (const uc of ucs) {
+          if (uc.concertSnapshot) map[uc.concertId] = uc.concertSnapshot;
+        }
+        setRecentConcertMap(map);
+      } finally {
+        if (!cancelled) setHistoryReady(true);
       }
-      setRecentConcertMap(map);
-    });
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [user]);
 
   const trendingArtists = useMemo(() => {
@@ -91,7 +140,22 @@ export function DiscoverHomePage() {
       .map(([name]) => name);
   }, [nearbyConcerts]);
 
-  const featured = nearbyConcerts.slice(0, 6);
+  const concertHistory = useMemo(
+    () => buildConcertHistory(userConcerts, reviews),
+    [userConcerts, reviews]
+  );
+
+  const hasTasteProfile = useMemo(() => {
+    if (!historyReady || concertHistory.length === 0) return false;
+    return tasteProfileHasSignals(buildUserTasteProfile(concertHistory));
+  }, [historyReady, concertHistory]);
+
+  const forYou = useMemo((): RecommendedConcert[] => {
+    if (!historyReady || !hasTasteProfile || loadingNearby) return [];
+    return getRecommendedConcerts(nearbyConcerts, concertHistory, 6);
+  }, [historyReady, hasTasteProfile, loadingNearby, nearbyConcerts, concertHistory]);
+
+  const nearbyFallback = nearbyConcerts.slice(0, 6);
   const upcoming = nearbyConcerts.slice(0, 12);
 
   return (
@@ -116,18 +180,38 @@ export function DiscoverHomePage() {
 
       <section>
         <SectionHeader
-          title="Featured nearby"
-          subtitle="Upcoming shows around you"
+          title="For you"
+          subtitle={
+            hasTasteProfile
+              ? 'Based on concerts you’ve attended and rated'
+              : 'Upcoming shows around you'
+          }
           actionLabel="See map"
           actionTo="/map"
         />
-        {loadingNearby ? (
+        {!historyReady || loadingNearby ? (
           <div className="grid gap-4 sm:grid-cols-2">
             {Array.from({ length: 2 }).map((_, i) => (
-              <ConcertCardSkeleton key={i} />
+              <ConcertCardSkeleton key={`for-you-${i}`} />
             ))}
           </div>
-        ) : featured.length === 0 ? (
+        ) : hasTasteProfile && forYou.length > 0 ? (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {forYou.map((c) => (
+              <RecommendedConcertCard key={c.id} concert={c} backTo="/" />
+            ))}
+          </div>
+        ) : hasTasteProfile && forYou.length === 0 ? (
+          <EmptyState
+            title="No strong matches yet"
+            description="We couldn’t find nearby shows that match your taste right now. Browse Upcoming near you below or try the map."
+            action={
+              <Link to="/map" className="text-sm font-medium text-primary">
+                Explore map →
+              </Link>
+            }
+          />
+        ) : nearbyFallback.length === 0 ? (
           <EmptyState
             title="No nearby shows yet"
             description="Try the map or search another city."
@@ -138,10 +222,20 @@ export function DiscoverHomePage() {
             }
           />
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {featured.map((c) => (
-              <ConcertCard key={c.id} concert={c} backTo="/" variant="poster" />
-            ))}
+          <div className="space-y-4">
+            {!hasTasteProfile && (
+              <p className="text-sm text-muted-foreground">
+                Rate or attend a few concerts to unlock personalized picks.{' '}
+                <Link to="/profile" className="font-medium text-primary">
+                  Go to profile →
+                </Link>
+              </p>
+            )}
+            <div className="grid gap-4 sm:grid-cols-2">
+              {nearbyFallback.map((c) => (
+                <ConcertCard key={c.id} concert={c} backTo="/" variant="poster" />
+              ))}
+            </div>
           </div>
         )}
       </section>

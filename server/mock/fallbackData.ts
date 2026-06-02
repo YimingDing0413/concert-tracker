@@ -48,6 +48,9 @@ export const mockEvents: ConcertEvent[] = [
     ticketUrl: 'https://example.com/tickets',
     openers: ['Support artist'],
     status: 'upcoming',
+    segmentName: 'Music',
+    genreName: 'Pop',
+    subGenreName: 'Pop Rock',
   },
   {
     id: 'tm:event:concert-mock-2',
@@ -80,6 +83,9 @@ export const mockEvents: ConcertEvent[] = [
     time: '21:00',
     status: 'upcoming',
     openers: [],
+    segmentName: 'Music',
+    genreName: 'Rock',
+    subGenreName: 'Alternative Rock',
   },
 ];
 

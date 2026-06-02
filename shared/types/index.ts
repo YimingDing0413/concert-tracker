@@ -104,6 +104,10 @@ export interface ConcertEvent {
   venueLongitude?: number;
   /** Street line from venue provider (e.g. Ticketmaster). */
   venueAddress?: string;
+  /** Ticketmaster Discovery classification (when available). */
+  segmentName?: string;
+  genreName?: string;
+  subGenreName?: string;
 }
 
 /** Map API: one upcoming show at a venue (Ticketmaster-sourced). */
@@ -118,6 +122,9 @@ export interface MapConcertEvent {
   ticketUrl?: string;
   imageUrl?: string;
   source: 'ticketmaster' | 'mock';
+  segmentName?: string;
+  genreName?: string;
+  subGenreName?: string;
 }
 
 /** Map API: venue cluster with upcoming music events. */
@@ -176,6 +183,10 @@ export interface Concert {
     ticketmaster?: string;
     bandsintown?: string;
   };
+  /** Ticketmaster Discovery classification (when available). */
+  segmentName?: string;
+  genreName?: string;
+  subGenreName?: string;
 }
 
 export type UserConcertStatus = 'going' | 'attended' | 'saved';

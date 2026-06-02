@@ -18,6 +18,38 @@ export function extractTourNameFromTmEvent(raw: any): string | undefined {
   return undefined;
 }
 
+/** Best-effort segment / genre / subGenre from Ticketmaster classifications. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function extractTmClassification(raw: any): {
+  segmentName?: string;
+  genreName?: string;
+  subGenreName?: string;
+} {
+  const list = raw?.classifications;
+  if (!Array.isArray(list) || list.length === 0) return {};
+
+  const music =
+    list.find(
+      (c: { segment?: { name?: string } }) =>
+        typeof c?.segment?.name === 'string' && c.segment.name.toLowerCase() === 'music'
+    ) ?? list[0];
+
+  const segmentName =
+    typeof music?.segment?.name === 'string' && music.segment.name.trim()
+      ? music.segment.name.trim()
+      : undefined;
+  const genreName =
+    typeof music?.genre?.name === 'string' && music.genre.name.trim()
+      ? music.genre.name.trim()
+      : undefined;
+  const subGenreName =
+    typeof music?.subGenre?.name === 'string' && music.subGenre.name.trim()
+      ? music.subGenre.name.trim()
+      : undefined;
+
+  return { segmentName, genreName, subGenreName };
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function pickImage(images: any[] | undefined, preferred = 16 / 9): string | undefined {
   if (!images?.length) return undefined;
@@ -53,6 +85,8 @@ export function normalizeTmEvent(raw: any): ConcertEvent | null {
       ? Number(lngRaw)
       : undefined;
 
+  const classification = extractTmClassification(e);
+
   return {
     id: `tm:event:${e.id}`,
     source: 'ticketmaster',
@@ -83,6 +117,7 @@ export function normalizeTmEvent(raw: any): ConcertEvent | null {
       !Number.isNaN(venueLongitude)
       ? { venueLatitude, venueLongitude }
       : {}),
+    ...classification,
   };
 }
 

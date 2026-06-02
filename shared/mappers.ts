@@ -51,5 +51,8 @@ export function concertEventToConcert(event: ConcertEvent): Concert {
       ticketmaster: event.source === 'ticketmaster' ? event.id.replace('tm:event:', '') : undefined,
       bandsintown: event.source === 'bandsintown' ? event.id.replace('bit:', '') : undefined,
     },
+    segmentName: event.segmentName,
+    genreName: event.genreName,
+    subGenreName: event.subGenreName,
   };
 }

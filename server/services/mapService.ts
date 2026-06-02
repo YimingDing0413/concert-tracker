@@ -34,6 +34,9 @@ export function concertEventToMapConcertEvent(event: ConcertEvent): MapConcertEv
     ticketUrl: event.ticketUrl,
     imageUrl: event.imageUrl,
     source,
+    segmentName: event.segmentName,
+    genreName: event.genreName,
+    subGenreName: event.subGenreName,
   };
 }
 

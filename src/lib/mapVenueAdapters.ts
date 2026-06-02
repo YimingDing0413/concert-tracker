@@ -38,5 +38,8 @@ function mapMapConcertEventToConcert(venue: MapVenue, e: MapConcertEvent): Conce
       e.source === 'ticketmaster'
         ? { ticketmaster: e.id.replace(/^tm:event:/, '') }
         : undefined,
+    segmentName: e.segmentName,
+    genreName: e.genreName,
+    subGenreName: e.subGenreName,
   };
 }
