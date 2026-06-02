@@ -1,4 +1,10 @@
 import { apiFetchData } from '@/api/http';
+import {
+  attachStoredPhotos,
+  deleteReviewPhotosFromIdb,
+  pickBestPhotos,
+  prepareReviewForPersistence,
+} from '@/lib/reviewPhotosIdb';
 import type { ConcertReview } from '@/types/concertReview';
 
 const STORAGE_KEY = 'encore_concert_reviews';
@@ -7,16 +13,10 @@ const STORAGE_KEY = 'encore_concert_reviews';
 export const REVIEWS_SYNCED_EVENT = 'encore-reviews-synced';
 
 /**
- * Reviews are persisted to the user's account in DynamoDB (source of truth) and
- * mirrored to localStorage as a fast, offline cache. Reads are synchronous from
- * the cache; writes update the cache immediately and persist to the server.
- *
- * Photo data URLs stay in localStorage only — they are stripped before upload so
- * large payloads do not fail on Vercel/DynamoDB limits. Ratings, text, and tags
- * sync across devices; photos remain on the device that added them (MVP).
+ * Reviews persist to DynamoDB (ratings, text, tags, compressed photos) with a
+ * localStorage cache and IndexedDB backup for photos when storage quota is tight.
  */
 
-/** Composite key: reviews are scoped per user + event */
 function reviewKey(userId: string, eventId: string): string {
   return `${userId}::${eventId}`;
 }
@@ -52,15 +52,10 @@ function normalizeReview(userId: string, key: string, review: ConcertReview): Co
   };
 }
 
-/** Strip inline photos before upload — keeps request size within server limits. */
-export function reviewForServer(review: ConcertReview): ConcertReview {
-  const { photoDataUrls: _photos, ...rest } = review;
-  return rest;
-}
-
 function mergeLocalPhotos(server: ConcertReview, local?: ConcertReview): ConcertReview {
-  if (!local?.photoDataUrls?.length) return server;
-  return { ...server, photoDataUrls: local.photoDataUrls };
+  const photoDataUrls = pickBestPhotos(local?.photoDataUrls, server.photoDataUrls);
+  if (!photoDataUrls) return server;
+  return { ...server, photoDataUrls };
 }
 
 export function generateReviewId(): string {
@@ -69,7 +64,6 @@ export function generateReviewId(): string {
 
 const LEGACY_USER_IDS = ['dev-user', 'user-demo'] as const;
 
-/** Move reviews from placeholder accounts into the logged-in user (local cache only). */
 export function migrateLegacyLocalReviews(toUserId: string): void {
   if (!toUserId) return;
   const store = readStore();
@@ -98,6 +92,10 @@ export function migrateLegacyLocalReviews(toUserId: string): void {
   if (changed) writeStore(store);
 }
 
+async function enrichAllReviews(reviews: ConcertReview[]): Promise<ConcertReview[]> {
+  return Promise.all(reviews.map((r) => attachStoredPhotos(r)));
+}
+
 /* ----------------------------- remote (DynamoDB) ----------------------------- */
 
 async function fetchRemoteReviews(userId: string): Promise<ConcertReview[]> {
@@ -109,7 +107,7 @@ async function fetchRemoteReviews(userId: string): Promise<ConcertReview[]> {
 async function persistRemoteReview(review: ConcertReview): Promise<void> {
   await apiFetchData<ConcertReview>('/api/user/reviews', {
     method: 'POST',
-    body: JSON.stringify(reviewForServer(review)),
+    body: JSON.stringify(review),
   });
 }
 
@@ -120,7 +118,6 @@ async function deleteRemoteReview(userId: string, eventId: string): Promise<void
   );
 }
 
-/** Push local reviews that are missing or newer than the server copy. */
 async function pushLocalReviewsToServer(
   userId: string,
   remote: ConcertReview[]
@@ -153,7 +150,6 @@ async function pushLocalReviewsToServer(
 
 /* ------------------------------- cache + writes ------------------------------ */
 
-/** Save to local cache and DynamoDB. Throws if the server write fails. */
 export async function saveConcertReview(review: ConcertReview): Promise<void> {
   if (!review.userId) {
     throw new Error('ConcertReview.userId is required');
@@ -161,10 +157,20 @@ export async function saveConcertReview(review: ConcertReview): Promise<void> {
   if (!review.eventId) {
     throw new Error('ConcertReview.eventId is required');
   }
+
+  const prepared = await prepareReviewForPersistence(review);
+  const key = reviewKey(prepared.userId, prepared.eventId);
   const store = readStore();
-  store[reviewKey(review.userId, review.eventId)] = review;
-  writeStore(store);
-  await persistRemoteReview(review);
+  store[key] = prepared;
+
+  try {
+    writeStore(store);
+  } catch {
+    store[key] = { ...prepared, photoDataUrls: undefined };
+    writeStore(store);
+  }
+
+  await persistRemoteReview(prepared);
 }
 
 export function getConcertReview(userId: string, eventId: string): ConcertReview | null {
@@ -172,6 +178,16 @@ export function getConcertReview(userId: string, eventId: string): ConcertReview
   const raw = readStore()[reviewKey(userId, eventId)];
   if (!raw) return null;
   return normalizeReview(userId, reviewKey(userId, eventId), raw);
+}
+
+/** Load review with photos from localStorage + IndexedDB. */
+export async function getConcertReviewWithPhotos(
+  userId: string,
+  eventId: string
+): Promise<ConcertReview | null> {
+  const base = getConcertReview(userId, eventId);
+  if (!base) return null;
+  return attachStoredPhotos(base);
 }
 
 export function getAllConcertReviews(userId: string): ConcertReview[] {
@@ -183,22 +199,25 @@ export function getAllConcertReviews(userId: string): ConcertReview[] {
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
+export async function getAllConcertReviewsWithPhotos(
+  userId: string
+): Promise<ConcertReview[]> {
+  return enrichAllReviews(getAllConcertReviews(userId));
+}
+
 export async function deleteConcertReview(userId: string, eventId: string): Promise<void> {
   if (!userId) return;
   const store = readStore();
   delete store[reviewKey(userId, eventId)];
   writeStore(store);
+  await deleteReviewPhotosFromIdb(userId, eventId);
   try {
     await deleteRemoteReview(userId, eventId);
   } catch {
-    /* removed locally; server delete may retry on next sync */
+    /* removed locally */
   }
 }
 
-/**
- * Bidirectional sync: push local-only/newer reviews to DynamoDB, then merge
- * remote into the local cache (newer copy wins per event). Safe to call often.
- */
 export async function syncConcertReviewsFromServer(userId: string): Promise<ConcertReview[]> {
   if (!userId) return [];
 
@@ -207,7 +226,7 @@ export async function syncConcertReviewsFromServer(userId: string): Promise<Conc
     remote = await fetchRemoteReviews(userId);
   } catch (err) {
     console.warn('[reviews] Could not fetch reviews from server', err);
-    return getAllConcertReviews(userId);
+    return enrichAllReviews(getAllConcertReviews(userId));
   }
 
   try {
@@ -215,7 +234,6 @@ export async function syncConcertReviewsFromServer(userId: string): Promise<Conc
     remote = await fetchRemoteReviews(userId);
   } catch (err) {
     console.warn('[reviews] Could not push local reviews to server', err);
-    /* still merge remote below */
   }
 
   const localByEvent = new Map(
@@ -240,7 +258,23 @@ export async function syncConcertReviewsFromServer(userId: string): Promise<Conc
   }
   writeStore(store);
 
-  const merged = getAllConcertReviews(userId);
+  const merged = await enrichAllReviews(getAllConcertReviews(userId));
+
+  for (const review of merged) {
+    store[reviewKey(userId, review.eventId)] = review;
+  }
+  try {
+    writeStore(store);
+  } catch {
+    for (const review of merged) {
+      store[reviewKey(userId, review.eventId)] = {
+        ...review,
+        photoDataUrls: undefined,
+      };
+    }
+    writeStore(store);
+  }
+
   notifySynced(userId);
   return merged;
 }

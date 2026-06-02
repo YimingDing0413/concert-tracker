@@ -1,7 +1,7 @@
 import { api } from '@/api';
 import { ConcertReviewFlow } from '@/components/review/ConcertReviewFlow';
 import {
-  getConcertReview,
+  getConcertReviewWithPhotos,
   saveConcertReview,
   syncConcertReviewsFromServer,
 } from '@/lib/concertReviewsLocal';
@@ -17,6 +17,9 @@ export function ReviewPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [concert, setConcert] = useState<ConcertDetail | null>(null);
+  const [existingReview, setExistingReview] = useState<Awaited<
+    ReturnType<typeof getConcertReviewWithPhotos>
+  >>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -25,7 +28,10 @@ export function ReviewPage() {
     Promise.all([
       api.getConcert(id).then(setConcert),
       user ? syncConcertReviewsFromServer(user.id) : Promise.resolve(),
-    ]).finally(() => setLoading(false));
+      user ? getConcertReviewWithPhotos(user.id, id) : Promise.resolve(null),
+    ])
+      .then(([, , review]) => setExistingReview(review ?? null))
+      .finally(() => setLoading(false));
   }, [id, user]);
 
   if (!id) return <Navigate to="/" replace />;
@@ -44,8 +50,6 @@ export function ReviewPage() {
       </div>
     );
   }
-
-  const existingReview = getConcertReview(user.id, id);
 
   return (
     <ConcertReviewFlow

@@ -33,8 +33,7 @@ export function ConcertDetailReviewSection({
   function handleDelete() {
     if (!review) return;
     if (!window.confirm('Delete this review? This cannot be undone.')) return;
-    deleteConcertReview(userId, eventId);
-    onReviewChange();
+    void deleteConcertReview(userId, eventId).then(() => onReviewChange());
   }
 
   return (

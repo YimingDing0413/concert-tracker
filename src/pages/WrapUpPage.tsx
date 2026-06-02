@@ -1,9 +1,10 @@
 import { ConcertWrapUp } from '@/components/wrap-up/ConcertWrapUp';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import {
-  getConcertReview,
+  getConcertReviewWithPhotos,
   syncConcertReviewsFromServer,
 } from '@/lib/concertReviewsLocal';
+import type { ConcertReview } from '@/types/concertReview';
 import { useAuth } from '@/context/AuthContext';
 import { getConcertNavState } from '@/utils/concertNav';
 import { useEffect, useState } from 'react';
@@ -14,17 +15,23 @@ export function WrapUpPage() {
   const { user } = useAuth();
   const location = useLocation();
   const [hydrated, setHydrated] = useState(false);
+  const [review, setReview] = useState<ConcertReview | null | undefined>(undefined);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !id) return;
     let active = true;
-    void syncConcertReviewsFromServer(user.id).finally(() => {
-      if (active) setHydrated(true);
-    });
+    void syncConcertReviewsFromServer(user.id)
+      .then(() => getConcertReviewWithPhotos(user.id, id))
+      .then((loaded) => {
+        if (active) setReview(loaded);
+      })
+      .finally(() => {
+        if (active) setHydrated(true);
+      });
     return () => {
       active = false;
     };
-  }, [user]);
+  }, [user, id]);
 
   const navState = getConcertNavState(location.state);
   const backTo = id ? `/concert/${id}` : '/';
@@ -40,9 +47,7 @@ export function WrapUpPage() {
     );
   }
 
-  const review = getConcertReview(user.id, id);
-
-  if (review === null) {
+  if (review === null || review === undefined) {
     return <Navigate to={`/concert/${id}/review`} replace state={location.state} />;
   }
 
