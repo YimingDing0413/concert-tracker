@@ -11,6 +11,7 @@ import type { ConcertReview } from '@/types/concertReview';
 import { averageOverallRating, formatOverallRating } from '@/utils/format';
 import { resolveConcertForUserConcert, sortUserConcertsByDate } from '@/utils/userConcert';
 import { Sparkles, Star } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 import { buildTicketPrefill } from '@/lib/social/messagesApi';
 import { useState, type MouseEvent, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -39,8 +40,10 @@ export function ProfileContentTabs({
   feedPosts = [],
   mode = 'full',
 }: ProfileContentTabsProps) {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [messagePost, setMessagePost] = useState<FeedPost | null>(null);
+  const viewerUserId = user?.id;
   const attended = userConcerts.filter((uc) => uc.status === 'attended');
   const going = userConcerts.filter((uc) => uc.status === 'going');
   const attendedSorted = sortUserConcertsByDate(attended, concertMap);
@@ -193,9 +196,13 @@ export function ProfileContentTabs({
               <li key={post.id}>
                 <FeedPostCard
                   post={post}
-                  currentUserId={userId}
+                  viewerUserId={viewerUserId}
                   onHaveTickets={() => {
-                    if (post.type === 'looking_for_tickets' && post.userId !== userId) {
+                    if (
+                      post.type === 'looking_for_tickets' &&
+                      viewerUserId &&
+                      post.userId !== viewerUserId
+                    ) {
                       setMessagePost(post);
                     }
                   }}

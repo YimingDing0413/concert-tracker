@@ -1,18 +1,17 @@
 import { ConcertPostCard } from '@/components/feed/ConcertPostCard';
 import { LookingForTicketsPostCard } from '@/components/feed/LookingForTicketsPostCard';
 import { ReviewFeedPostCard } from '@/components/feed/ReviewFeedPostCard';
-import { getTokenUserId } from '@/lib/auth/session';
 import type { FeedPost } from '@/types';
 
 interface FeedPostCardProps {
   post: FeedPost;
-  currentUserId?: string;
+  /** Logged-in viewer — used to hide "Message" on your own posts. */
+  viewerUserId?: string;
   onHaveTickets: () => void;
 }
 
-export function FeedPostCard({ post, currentUserId, onHaveTickets }: FeedPostCardProps) {
-  const authedUserId = getTokenUserId() ?? currentUserId;
-  const isOwnPost = Boolean(authedUserId && post.userId === authedUserId);
+export function FeedPostCard({ post, viewerUserId, onHaveTickets }: FeedPostCardProps) {
+  const isOwnPost = Boolean(viewerUserId && post.userId === viewerUserId);
 
   switch (post.type) {
     case 'looking_for_tickets':

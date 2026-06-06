@@ -8,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { getTokenUserId } from '@/lib/auth/session';
+import { useAuth } from '@/context/AuthContext';
 import { openDmThread, sendThreadMessage } from '@/lib/social/messagesApi';
 import type { FeedPost, MessageThread, MessageThreadContext } from '@/types';
 import { useEffect, useState } from 'react';
@@ -36,6 +36,7 @@ export function StartMessageModal({
   contextThread,
   feedPost,
 }: StartMessageModalProps) {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [text, setText] = useState(prefilledText);
   const [sending, setSending] = useState(false);
@@ -70,8 +71,7 @@ export function StartMessageModal({
     const trimmed = text.trim();
     if (!trimmed) return;
 
-    const authedUserId = getTokenUserId();
-    if (authedUserId && authedUserId === targetUserId) {
+    if (user?.id && user.id === targetUserId) {
       setError(
         "You can't message yourself. If this is your ticket post, wait for another member to respond."
       );

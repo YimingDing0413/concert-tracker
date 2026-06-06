@@ -2,18 +2,8 @@ import { apiFetchData } from '@/api/http';
 import type { ConcertReview } from '@/types/concertReview';
 import type { CreateFeedPostInput, FeedFilter, FeedPost } from '@/types';
 
-/**
- * MVP: passes userId from the client's local auth user.
- * Replace with session-derived identity when real auth ships.
- */
-
-export async function getFeed(
-  userId: string,
-  filter: FeedFilter = 'all',
-  limit = 50
-): Promise<FeedPost[]> {
+export async function getFeed(filter: FeedFilter = 'all', limit = 50): Promise<FeedPost[]> {
   const params = new URLSearchParams({
-    userId,
     filter,
     limit: String(limit),
   });
@@ -31,13 +21,12 @@ export async function getEventFeed(eventId: string, limit = 50): Promise<FeedPos
 }
 
 export async function createFeedPost(
-  userId: string,
   input: Omit<CreateFeedPostInput, 'userId'>
 ): Promise<FeedPost> {
-  return apiFetchData<FeedPost>(`/api/feed?userId=${encodeURIComponent(userId)}`, {
+  return apiFetchData<FeedPost>('/api/feed', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...input, userId }),
+    body: JSON.stringify(input),
   });
 }
 
@@ -48,14 +37,13 @@ export async function deleteFeedPost(postId: string): Promise<void> {
 }
 
 export async function createReviewFeedPost(
-  userId: string,
   review: ConcertReview,
   concert?: {
     city?: string;
     imageUrl?: string;
   }
 ): Promise<FeedPost> {
-  return createFeedPost(userId, {
+  return createFeedPost({
     type: 'review',
     eventId: review.eventId,
     artistName: review.artistName,

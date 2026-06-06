@@ -66,7 +66,7 @@ export function ReviewPage() {
         } | null;
         if (state?.createFeedPost) {
           try {
-            await createReviewFeedPost(user.id, review, {
+            await createReviewFeedPost(review, {
               city: state.concertSnapshot?.city ?? concert.city,
               imageUrl: state.concertSnapshot?.imageUrl ?? concert.imageUrl,
             });

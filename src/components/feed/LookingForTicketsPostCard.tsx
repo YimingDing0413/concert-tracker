@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { FeedEventPreview } from '@/components/feed/FeedEventPreview';
 import { FeedPostHeader } from '@/components/feed/FeedPostHeader';
 import type { FeedPost } from '@/types';
-import { Ticket } from 'lucide-react';
+import { MessageCircle, Ticket } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface LookingForTicketsPostCardProps {
@@ -63,8 +63,12 @@ export function LookingForTicketsPostCard({
       <div className="flex flex-wrap gap-2">
         {!isOwnPost && (
           <Button variant="primary" size="sm" onClick={onHaveTickets}>
-            I have tickets
+            <MessageCircle className="size-4" aria-hidden />
+            Message
           </Button>
+        )}
+        {isOwnPost && (
+          <p className="text-xs text-muted-foreground">Your post — others can message you from their feed.</p>
         )}
         {post.eventId && (
           <Link

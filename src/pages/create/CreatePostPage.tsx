@@ -33,7 +33,7 @@ export function CreatePostPage() {
     setError('');
     try {
       // TODO: move photo storage to S3/Cloudinary/Vercel Blob for production.
-      await createFeedPost(user.id, {
+      await createFeedPost({
         type: 'concert_post',
         caption: caption.trim() || undefined,
         photoDataUrls: photos.length > 0 ? photos : undefined,

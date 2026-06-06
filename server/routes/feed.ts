@@ -6,12 +6,11 @@ import {
 } from '../../src/lib/db/feedRepository.js';
 import { getFollowing } from '../../src/lib/db/friendRepository.js';
 import type { FeedFilter, FeedPost } from '../../shared/types/index.js';
-import { resolveUserId } from '../lib/devUser.js';
+import { resolveViewerUserId } from '../lib/optionalAuth.js';
+import { requireAuth } from '../lib/requireAuth.js';
 import { requireDynamo } from '../lib/requireDynamo.js';
 
 export const feedRouter = Router();
-
-// MVP: userId comes from the client's local auth user until real sessions exist.
 
 function filterPosts(posts: FeedPost[], filter: FeedFilter, followingIds: Set<string>): FeedPost[] {
   switch (filter) {
@@ -30,7 +29,7 @@ feedRouter.get('/', requireDynamo, async (req, res, next) => {
   try {
     const filter = (req.query.filter as FeedFilter) || 'all';
     const limit = Math.min(Number(req.query.limit) || 50, 100);
-    const currentUserId = resolveUserId(req.query.userId);
+    const currentUserId = await resolveViewerUserId(req);
 
     let posts = await getGlobalFeed(limit);
 
@@ -48,11 +47,11 @@ feedRouter.get('/', requireDynamo, async (req, res, next) => {
   }
 });
 
-feedRouter.post('/', requireDynamo, async (req, res) => {
+feedRouter.post('/', requireDynamo, requireAuth, async (req, res) => {
   try {
     const body = req.body ?? {};
-    const userId = resolveUserId(req.query.userId, body.userId);
-    const data = await createFeedPost({ ...body, userId });
+    const { userId: _clientUserId, ...rest } = body;
+    const data = await createFeedPost({ ...rest, userId: req.authUser!.userId });
     res.json({ data });
   } catch (err) {
     res.status(400).json({ error: err instanceof Error ? err.message : 'Could not create post.' });

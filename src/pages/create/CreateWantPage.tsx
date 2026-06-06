@@ -32,7 +32,7 @@ export function CreateWantPage() {
     setSubmitting(true);
     setError('');
     try {
-      await createFeedPost(user.id, {
+      await createFeedPost({
         type: 'looking_for_tickets',
         ticketStatus: 'looking',
         ticketQuantity: quantity ? Number(quantity) : undefined,

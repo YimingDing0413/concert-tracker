@@ -13,7 +13,6 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { SolidBackButton } from '@/components/ui/SolidBackButton';
 import { useAuth } from '@/context/AuthContext';
-import { getTokenUserId } from '@/lib/auth/session';
 import { useProfileConcerts } from '@/hooks/useProfileConcerts';
 import {
   getFollowCounts,
@@ -108,8 +107,7 @@ export function MemberProfilePage() {
       return;
     }
     if (!userId) return;
-    const authedUserId = getTokenUserId() ?? user.id;
-    if (authedUserId === userId) {
+    if (user.id === userId) {
       navigate('/profile');
       return;
     }
