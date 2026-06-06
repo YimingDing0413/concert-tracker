@@ -1,5 +1,4 @@
 import { StatusBadge as Badge } from '@/components/ui/status-badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { RatingStars } from '@/components/ui/RatingStars';
 import { cn } from '@/lib/utils';
 import type { Concert, ConcertRating, UserConcert } from '@/types';
@@ -14,18 +13,33 @@ interface ConcertCardProps {
   rating?: ConcertRating | null;
   concertId?: string;
   backTo?: string;
-  variant?: 'poster' | 'compact';
+  variant?: 'poster' | 'compact' | 'memory';
   showCta?: boolean;
-  /** Optional interactive content rendered inside the card body (e.g. a Rate button). */
+  /** Show data-source pill on poster/memory cards */
+  showSource?: boolean;
+  /** Rendered below the card (e.g. Rate button) — outside the nav link */
+  footer?: ReactNode;
+  /** @deprecated Use footer */
   action?: ReactNode;
 }
 
 function sourceLabel(source?: string) {
-  if (!source || source === 'mock') return 'Encore';
+  if (!source || source === 'mock') return null;
   if (source === 'ticketmaster') return 'Ticketmaster';
   if (source === 'setlistfm') return 'Setlist.fm';
   if (source === 'bandsintown') return 'Bandsintown';
   return source;
+}
+
+function posterPlaceholder(artist: string) {
+  const initial = artist.slice(0, 1).toUpperCase() || '?';
+  return (
+    <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-violet-600/50 via-fuchsia-900/35 to-background">
+      <span className="select-none text-6xl font-black tracking-tighter text-white/20 sm:text-7xl">
+        {initial}
+      </span>
+    </div>
+  );
 }
 
 export function ConcertCard({
@@ -36,6 +50,8 @@ export function ConcertCard({
   backTo,
   variant = 'poster',
   showCta = true,
+  showSource = true,
+  footer,
   action,
 }: ConcertCardProps) {
   const id = concertId ?? concert.id ?? userConcert?.concertId;
@@ -44,6 +60,8 @@ export function ConcertCard({
   const date = concert.date ?? '';
   const city = concert.city ?? '';
   const location = formatLocation(city, concert.state, concert.country);
+  const source = showSource ? sourceLabel(concert.source) : null;
+  const cardFooter = footer ?? action;
 
   if (variant === 'compact') {
     return (
@@ -61,11 +79,9 @@ export function ConcertCard({
               loading="lazy"
             />
           ) : (
-            <Avatar className="size-16 shrink-0 rounded-xl">
-              <AvatarFallback className="rounded-xl bg-primary/20 text-lg text-primary">
-                {artist.slice(0, 1).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
+            <div className="flex size-16 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600/40 to-fuchsia-900/30 text-lg font-bold text-white/90">
+              {artist.slice(0, 1).toUpperCase()}
+            </div>
           )}
           <div className="min-w-0 flex-1">
             <h3 className="truncate font-semibold text-foreground">{artist}</h3>
@@ -85,53 +101,65 @@ export function ConcertCard({
           <div
             className={cn(
               'flex shrink-0 flex-col items-end gap-2',
-              !userConcert && !action && 'justify-center'
+              !userConcert && !cardFooter && 'justify-center'
             )}
           >
             {userConcert && <Badge type={userConcert.status} />}
-            {action ?? <ChevronRight className="size-4 text-muted-foreground" aria-hidden />}
+            {cardFooter ?? <ChevronRight className="size-4 text-muted-foreground" aria-hidden />}
           </div>
         </article>
       </Link>
     );
   }
 
+  const isMemory = variant === 'memory';
+
   return (
-    <Link
-      to={`/concert/${id}`}
-      state={{ concertSnapshot: concert, ...(backTo ? { backTo } : {}) }}
-      className="group block no-underline hover:no-underline"
-    >
-      <article className="overflow-hidden rounded-2xl border border-border/50 bg-card shadow-lg transition-all hover:border-primary/40 hover:shadow-xl hover:shadow-primary/10">
-        <div className="relative aspect-[4/5] max-h-[280px] w-full overflow-hidden sm:aspect-[16/10] sm:max-h-none">
+    <article className="overflow-hidden rounded-2xl border border-border/40 bg-card/60 transition-colors hover:border-border/70">
+      <Link
+        to={`/concert/${id}`}
+        state={{ concertSnapshot: concert, ...(backTo ? { backTo } : {}) }}
+        className="group block no-underline hover:no-underline"
+      >
+        <div
+          className={cn(
+            'relative w-full overflow-hidden',
+            isMemory ? 'aspect-[4/3] sm:aspect-[16/10]' : 'aspect-[4/5] max-h-[280px] sm:aspect-[16/10] sm:max-h-none'
+          )}
+        >
           {concert.imageUrl ? (
             <img
               src={concert.imageUrl}
               alt=""
-              className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+              className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
               loading="lazy"
             />
           ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-card to-background" />
+            posterPlaceholder(artist)
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/50 to-black/10" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-transparent" />
           <div className="absolute inset-x-0 top-0 flex items-start justify-between p-3">
-            <span className="rounded-full border border-white/10 bg-black/40 px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-wide text-white/90 backdrop-blur-md">
-              {sourceLabel(concert.source)}
-            </span>
+            {source ? (
+              <span className="rounded-full bg-black/30 px-2 py-0.5 text-[0.6rem] font-medium uppercase tracking-wide text-white/60 backdrop-blur-sm">
+                {source}
+              </span>
+            ) : (
+              <span />
+            )}
             {userConcert && <Badge type={userConcert.status} />}
           </div>
-          <div className="absolute inset-x-0 bottom-0 space-y-2 p-4">
-            <h3 className="text-xl font-bold leading-tight text-white">{artist}</h3>
-            <p className="flex items-center gap-1.5 text-sm text-white/85">
-              <MapPin className="size-3.5 shrink-0" aria-hidden />
+          <div className="absolute inset-x-0 bottom-0 space-y-1.5 p-4">
+            <h3 className="text-lg font-bold leading-tight text-white sm:text-xl">{artist}</h3>
+            <p className="flex items-center gap-1.5 text-sm text-white/80">
+              <MapPin className="size-3.5 shrink-0 opacity-80" aria-hidden />
               <span className="truncate">
-                {venue} · {location}
+                {venue}
+                {location ? ` · ${location}` : ''}
               </span>
             </p>
             {date && (
-              <p className="flex items-center gap-1.5 text-sm font-medium text-white/90">
-                <Calendar className="size-3.5 shrink-0" aria-hidden />
+              <p className="flex items-center gap-1.5 text-sm text-white/75">
+                <Calendar className="size-3.5 shrink-0 opacity-80" aria-hidden />
                 {formatDate(date)}
                 {concert.startTime ? ` · ${formatTime(concert.startTime)}` : ''}
               </p>
@@ -139,14 +167,17 @@ export function ConcertCard({
             {rating && rating.overall > 0 && (
               <RatingStars value={rating.overall} readonly size="sm" />
             )}
-            {showCta && (
+            {showCta && !isMemory && (
               <span className="mt-2 flex h-8 w-full items-center justify-center rounded-lg bg-primary text-sm font-medium text-primary-foreground">
                 View details
               </span>
             )}
           </div>
         </div>
-      </article>
-    </Link>
+      </Link>
+      {cardFooter && (
+        <div className="border-t border-border/40 bg-card/80 px-3 py-2.5">{cardFooter}</div>
+      )}
+    </article>
   );
 }

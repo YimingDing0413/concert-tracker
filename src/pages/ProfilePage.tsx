@@ -4,8 +4,9 @@ import {
   ProfileContentTabs,
   type ProfileContentTab,
 } from '@/components/profile/ProfileContentTabs';
-import { ProfileDesktopAside } from '@/components/profile/ProfileDesktopAside';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
+import { ProfileHighlightsRow } from '@/components/profile/ProfileHighlightsRow';
+import { ProfileTabBar } from '@/components/profile/ProfileTabBar';
 import { Button } from '@/components/ui/app-button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListRowSkeleton } from '@/components/ui/LoadingSkeleton';
@@ -25,7 +26,7 @@ import {
 } from '@/lib/social/socialApi';
 import type { FollowCounts, FollowerItem, FollowItem, UserProfile } from '@/types';
 import type { ConcertReview } from '@/types/concertReview';
-import { Calendar, LogOut, Pencil, Sparkles, Star } from 'lucide-react';
+import { LogOut, Pencil, Sparkles } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
@@ -125,6 +126,15 @@ export function ProfilePage() {
     [userConcerts, concertMap, reviews]
   );
 
+  const attendedCount = useMemo(
+    () => userConcerts.filter((uc) => uc.status === 'attended').length,
+    [userConcerts]
+  );
+  const goingCount = useMemo(
+    () => userConcerts.filter((uc) => uc.status === 'going').length,
+    [userConcerts]
+  );
+
   const loading = socialLoading || concertsLoading;
 
   if (!user) return null;
@@ -136,36 +146,28 @@ export function ProfilePage() {
     );
   }
 
-  function openContentTab(tab: ProfileContentTab) {
-    selectContentTab(tab);
-  }
-
   function toggleSocialPanel(panel: SocialPanel) {
     setSocialPanel((current) => (current === panel ? null : panel));
   }
 
   return (
-    <div className="space-y-5 pb-4">
+    <div className="space-y-8 pb-8">
       <ProfileHeader
         displayName={profile?.displayName || user.displayName}
         username={profile?.username || user.username}
         bio={profile?.bio ?? user.bio}
         avatarUrl={profile?.avatarUrl ?? user.avatarUrl}
-        stats={activityStats}
         followCounts={followCounts}
         socialPanel={socialPanel}
         onToggleFollowers={() => toggleSocialPanel('followers')}
         onToggleFollowing={() => toggleSocialPanel('following')}
-        onConcertsClick={() => openContentTab('concerts')}
-        onReviewsClick={() => openContentTab('reviews')}
-        onWrapUpsClick={() => openContentTab('wrapped')}
         trailingActions={
           <>
             <Button
               variant="secondary"
               size="default"
               onClick={() => setEditorOpen(true)}
-              className="h-10 gap-2 rounded-full px-4 text-sm font-medium"
+              className="h-10 gap-2 rounded-full px-5 text-sm font-medium"
             >
               <Pencil className="size-4" aria-hidden />
               {profile?.username ? 'Edit profile' : 'Set username'}
@@ -173,12 +175,11 @@ export function ProfilePage() {
             <Button
               variant="primary"
               size="default"
-              onClick={() => openContentTab('wrapped')}
-              className="h-10 gap-2 rounded-full px-4 text-sm font-medium"
+              onClick={() => selectContentTab('wrapped')}
+              className="h-10 gap-2 rounded-full px-5 text-sm font-medium"
             >
               <Sparkles className="size-4" aria-hidden />
-              <span className="hidden sm:inline">Create Year Wrap-Up</span>
-              <span className="sm:hidden">Wrap-Up</span>
+              Create Year Wrap-Up
             </Button>
             <Button
               variant="ghost"
@@ -192,32 +193,6 @@ export function ProfilePage() {
           </>
         }
       />
-
-      {/* Mobile-only highlights — no favorite artist/venue */}
-      <div className="flex flex-col gap-3 lg:hidden">
-        {activityStats.concertsThisYear > 0 && (
-          <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-card/50 px-4 py-3">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Calendar className="size-4" aria-hidden />
-              Concerts this year
-            </div>
-            <span className="text-lg font-bold tabular-nums">{activityStats.concertsThisYear}</span>
-          </div>
-        )}
-        {activityStats.avgRating != null && (
-          <button
-            type="button"
-            onClick={() => openContentTab('reviews')}
-            className="flex items-center justify-between rounded-2xl border border-border/60 bg-card/50 px-4 py-3 text-left"
-          >
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Star className="size-4 text-primary" aria-hidden />
-              Average rating
-            </div>
-            <span className="text-lg font-bold tabular-nums">{activityStats.avgRatingDisplay}</span>
-          </button>
-        )}
-      </div>
 
       {socialPanel === 'followers' && (
         <section className="space-y-3">
@@ -279,25 +254,30 @@ export function ProfilePage() {
       )}
 
       {!socialPanel && (
-        <div className="lg:grid lg:grid-cols-[minmax(0,280px)_1fr] lg:gap-8 lg:items-start">
-          <ProfileDesktopAside
-            stats={activityStats}
-            userConcerts={userConcerts}
-            concertMap={concertMap}
-            reviews={reviews}
-            onOpenWrapTab={() => openContentTab('wrapped')}
-            onOpenReviewsTab={() => openContentTab('reviews')}
+        <>
+          <ProfileTabBar
+            tab={contentTab}
+            onTabChange={selectContentTab}
+            concertCount={attendedCount}
+            goingCount={goingCount}
+            reviewCount={reviews.length}
           />
+
+          <ProfileHighlightsRow
+            stats={activityStats}
+            onOpenReviews={() => selectContentTab('reviews')}
+            onOpenWrap={() => selectContentTab('wrapped')}
+          />
+
           <ProfileContentTabs
             userId={user.id}
             backTo="/profile"
             tab={contentTab}
-            onTabChange={selectContentTab}
             userConcerts={userConcerts}
             concertMap={concertMap}
             reviews={reviews}
           />
-        </div>
+        </>
       )}
 
       <UsernameEditor

@@ -3,7 +3,6 @@ import { ProfileReviewListItem } from '@/components/review/ProfileReviewListItem
 import { YearEndWrapUp } from '@/components/wrap-up/year-end/YearEndWrapUp';
 import { Button } from '@/components/ui/app-button';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { FilterChip } from '@/components/ui/FilterChip';
 import { getConcertReview } from '@/lib/concertReviewsLocal';
 import type { Concert, UserConcert } from '@/types';
 import type { ConcertReview } from '@/types/concertReview';
@@ -15,18 +14,10 @@ import { Link, useNavigate } from 'react-router-dom';
 
 export type ProfileContentTab = 'concerts' | 'going' | 'reviews' | 'wrapped';
 
-const TAB_LABELS: Record<ProfileContentTab, string> = {
-  concerts: 'Concerts',
-  going: 'Going',
-  reviews: 'Reviews',
-  wrapped: 'Wrap-Ups',
-};
-
 interface ProfileContentTabsProps {
   userId: string;
   backTo: string;
   tab: ProfileContentTab;
-  onTabChange: (tab: ProfileContentTab) => void;
   userConcerts: UserConcert[];
   concertMap: Record<string, Partial<Concert>>;
   reviews: ConcertReview[];
@@ -38,7 +29,6 @@ export function ProfileContentTabs({
   userId,
   backTo,
   tab,
-  onTabChange,
   userConcerts,
   concertMap,
   reviews,
@@ -51,32 +41,9 @@ export function ProfileContentTabs({
   const goingSorted = sortUserConcertsByDate(going, concertMap);
 
   const avg = averageOverallRating(reviews.map((r) => r.overallRating));
-  const tabs: ProfileContentTab[] =
-    mode === 'full' ? ['concerts', 'going', 'reviews', 'wrapped'] : ['concerts', 'going'];
 
   return (
-    <section className="space-y-4">
-      <div
-        className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        role="tablist"
-        aria-label="Profile content"
-      >
-        {tabs.map((t) => (
-          <FilterChip
-            key={t}
-            active={tab === t}
-            onClick={() => onTabChange(t)}
-            aria-selected={tab === t}
-            className="shrink-0"
-          >
-            {TAB_LABELS[t]}
-            {t === 'concerts' && ` (${attended.length})`}
-            {t === 'going' && ` (${going.length})`}
-            {t === 'reviews' && mode === 'full' && ` (${reviews.length})`}
-          </FilterChip>
-        ))}
-      </div>
-
+    <section className="space-y-6">
       {tab === 'concerts' && (
         <TabBody
           emptyTitle="No concerts yet"
@@ -133,15 +100,15 @@ export function ProfileContentTabs({
                   </div>
                 ) : undefined;
               return (
-                <li key={uc.id} className="space-y-2">
+                <li key={uc.id}>
                   <ConcertCard
                     concert={resolveConcertForUserConcert(uc, concertMap[uc.concertId])}
                     userConcert={uc}
                     concertId={uc.concertId}
                     backTo={backTo}
-                    variant="poster"
-                    showCta={false}
-                    action={rateAction}
+                    variant="memory"
+                    showSource={false}
+                    footer={rateAction}
                   />
                 </li>
               );
@@ -169,8 +136,8 @@ export function ProfileContentTabs({
                   userConcert={uc}
                   concertId={uc.concertId}
                   backTo={backTo}
-                  variant="poster"
-                  showCta={false}
+                  variant="memory"
+                  showSource={false}
                 />
               </li>
             ))}
@@ -194,7 +161,7 @@ export function ProfileContentTabs({
               Average: <span className="font-semibold text-foreground">{formatOverallRating(avg)}</span>
             </p>
           )}
-          <ul className="space-y-3">
+          <ul className="grid gap-4 sm:grid-cols-2">
             {reviews.map((review) => (
               <li key={review.id}>
                 <ProfileReviewListItem review={review} />

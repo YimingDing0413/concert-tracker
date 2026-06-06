@@ -1,18 +1,11 @@
-import type { ProfileActivityStats } from '@/lib/profileStats';
 import type { FollowCounts } from '@/types';
 import { cn } from '@/lib/utils';
 
 interface ProfileStatsBarProps {
-  stats: ProfileActivityStats;
   followCounts: FollowCounts;
   activePanel: 'followers' | 'following' | null;
-  onConcerts: () => void;
   onFollowers: () => void;
   onFollowing: () => void;
-  onReviews?: () => void;
-  onWrapUps?: () => void;
-  /** Hide review/wrap stat pills on public profiles */
-  showReviewStats?: boolean;
 }
 
 function StatPill({
@@ -52,19 +45,13 @@ function StatPill({
 }
 
 export function ProfileStatsBar({
-  stats,
   followCounts,
   activePanel,
-  onConcerts,
   onFollowers,
   onFollowing,
-  onReviews,
-  onWrapUps,
-  showReviewStats = true,
 }: ProfileStatsBarProps) {
   return (
-    <div className="mt-4 flex flex-wrap items-start justify-center gap-x-6 gap-y-3 md:justify-start">
-      <StatPill value={stats.concerts} label="Concerts" onClick={onConcerts} />
+    <div className="flex flex-wrap items-start justify-center gap-x-8 gap-y-3 sm:justify-start">
       <StatPill
         value={followCounts.followersCount}
         label="Followers"
@@ -77,12 +64,6 @@ export function ProfileStatsBar({
         onClick={onFollowing}
         active={activePanel === 'following'}
       />
-      {showReviewStats && (
-        <>
-          <StatPill value={stats.reviews} label="Reviews" onClick={onReviews} />
-          <StatPill value={stats.wrapUps} label="Wrap-Ups" onClick={onWrapUps} />
-        </>
-      )}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import {
   type ProfileContentTab,
 } from '@/components/profile/ProfileContentTabs';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
+import { ProfileTabBar } from '@/components/profile/ProfileTabBar';
 import { MemberCard } from '@/components/social/MemberCard';
 import { FollowButton } from '@/components/social/FollowButton';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -10,7 +11,6 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { SolidBackButton } from '@/components/ui/SolidBackButton';
 import { useAuth } from '@/context/AuthContext';
 import { useProfileConcerts } from '@/hooks/useProfileConcerts';
-import { buildProfileActivityStats } from '@/lib/profileStats';
 import {
   getFollowCounts,
   getFollowers,
@@ -19,7 +19,7 @@ import {
   getMyProfile,
 } from '@/lib/social/socialApi';
 import type { FollowCounts, FollowerItem, FollowItem, UserProfile } from '@/types';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 
 type SocialPanel = 'followers' | 'following' | null;
@@ -71,11 +71,6 @@ export function MemberProfilePage() {
     void refreshSocial();
   }, [userId, refreshSocial]);
 
-  const activityStats = useMemo(
-    () => buildProfileActivityStats(userConcerts, concertMap, []),
-    [userConcerts, concertMap]
-  );
-
   const backTo = userId ? `/member/${encodeURIComponent(userId)}` : '/search?mode=members';
   const loading = socialLoading || concertsLoading;
 
@@ -101,11 +96,6 @@ export function MemberProfilePage() {
   const displayName =
     profile.displayName?.trim() || (profile.username ? `@${profile.username}` : 'Member');
 
-  function openContentTab(tab: ProfileContentTab) {
-    setSocialPanel(null);
-    setContentTab(tab);
-  }
-
   return (
     <div className="space-y-5 pb-4">
       <SolidBackButton to="/search?mode=members" label="Back" />
@@ -115,13 +105,10 @@ export function MemberProfilePage() {
         username={profile.username}
         bio={profile.bio}
         avatarUrl={profile.avatarUrl}
-        stats={activityStats}
         followCounts={followCounts}
         socialPanel={socialPanel}
         onToggleFollowers={() => setSocialPanel((p) => (p === 'followers' ? null : 'followers'))}
         onToggleFollowing={() => setSocialPanel((p) => (p === 'following' ? null : 'following'))}
-        onConcertsClick={() => openContentTab('concerts')}
-        showReviewStats={false}
         trailingActions={
           !isSelf ? (
             <FollowButton
@@ -188,16 +175,27 @@ export function MemberProfilePage() {
       )}
 
       {!socialPanel && (
-        <ProfileContentTabs
-          userId={userId}
-          backTo={backTo}
-          tab={contentTab}
-          onTabChange={setContentTab}
-          userConcerts={userConcerts}
-          concertMap={concertMap}
-          reviews={[]}
-          mode="concerts-only"
-        />
+        <>
+          <ProfileTabBar
+            tab={contentTab}
+            onTabChange={(tab) => {
+              setSocialPanel(null);
+              setContentTab(tab);
+            }}
+            concertCount={userConcerts.filter((uc) => uc.status === 'attended').length}
+            goingCount={userConcerts.filter((uc) => uc.status === 'going').length}
+            mode="concerts-only"
+          />
+          <ProfileContentTabs
+            userId={userId}
+            backTo={backTo}
+            tab={contentTab}
+            userConcerts={userConcerts}
+            concertMap={concertMap}
+            reviews={[]}
+            mode="concerts-only"
+          />
+        </>
       )}
     </div>
   );

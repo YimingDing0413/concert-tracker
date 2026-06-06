@@ -14,19 +14,19 @@ export function ProfileReviewListItem({ review }: ProfileReviewListItemProps) {
     .join(' · ');
 
   return (
-    <article className="overflow-hidden rounded-2xl border border-border/60 bg-card/80 transition-colors hover:border-primary/30">
+    <article className="flex h-full flex-col overflow-hidden rounded-2xl border border-border/40 bg-card/50 transition-colors hover:border-primary/25">
       <Link
         to={`/concert/${review.eventId}`}
-        className="flex items-center gap-4 p-4 no-underline"
+        className="flex flex-1 items-start gap-4 p-4 no-underline"
       >
         {review.photoDataUrls?.[0] ? (
           <img
             src={review.photoDataUrls[0]}
             alt=""
-            className="size-16 shrink-0 rounded-xl object-cover"
+            className="size-20 shrink-0 rounded-xl object-cover"
           />
         ) : (
-          <div className="flex size-16 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-2xl font-black text-primary">
+          <div className="flex size-20 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600/40 to-fuchsia-900/30 text-2xl font-black text-white/90">
             {review.overallRating}
           </div>
         )}
