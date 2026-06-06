@@ -7,8 +7,15 @@ import { ArtistPastPage } from '@/pages/artist/ArtistPastPage';
 import { ArtistSetlistsPage } from '@/pages/artist/ArtistSetlistsPage';
 import { ArtistUpcomingPage } from '@/pages/artist/ArtistUpcomingPage';
 import { ConcertDetailPage } from '@/pages/ConcertDetailPage';
+import { CreatePostPage } from '@/pages/create/CreatePostPage';
+import { CreateReviewPage } from '@/pages/create/CreateReviewPage';
+import { CreateWantPage } from '@/pages/create/CreateWantPage';
+import { CreatePage } from '@/pages/CreatePage';
 import { DiscoverHomePage } from '@/pages/DiscoverHomePage';
 import { DiscoverMapPage } from '@/pages/DiscoverMapPage';
+import { FeedPage } from '@/pages/FeedPage';
+import { MessageThreadPage } from '@/pages/MessageThreadPage';
+import { MessagesPage } from '@/pages/MessagesPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { MemberProfilePage } from '@/pages/MemberProfilePage';
 import { MyConcertsRedirect } from '@/pages/MyConcertsRedirect';
@@ -63,6 +70,13 @@ export function AppRoutes() {
       >
         <Route index element={<DiscoverHomePage />} />
         <Route path="map" element={<DiscoverMapPage />} />
+        <Route path="feed" element={<FeedPage />} />
+        <Route path="messages" element={<MessagesPage />} />
+        <Route path="messages/:threadId" element={<MessageThreadPage />} />
+        <Route path="create" element={<CreatePage />} />
+        <Route path="create/want" element={<CreateWantPage />} />
+        <Route path="create/review" element={<CreateReviewPage />} />
+        <Route path="create/post" element={<CreatePostPage />} />
         <Route path="search" element={<SearchPage />} />
         <Route path="my-concerts" element={<MyConcertsRedirect />} />
         <Route path="wrap-up" element={<YearEndWrapUpPage />} />

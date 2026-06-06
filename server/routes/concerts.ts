@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import type { RatingInput } from '../../shared/types/index.js';
 import { resolveUserId } from '../lib/devUser.js';
 import { isDynamoConfigured } from '../../src/lib/db/dynamodb.js';
+import { getFeedForEvent } from '../../src/lib/db/feedRepository.js';
 import {
   getConcertRatingForUser,
   getConcertRatings,
@@ -95,6 +96,16 @@ concertsRouter.post('/:eventId/show-reports', async (req, res, next) => {
 concertsRouter.get('/:eventId/show-reports', async (req, res, next) => {
   try {
     const data = await getShowTimingReports(req.params.eventId);
+    res.json({ data });
+  } catch (err) {
+    next(err);
+  }
+});
+
+concertsRouter.get('/:eventId/feed', async (req, res, next) => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 50, 100);
+    const data = await getFeedForEvent(req.params.eventId, limit);
     res.json({ data });
   } catch (err) {
     next(err);

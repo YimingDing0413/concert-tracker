@@ -123,6 +123,11 @@ export async function getCurrentUser(): Promise<User | null> {
   return id ? users.find((u) => u.id === id) ?? null : null;
 }
 
+export async function getUserById(userId: string): Promise<User | null> {
+  await ensureStorageReady();
+  return users.find((u) => u.id === userId) ?? null;
+}
+
 export async function getUserConcerts(userId: string): Promise<UserConcert[]> {
   await ensureStorageReady();
   const list = await loadUserConcertsForUser(userId);

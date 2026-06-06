@@ -17,6 +17,7 @@ import {
   REVIEWS_SYNCED_EVENT,
   syncConcertReviewsFromServer,
 } from '@/lib/concertReviewsLocal';
+import { getUserFeed } from '@/lib/social/feedApi';
 import { buildProfileActivityStats } from '@/lib/profileStats';
 import {
   ensureMyProfile,
@@ -24,14 +25,20 @@ import {
   getFollowers,
   getFollowing,
 } from '@/lib/social/socialApi';
-import type { FollowCounts, FollowerItem, FollowItem, UserProfile } from '@/types';
+import type { FeedPost, FollowCounts, FollowerItem, FollowItem, UserProfile } from '@/types';
 import type { ConcertReview } from '@/types/concertReview';
 import { LogOut, Pencil, Sparkles } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 function parseProfileTab(value: string | null): ProfileContentTab {
-  if (value === 'going' || value === 'reviews' || value === 'wrapped' || value === 'concerts') {
+  if (
+    value === 'going' ||
+    value === 'reviews' ||
+    value === 'posts' ||
+    value === 'wrapped' ||
+    value === 'concerts'
+  ) {
     return value;
   }
   return 'concerts';
@@ -49,6 +56,7 @@ export function ProfilePage() {
   const [followers, setFollowers] = useState<FollowerItem[]>([]);
   const [followingList, setFollowingList] = useState<FollowItem[]>([]);
   const [reviews, setReviews] = useState<ConcertReview[]>([]);
+  const [feedPosts, setFeedPosts] = useState<FeedPost[]>([]);
   const [socialPanel, setSocialPanel] = useState<SocialPanel>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const [contentTab, setContentTab] = useState<ProfileContentTab>(() =>
@@ -61,18 +69,20 @@ export function ProfilePage() {
 
   const refreshSocial = useCallback(async () => {
     if (!user) return;
-    const [prof, counts, fwers, fwing, syncedReviews] = await Promise.all([
+    const [prof, counts, fwers, fwing, syncedReviews, posts] = await Promise.all([
       ensureMyProfile(user),
       getFollowCounts(user.id).catch(() => ({ followersCount: 0, followingCount: 0 })),
       getFollowers(user.id).catch(() => []),
       getFollowing(user.id).catch(() => []),
       syncConcertReviewsFromServer(user.id),
+      getUserFeed(user.id).catch(() => []),
     ]);
     setProfile(prof);
     setFollowCounts(counts);
     setFollowers(fwers);
     setFollowingList(fwing);
     setReviews(syncedReviews);
+    setFeedPosts(posts);
     setSocialLoading(false);
   }, [user]);
 
@@ -261,6 +271,7 @@ export function ProfilePage() {
             concertCount={attendedCount}
             goingCount={goingCount}
             reviewCount={reviews.length}
+            postCount={feedPosts.length}
           />
 
           <ProfileHighlightsRow
@@ -276,6 +287,7 @@ export function ProfilePage() {
             userConcerts={userConcerts}
             concertMap={concertMap}
             reviews={reviews}
+            feedPosts={feedPosts}
           />
         </>
       )}

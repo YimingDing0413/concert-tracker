@@ -5,6 +5,7 @@ import {
   saveConcertReview,
   syncConcertReviewsFromServer,
 } from '@/lib/concertReviewsLocal';
+import { createReviewFeedPost } from '@/lib/social/feedApi';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useAuth } from '@/context/AuthContext';
 import type { ConcertDetail } from '@/types';
@@ -58,7 +59,23 @@ export function ReviewPage() {
       existingReview={existingReview}
       onSave={async (review) => {
         await saveConcertReview(review);
-        navigate(`/concert/${id}`, { state: location.state });
+        const state = location.state as {
+          createFeedPost?: boolean;
+          afterSaveRedirect?: string;
+          concertSnapshot?: { city?: string; imageUrl?: string };
+        } | null;
+        if (state?.createFeedPost) {
+          try {
+            await createReviewFeedPost(user.id, review, {
+              city: state.concertSnapshot?.city ?? concert.city,
+              imageUrl: state.concertSnapshot?.imageUrl ?? concert.imageUrl,
+            });
+          } catch {
+            // Review saved; feed post is best-effort for MVP.
+          }
+        }
+        const redirect = state?.afterSaveRedirect;
+        navigate(redirect ?? `/concert/${id}`, { state: location.state });
       }}
       onCreateWrapUp={async (review) => {
         await saveConcertReview(review);

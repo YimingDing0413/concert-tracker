@@ -5,6 +5,7 @@ const TAB_LABELS: Record<ProfileContentTab, string> = {
   concerts: 'Concerts',
   going: 'Going',
   reviews: 'Reviews',
+  posts: 'Posts',
   wrapped: 'Wrap-Ups',
 };
 
@@ -14,6 +15,7 @@ interface ProfileTabBarProps {
   concertCount?: number;
   goingCount?: number;
   reviewCount?: number;
+  postCount?: number;
   mode?: 'full' | 'concerts-only';
 }
 
@@ -23,15 +25,19 @@ export function ProfileTabBar({
   concertCount = 0,
   goingCount = 0,
   reviewCount = 0,
+  postCount = 0,
   mode = 'full',
 }: ProfileTabBarProps) {
   const tabs: ProfileContentTab[] =
-    mode === 'full' ? ['concerts', 'going', 'reviews', 'wrapped'] : ['concerts', 'going'];
+    mode === 'full'
+      ? ['concerts', 'going', 'reviews', 'posts', 'wrapped']
+      : ['concerts', 'going'];
 
   function countFor(t: ProfileContentTab): number | undefined {
     if (t === 'concerts') return concertCount;
     if (t === 'going') return goingCount;
     if (t === 'reviews') return reviewCount;
+    if (t === 'posts') return postCount;
     return undefined;
   }
 

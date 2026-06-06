@@ -1,18 +1,21 @@
 import { ConcertCard } from '@/components/concert/ConcertCard';
+import { FeedPostCard } from '@/components/feed/FeedPostCard';
+import { StartMessageModal } from '@/components/messages/StartMessageModal';
 import { ProfileReviewListItem } from '@/components/review/ProfileReviewListItem';
 import { YearEndWrapUp } from '@/components/wrap-up/year-end/YearEndWrapUp';
 import { Button } from '@/components/ui/app-button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { getConcertReview } from '@/lib/concertReviewsLocal';
-import type { Concert, UserConcert } from '@/types';
+import type { Concert, FeedPost, UserConcert } from '@/types';
 import type { ConcertReview } from '@/types/concertReview';
 import { averageOverallRating, formatOverallRating } from '@/utils/format';
 import { resolveConcertForUserConcert, sortUserConcertsByDate } from '@/utils/userConcert';
 import { Sparkles, Star } from 'lucide-react';
-import type { MouseEvent, ReactNode } from 'react';
+import { buildTicketPrefill } from '@/lib/social/messagesApi';
+import { useState, type MouseEvent, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
-export type ProfileContentTab = 'concerts' | 'going' | 'reviews' | 'wrapped';
+export type ProfileContentTab = 'concerts' | 'going' | 'reviews' | 'posts' | 'wrapped';
 
 interface ProfileContentTabsProps {
   userId: string;
@@ -21,6 +24,7 @@ interface ProfileContentTabsProps {
   userConcerts: UserConcert[];
   concertMap: Record<string, Partial<Concert>>;
   reviews: ConcertReview[];
+  feedPosts?: FeedPost[];
   /** Public member profiles: concerts + going only */
   mode?: 'full' | 'concerts-only';
 }
@@ -32,9 +36,11 @@ export function ProfileContentTabs({
   userConcerts,
   concertMap,
   reviews,
+  feedPosts = [],
   mode = 'full',
 }: ProfileContentTabsProps) {
   const navigate = useNavigate();
+  const [messagePost, setMessagePost] = useState<FeedPost | null>(null);
   const attended = userConcerts.filter((uc) => uc.status === 'attended');
   const going = userConcerts.filter((uc) => uc.status === 'going');
   const attendedSorted = sortUserConcertsByDate(attended, concertMap);
@@ -168,6 +174,53 @@ export function ProfileContentTabs({
               </li>
             ))}
           </ul>
+        </TabBody>
+      )}
+
+      {mode === 'full' && tab === 'posts' && (
+        <TabBody
+          emptyTitle="No posts yet"
+          emptyDescription="Share a concert memory, review, or ticket request from Create."
+          emptyAction={
+            <Link to="/create" className="text-sm font-medium text-primary">
+              Create a post →
+            </Link>
+          }
+          isEmpty={feedPosts.length === 0}
+        >
+          <ul className="space-y-5">
+            {feedPosts.map((post) => (
+              <li key={post.id}>
+                <FeedPostCard
+                  post={post}
+                  currentUserId={userId}
+                  onHaveTickets={() => {
+                    if (post.type === 'looking_for_tickets' && post.userId !== userId) {
+                      setMessagePost(post);
+                    }
+                  }}
+                />
+              </li>
+            ))}
+          </ul>
+          {messagePost && (
+            <StartMessageModal
+              open={Boolean(messagePost)}
+              onOpenChange={(open) => {
+                if (!open) setMessagePost(null);
+              }}
+              targetUserId={messagePost.userId}
+              targetLabel={
+                messagePost.username ? `@${messagePost.username}` : messagePost.userDisplayName
+              }
+              prefilledText={buildTicketPrefill({
+                artistName: messagePost.artistName,
+                venueName: messagePost.venueName,
+                eventDate: messagePost.eventDate,
+              })}
+              feedPost={messagePost}
+            />
+          )}
         </TabBody>
       )}
 

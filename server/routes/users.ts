@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { getFeedForUser } from '../../src/lib/db/feedRepository.js';
 import {
   createOrUpdateUserProfile,
   getSocialProfile,
@@ -41,6 +42,16 @@ usersRouter.post('/me', requireDynamo, async (req, res, next) => {
     res.json({ data });
   } catch (err) {
     res.status(400).json({ error: err instanceof Error ? err.message : 'Could not save profile.' });
+  }
+});
+
+usersRouter.get('/:userId/feed', requireDynamo, async (req, res, next) => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 50, 100);
+    const data = await getFeedForUser(req.params.userId, limit);
+    res.json({ data });
+  } catch (err) {
+    next(err);
   }
 });
 

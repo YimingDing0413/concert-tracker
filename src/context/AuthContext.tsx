@@ -1,5 +1,6 @@
 import { api } from '@/api';
 import { HttpApiError } from '@/api/http';
+import { setAuthToken } from '@/lib/auth/session';
 import {
   migrateLegacyLocalReviews,
   syncConcertReviewsFromServer,
@@ -136,6 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setUser(null);
     writeStoredUser(null);
+    setAuthToken(null);
   }, []);
 
   const value = useMemo(

@@ -13,6 +13,8 @@ import { membersRouter } from './members.js';
 import { friendsRouter } from './friends.js';
 import { mapRouter } from './map.js';
 import { concertsRouter } from './concerts.js';
+import { feedRouter } from './feed.js';
+import { messagesRouter } from './messages.js';
 
 export const apiRouter = Router();
 
@@ -26,6 +28,8 @@ apiRouter.use('/users', usersRouter);
 apiRouter.use('/members', membersRouter);
 apiRouter.use('/friends', friendsRouter);
 apiRouter.use('/concerts', concertsRouter);
+apiRouter.use('/feed', feedRouter);
+apiRouter.use('/messages', messagesRouter);
 apiRouter.use('/map', mapRouter);
 
 apiRouter.get('/health', async (_req, res) => {

@@ -1,4 +1,5 @@
 import { BottomNav } from '@/components/layout/BottomNav';
+import { MessagesNavButton } from '@/components/layout/MessagesNavButton';
 import { SidebarNav } from '@/components/layout/SidebarNav';
 import { useReviewSync } from '@/hooks/useReviewSync';
 import { cn } from '@/lib/utils';
@@ -8,11 +9,17 @@ export function AppShell() {
   useReviewSync();
   const { pathname } = useLocation();
   const isMap = pathname === '/map';
+  const hideTopBar = isMap || pathname.startsWith('/messages/');
 
   return (
     <div className="flex min-h-dvh bg-background text-foreground">
       <SidebarNav />
       <div className="flex min-h-dvh flex-1 flex-col">
+        {!hideTopBar && (
+          <div className="sticky top-0 z-[800] flex justify-end border-b border-border/40 bg-background/90 px-4 py-2 backdrop-blur-md md:hidden">
+            <MessagesNavButton />
+          </div>
+        )}
         <main
           className={cn(
             'mx-auto w-full flex-1',

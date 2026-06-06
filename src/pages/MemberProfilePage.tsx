@@ -6,6 +6,9 @@ import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { ProfileTabBar } from '@/components/profile/ProfileTabBar';
 import { MemberCard } from '@/components/social/MemberCard';
 import { FollowButton } from '@/components/social/FollowButton';
+import { openDmThread } from '@/lib/social/messagesApi';
+import { Button } from '@/components/ui/app-button';
+import { MessageCircle } from 'lucide-react';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { SolidBackButton } from '@/components/ui/SolidBackButton';
@@ -20,13 +23,15 @@ import {
 } from '@/lib/social/socialApi';
 import type { FollowCounts, FollowerItem, FollowItem, UserProfile } from '@/types';
 import { useCallback, useEffect, useState } from 'react';
-import { Navigate, useParams } from 'react-router-dom';
+import { Navigate, useNavigate, useParams } from 'react-router-dom';
 
 type SocialPanel = 'followers' | 'following' | null;
 
 export function MemberProfilePage() {
   const { userId } = useParams<{ userId: string }>();
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [openingMessage, setOpeningMessage] = useState(false);
   const currentUserId = user?.id ?? '';
   const isSelf = Boolean(userId && currentUserId && userId === currentUserId);
 
@@ -96,6 +101,26 @@ export function MemberProfilePage() {
   const displayName =
     profile.displayName?.trim() || (profile.username ? `@${profile.username}` : 'Member');
 
+  async function handleMessage() {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    if (!userId) return;
+    setOpeningMessage(true);
+    try {
+      const thread = await openDmThread({
+        targetUserId: userId,
+        context: { contextType: 'general' },
+      });
+      navigate(`/messages/${thread.id}`);
+    } catch {
+      /* ignore — user may need to log in again for token */
+    } finally {
+      setOpeningMessage(false);
+    }
+  }
+
   return (
     <div className="space-y-5 pb-4">
       <SolidBackButton to="/search?mode=members" label="Back" />
@@ -111,17 +136,29 @@ export function MemberProfilePage() {
         onToggleFollowing={() => setSocialPanel((p) => (p === 'following' ? null : 'following'))}
         trailingActions={
           !isSelf ? (
-            <FollowButton
-              currentUserId={currentUserId}
-              targetUserId={profile.userId}
-              initialFollowing={following}
-              showSelfLabel
-              size="default"
-              onChange={(isFollowing, c) => {
-                setFollowing(isFollowing);
-                if (c) setFollowCounts(c);
-              }}
-            />
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="secondary"
+                size="default"
+                className="h-10 gap-2 rounded-full px-5"
+                disabled={openingMessage}
+                onClick={() => void handleMessage()}
+              >
+                <MessageCircle className="size-4" aria-hidden />
+                Message
+              </Button>
+              <FollowButton
+                currentUserId={currentUserId}
+                targetUserId={profile.userId}
+                initialFollowing={following}
+                showSelfLabel
+                size="default"
+                onChange={(isFollowing, c) => {
+                  setFollowing(isFollowing);
+                  if (c) setFollowCounts(c);
+                }}
+              />
+            </div>
           ) : undefined
         }
       />

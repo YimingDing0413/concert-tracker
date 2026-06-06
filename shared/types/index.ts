@@ -284,9 +284,106 @@ export interface MemberSearchResult extends UserProfile {
   isFollowing?: boolean;
 }
 
+export type FeedPostType = 'looking_for_tickets' | 'review' | 'concert_post';
+
+export type FeedFilter = 'all' | 'following' | 'looking_for_tickets' | 'reviews';
+
+export interface FeedPost {
+  id: string;
+  type: FeedPostType;
+  userId: string;
+  userDisplayName?: string;
+  username?: string;
+  avatarUrl?: string;
+
+  eventId?: string;
+  artistName?: string;
+  venueName?: string;
+  city?: string;
+  eventDate?: string;
+  imageUrl?: string;
+
+  caption?: string;
+  rating?: number;
+  tags?: string[];
+  photoDataUrls?: string[];
+
+  ticketStatus?: 'looking';
+  ticketQuantity?: number;
+  maxBudget?: string;
+  ticketNote?: string;
+
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type MessageContextType = 'looking_for_tickets' | 'concert' | 'general';
+
+export interface MessageThreadContext {
+  contextType?: MessageContextType;
+  eventId?: string;
+  artistName?: string;
+  venueName?: string;
+  eventDate?: string;
+  feedPostId?: string;
+}
+
+export interface MessageParticipantProfile {
+  userId: string;
+  username?: string;
+  displayName?: string;
+  avatarUrl?: string;
+}
+
+export interface MessageThread {
+  id: string;
+  participantIds: string[];
+  participantProfiles: MessageParticipantProfile[];
+  createdAt: string;
+  updatedAt: string;
+  lastMessageText?: string;
+  lastMessageAt?: string;
+  lastMessageSenderId?: string;
+  contextType?: MessageContextType;
+  eventId?: string;
+  artistName?: string;
+  venueName?: string;
+  eventDate?: string;
+  feedPostId?: string;
+  /** Per-user read cursor on thread summary */
+  lastReadAt?: string;
+  unread?: boolean;
+}
+
+export interface DirectMessage {
+  id: string;
+  threadId: string;
+  senderId: string;
+  senderDisplayName?: string;
+  text: string;
+  createdAt: string;
+  readBy?: string[];
+}
+
+export interface OpenThreadInput {
+  targetUserId: string;
+  context?: MessageThreadContext;
+}
+
+export type CreateFeedPostInput = Omit<
+  FeedPost,
+  'id' | 'createdAt' | 'updatedAt' | 'userDisplayName' | 'username' | 'avatarUrl'
+> &
+  Partial<Pick<FeedPost, 'id' | 'userDisplayName' | 'username' | 'avatarUrl'>>;
+
 export interface AuthCredentials {
   email: string;
   password: string;
+}
+
+export interface AuthSession {
+  user: User;
+  token: string;
 }
 
 export interface SignUpInput extends AuthCredentials {

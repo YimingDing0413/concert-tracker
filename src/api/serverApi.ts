@@ -1,5 +1,6 @@
 import type { ConcertApiClient } from './client';
 import { apiFetchData } from './http';
+import { setAuthToken } from '@/lib/auth/session';
 import {
   mergeUserConcerts,
   readLocalUserConcerts,
@@ -16,10 +17,16 @@ import type {
   ConcertRating,
   SearchResult,
   ShowTimingResponse,
+  AuthSession,
   User,
   UserConcert,
   VenueDetail,
 } from '@/types';
+
+function persistSession(session: AuthSession): User {
+  setAuthToken(session.token);
+  return session.user;
+}
 
 function eventSnapshotBody(eventSnapshot?: Partial<Concert>) {
   if (!eventSnapshot) return {};
@@ -29,17 +36,19 @@ function eventSnapshotBody(eventSnapshot?: Partial<Concert>) {
 /** Frontend client — calls internal backend only (never third-party APIs) */
 export const serverApi: ConcertApiClient = {
   async login(credentials) {
-    return apiFetchData<User>('/api/auth/login', {
+    const session = await apiFetchData<AuthSession>('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
     });
+    return persistSession(session);
   },
 
   async signUp(input) {
-    return apiFetchData<User>('/api/auth/signup', {
+    const session = await apiFetchData<AuthSession>('/api/auth/signup', {
       method: 'POST',
       body: JSON.stringify(input),
     });
+    return persistSession(session);
   },
 
   async getCurrentUser() {

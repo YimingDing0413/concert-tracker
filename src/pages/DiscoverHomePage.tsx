@@ -188,6 +188,12 @@ export function DiscoverHomePage() {
           >
             Find members
           </Link>
+          <Link
+            to="/map"
+            className="rounded-full border border-border/60 bg-card/80 px-3.5 py-1.5 text-xs font-semibold text-foreground no-underline transition-colors hover:border-primary/40 hover:bg-primary/10"
+          >
+            Explore near me
+          </Link>
         </div>
       </section>
 

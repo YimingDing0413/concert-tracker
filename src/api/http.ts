@@ -1,4 +1,5 @@
 import { apiUrl } from '@/lib/apiBase';
+import { authHeaders } from '@/lib/auth/session';
 import type { ApiResponse } from '@/types';
 
 export class HttpApiError extends Error {
@@ -21,6 +22,7 @@ export async function apiFetch<T>(
       ...init,
       headers: {
         'Content-Type': 'application/json',
+        ...authHeaders(),
         ...init?.headers,
       },
     });
