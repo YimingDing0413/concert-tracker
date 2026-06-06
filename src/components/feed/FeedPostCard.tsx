@@ -1,6 +1,7 @@
 import { ConcertPostCard } from '@/components/feed/ConcertPostCard';
 import { LookingForTicketsPostCard } from '@/components/feed/LookingForTicketsPostCard';
 import { ReviewFeedPostCard } from '@/components/feed/ReviewFeedPostCard';
+import { getTokenUserId } from '@/lib/auth/session';
 import type { FeedPost } from '@/types';
 
 interface FeedPostCardProps {
@@ -10,7 +11,8 @@ interface FeedPostCardProps {
 }
 
 export function FeedPostCard({ post, currentUserId, onHaveTickets }: FeedPostCardProps) {
-  const isOwnPost = Boolean(currentUserId && post.userId === currentUserId);
+  const authedUserId = getTokenUserId() ?? currentUserId;
+  const isOwnPost = Boolean(authedUserId && post.userId === authedUserId);
 
   switch (post.type) {
     case 'looking_for_tickets':

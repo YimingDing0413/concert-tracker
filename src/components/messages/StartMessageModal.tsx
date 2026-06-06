@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { getTokenUserId } from '@/lib/auth/session';
 import { openDmThread, sendThreadMessage } from '@/lib/social/messagesApi';
 import type { FeedPost, MessageThread, MessageThreadContext } from '@/types';
 import { useEffect, useState } from 'react';
@@ -68,6 +69,15 @@ export function StartMessageModal({
   async function handleSend() {
     const trimmed = text.trim();
     if (!trimmed) return;
+
+    const authedUserId = getTokenUserId();
+    if (authedUserId && authedUserId === targetUserId) {
+      setError(
+        "You can't message yourself. If this is your ticket post, wait for another member to respond."
+      );
+      return;
+    }
+
     setSending(true);
     setError('');
     try {

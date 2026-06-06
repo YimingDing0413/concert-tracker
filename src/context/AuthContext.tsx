@@ -1,6 +1,13 @@
 import { api } from '@/api';
 import { HttpApiError } from '@/api/http';
-import { setAuthToken } from '@/lib/auth/session';
+import {
+  clearAuthSession,
+  getAuthToken,
+  getTokenUserId,
+  readStoredUser,
+  writeStoredUser,
+} from '@/lib/auth/session';
+import { clearMvpUser } from '@/lib/auth/mvpUser';
 import {
   migrateLegacyLocalReviews,
   syncConcertReviewsFromServer,
@@ -26,25 +33,6 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-const USER_STORAGE_KEY = 'encore_user';
-
-function readStoredUser(): User | null {
-  try {
-    const raw = localStorage.getItem(USER_STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as User) : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeStoredUser(user: User | null) {
-  if (user) localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
-  else localStorage.removeItem(USER_STORAGE_KEY);
-}
-
-function resolveUserFromApi(current: User | null | undefined): User | null {
-  return current ?? readStoredUser();
-}
 
 function hydrateReviewsForUser(userId: string): void {
   migrateLegacyLocalReviews(userId);
@@ -53,35 +41,71 @@ function hydrateReviewsForUser(userId: string): void {
   });
 }
 
+function applyAuthUser(user: User | null, previousId?: string | null): void {
+  if (user && previousId && previousId !== user.id) {
+    clearMvpUser();
+  }
+}
+
+/** Restore session from Bearer token — never resurrect a stale cached profile. */
+async function restoreSession(): Promise<User | null> {
+  const token = getAuthToken();
+  if (!token) {
+    const stale = readStoredUser();
+    if (stale) clearAuthSession();
+    return null;
+  }
+
+  try {
+    const current = await api.getCurrentUser();
+    if (!current?.id) {
+      clearAuthSession();
+      return null;
+    }
+
+    const tokenUserId = getTokenUserId();
+    if (tokenUserId && tokenUserId !== current.id) {
+      clearAuthSession();
+      return null;
+    }
+
+    writeStoredUser(current);
+    return current;
+  } catch (err) {
+    if (err instanceof HttpApiError && err.status === 401) {
+      clearAuthSession();
+      return null;
+    }
+
+    const stored = readStoredUser();
+    const tokenUserId = getTokenUserId();
+    if (stored?.id && tokenUserId && stored.id === tokenUserId) {
+      return stored;
+    }
+
+    return null;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   const refreshUser = useCallback(async () => {
-    try {
-      const current = await api.getCurrentUser();
-      const resolved = resolveUserFromApi(current);
-      setUser(resolved);
-      writeStoredUser(resolved);
-    } catch {
-      const stored = readStoredUser();
-      setUser(stored);
-    }
-  }, []);
+    const previousId = user?.id ?? readStoredUser()?.id ?? null;
+    const restored = await restoreSession();
+    applyAuthUser(restored, previousId);
+    setUser(restored);
+    if (restored) hydrateReviewsForUser(restored.id);
+  }, [user?.id]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => setLoading(false), 4000);
 
-    api
-      .getCurrentUser()
-      .then((current) => resolveUserFromApi(current))
-      .catch(() => readStoredUser())
+    void restoreSession()
       .then((u) => {
-        setUser(u ?? null);
-        if (u) {
-          writeStoredUser(u);
-          hydrateReviewsForUser(u.id);
-        }
+        setUser(u);
+        if (u) hydrateReviewsForUser(u.id);
       })
       .finally(() => {
         window.clearTimeout(timeout);
@@ -91,39 +115,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.clearTimeout(timeout);
   }, []);
 
-  const login = useCallback(async (credentials: AuthCredentials) => {
-    try {
-      const u = await api.login(credentials);
-      if (!u?.id) {
-        throw new HttpApiError(
-          'Login failed — API did not return a user. Check /api/health on your deployment.'
-        );
-      }
-      setUser(u);
-      writeStoredUser(u);
-      hydrateReviewsForUser(u.id);
-      return;
-    } catch (err) {
-      if (err instanceof HttpApiError && err.status === 401) {
-        throw err;
-      }
-      const stored = readStoredUser();
-      if (stored && stored.email.toLowerCase() === credentials.email.toLowerCase()) {
-        setUser(stored);
-        return;
-      }
-      if (err instanceof HttpApiError) {
-        throw err;
-      }
-      throw new HttpApiError('Cannot reach the API. Check /api/health on your deployment.');
+  useEffect(() => {
+    function onStorage(event: StorageEvent) {
+      if (event.key !== 'encore_auth_token' && event.key !== 'encore_user') return;
+      void restoreSession().then((u) => setUser(u));
     }
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+
+  const login = useCallback(async (credentials: AuthCredentials) => {
+    const previousId = readStoredUser()?.id ?? null;
+    const u = await api.login(credentials);
+    if (!u?.id) {
+      throw new HttpApiError(
+        'Login failed — API did not return a user. Check /api/health on your deployment.'
+      );
+    }
+    applyAuthUser(u, previousId);
+    setUser(u);
+    writeStoredUser(u);
+    hydrateReviewsForUser(u.id);
   }, []);
 
   const signUp = useCallback(async (input: SignUpInput) => {
+    const previousId = readStoredUser()?.id ?? null;
     const u = await api.signUp(input);
     if (!u?.id) {
       throw new HttpApiError('Sign up failed — API did not return a user.');
     }
+    applyAuthUser(u, previousId);
     setUser(u);
     writeStoredUser(u);
     hydrateReviewsForUser(u.id);
@@ -135,9 +156,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       /* clear locally even if API fails */
     }
+    clearAuthSession();
+    clearMvpUser();
     setUser(null);
-    writeStoredUser(null);
-    setAuthToken(null);
   }, []);
 
   const value = useMemo(

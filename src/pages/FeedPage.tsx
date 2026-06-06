@@ -5,6 +5,7 @@ import { StartMessageModal } from '@/components/messages/StartMessageModal';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { ListRowSkeleton } from '@/components/ui/LoadingSkeleton';
 import { useAuth } from '@/context/AuthContext';
+import { getTokenUserId } from '@/lib/auth/session';
 import { getFeed } from '@/lib/social/feedApi';
 import { buildTicketPrefill } from '@/lib/social/messagesApi';
 import type { FeedFilter, FeedPost } from '@/types';
@@ -70,7 +71,8 @@ export function FeedPage() {
       navigate('/login');
       return;
     }
-    if (post.userId === user.id) return;
+    const authedUserId = getTokenUserId() ?? user.id;
+    if (post.userId === authedUserId) return;
     setMessagePost(post);
   }
 
