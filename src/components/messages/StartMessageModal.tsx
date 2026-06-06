@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useAuth } from '@/context/AuthContext';
-import { openDmThread, sendThreadMessage } from '@/lib/social/messagesApi';
+import { messageThreadPath, openDmThread, sendThreadMessage } from '@/lib/social/messagesApi';
 import type { FeedPost, MessageThread, MessageThreadContext } from '@/types';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -94,7 +94,7 @@ export function StartMessageModal({
       });
       await sendThreadMessage(thread.id, trimmed);
       onOpenChange(false);
-      navigate(`/messages/${thread.id}`);
+      navigate(messageThreadPath(thread.id));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not send message.');
     } finally {

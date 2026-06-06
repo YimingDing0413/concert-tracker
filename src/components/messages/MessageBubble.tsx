@@ -8,13 +8,13 @@ interface MessageBubbleProps {
 
 export function MessageBubble({ message, isOwn }: MessageBubbleProps) {
   return (
-    <div className={cn('flex', isOwn ? 'justify-end' : 'justify-start')}>
+    <div className={cn('flex w-full', isOwn ? 'justify-end' : 'justify-start')}>
       <div
         className={cn(
-          'max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed',
+          'max-w-[75%] px-4 py-2 text-[0.9375rem] leading-snug',
           isOwn
-            ? 'rounded-br-md bg-primary text-primary-foreground'
-            : 'rounded-bl-md border border-border/50 bg-card/80 text-foreground'
+            ? 'rounded-[22px] rounded-br-[4px] bg-primary text-primary-foreground'
+            : 'rounded-[22px] rounded-bl-[4px] bg-muted/80 text-foreground'
         )}
       >
         <p className="whitespace-pre-wrap break-words">{message.text}</p>

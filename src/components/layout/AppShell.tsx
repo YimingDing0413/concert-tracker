@@ -9,7 +9,9 @@ export function AppShell() {
   useReviewSync();
   const { pathname } = useLocation();
   const isMap = pathname === '/map';
-  const hideTopBar = isMap || pathname.startsWith('/messages/');
+  const isMessages = pathname.startsWith('/messages');
+  const isChatThread = /^\/messages\/.+/.test(pathname);
+  const hideTopBar = isMap || isChatThread;
 
   return (
     <div className="flex min-h-dvh bg-background text-foreground">
@@ -23,12 +25,15 @@ export function AppShell() {
         <main
           className={cn(
             'mx-auto w-full flex-1',
-            isMap ? 'relative max-w-none p-0' : 'max-w-lg px-4 pb-24 pt-5 md:max-w-3xl md:pb-8 md:pt-8 lg:max-w-4xl'
+            isMap || isMessages
+              ? 'relative max-w-none p-0'
+              : 'max-w-lg px-4 pb-24 pt-5 md:max-w-3xl md:pb-8 md:pt-8 lg:max-w-4xl',
+            isMessages && !isChatThread && 'pb-0 md:pb-0'
           )}
         >
           <Outlet />
         </main>
-        <BottomNav />
+        {!isChatThread && <BottomNav />}
       </div>
     </div>
   );

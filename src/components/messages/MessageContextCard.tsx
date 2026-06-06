@@ -13,7 +13,7 @@ export function MessageContextCard({ thread }: MessageContextCardProps) {
   const isTicket = thread.contextType === 'looking_for_tickets';
 
   return (
-    <div className="mx-4 mb-3 space-y-2 rounded-xl border border-border/40 bg-card/50 p-3">
+    <div className="space-y-2 rounded-xl border border-border/40 bg-card/50 p-3">
       {isTicket && (
         <p className="flex items-center gap-1.5 text-xs text-amber-400">
           <Ticket className="size-3.5" aria-hidden />

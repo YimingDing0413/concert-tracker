@@ -14,8 +14,8 @@ import { CreatePage } from '@/pages/CreatePage';
 import { DiscoverHomePage } from '@/pages/DiscoverHomePage';
 import { DiscoverMapPage } from '@/pages/DiscoverMapPage';
 import { FeedPage } from '@/pages/FeedPage';
-import { MessageThreadPage } from '@/pages/MessageThreadPage';
-import { MessagesPage } from '@/pages/MessagesPage';
+import { MessageChatView } from '@/pages/MessageChatView';
+import { MessagesChatPlaceholder, MessagesLayout } from '@/pages/MessagesLayout';
 import { LoginPage } from '@/pages/LoginPage';
 import { MemberProfilePage } from '@/pages/MemberProfilePage';
 import { MyConcertsRedirect } from '@/pages/MyConcertsRedirect';
@@ -71,8 +71,10 @@ export function AppRoutes() {
         <Route index element={<DiscoverHomePage />} />
         <Route path="map" element={<DiscoverMapPage />} />
         <Route path="feed" element={<FeedPage />} />
-        <Route path="messages" element={<MessagesPage />} />
-        <Route path="messages/:threadId" element={<MessageThreadPage />} />
+        <Route path="messages" element={<MessagesLayout />}>
+          <Route index element={<MessagesChatPlaceholder />} />
+          <Route path=":threadId" element={<MessageChatView />} />
+        </Route>
         <Route path="create" element={<CreatePage />} />
         <Route path="create/want" element={<CreateWantPage />} />
         <Route path="create/review" element={<CreateReviewPage />} />

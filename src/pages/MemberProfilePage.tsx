@@ -6,7 +6,7 @@ import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { ProfileTabBar } from '@/components/profile/ProfileTabBar';
 import { MemberCard } from '@/components/social/MemberCard';
 import { FollowButton } from '@/components/social/FollowButton';
-import { openDmThread } from '@/lib/social/messagesApi';
+import { messageThreadPath, openDmThread } from '@/lib/social/messagesApi';
 import { Button } from '@/components/ui/app-button';
 import { MessageCircle } from 'lucide-react';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -117,7 +117,7 @@ export function MemberProfilePage() {
         targetUserId: userId,
         context: { contextType: 'general' },
       });
-      navigate(`/messages/${thread.id}`);
+      navigate(messageThreadPath(thread.id));
     } catch {
       /* ignore — user may need to log in again for token */
     } finally {

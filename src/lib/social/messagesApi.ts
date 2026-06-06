@@ -3,6 +3,19 @@ import type { DirectMessage, MessageThread, OpenThreadInput } from '@/types';
 
 /** Messaging uses Bearer auth only — no client-supplied userId. */
 
+/** Thread ids contain `#` — always encode for router paths. */
+export function messageThreadPath(threadId: string): string {
+  return `/messages/${encodeURIComponent(threadId)}`;
+}
+
+export function decodeThreadIdParam(param: string): string {
+  try {
+    return decodeURIComponent(param);
+  } catch {
+    return param;
+  }
+}
+
 export async function openDmThread(
   input: OpenThreadInput
 ): Promise<MessageThread> {

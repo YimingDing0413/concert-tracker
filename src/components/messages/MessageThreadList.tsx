@@ -6,32 +6,45 @@ import { Link } from 'react-router-dom';
 interface MessageThreadListProps {
   threads: MessageThread[];
   currentUserId: string;
+  activeThreadId?: string | null;
   loading?: boolean;
 }
 
-export function MessageThreadList({ threads, currentUserId, loading }: MessageThreadListProps) {
+export function MessageThreadList({
+  threads,
+  currentUserId,
+  activeThreadId,
+  loading,
+}: MessageThreadListProps) {
   if (loading) {
-    return <p className="py-8 text-center text-sm text-muted-foreground">Loading conversations…</p>;
+    return <p className="py-10 text-center text-sm text-muted-foreground">Loading conversations…</p>;
   }
 
   if (threads.length === 0) {
     return (
-      <EmptyState
-        title="No messages yet"
-        description="Message someone from a ticket post or member profile."
-        action={
-          <Link to="/feed" className="text-sm font-medium text-primary">
-            Browse feed →
-          </Link>
-        }
-      />
+      <div className="px-4 py-8">
+        <EmptyState
+          title="No messages yet"
+          description="Message someone from a ticket post or member profile."
+          action={
+            <Link to="/feed" className="text-sm font-medium text-primary">
+              Browse feed →
+            </Link>
+          }
+        />
+      </div>
     );
   }
 
   return (
-    <ul className="space-y-2">
+    <ul className="divide-y divide-border/30">
       {threads.map((thread) => (
-        <MessageThreadListItem key={thread.id} thread={thread} currentUserId={currentUserId} />
+        <MessageThreadListItem
+          key={thread.id}
+          thread={thread}
+          currentUserId={currentUserId}
+          activeThreadId={activeThreadId}
+        />
       ))}
     </ul>
   );
