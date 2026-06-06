@@ -1,10 +1,9 @@
 import { cn } from '@/lib/utils';
-import { Compass, MapPinned, Search, UserRound } from 'lucide-react';
+import { Compass, MapPinned, UserRound } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
 const tabs = [
   { to: '/', label: 'Discover', icon: Compass, end: true },
-  { to: '/search', label: 'Search', icon: Search, end: false },
   { to: '/map', label: 'Map', icon: MapPinned, end: false },
   { to: '/profile', label: 'Profile', icon: UserRound, end: false },
 ] as const;

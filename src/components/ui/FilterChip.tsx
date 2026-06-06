@@ -10,7 +10,7 @@ export function FilterChip({ active, className, children, ...props }: FilterChip
     <button
       type="button"
       className={cn(
-        'inline-flex h-8 shrink-0 items-center justify-center rounded-full border px-3.5 text-xs font-semibold transition-all',
+        'inline-flex h-8 shrink-0 cursor-pointer items-center justify-center rounded-full border px-3.5 text-xs font-semibold transition-all disabled:cursor-not-allowed',
         active
           ? 'border-primary/50 bg-primary text-primary-foreground shadow-[0_0_20px_-4px] shadow-primary/40'
           : 'border-border/70 bg-card/90 text-foreground backdrop-blur-md hover:border-primary/30 hover:bg-card',

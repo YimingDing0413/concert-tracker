@@ -1,3 +1,4 @@
+import { apiUrl } from '@/lib/apiBase';
 import type { ApiResponse } from '@/types';
 
 export class HttpApiError extends Error {
@@ -16,7 +17,7 @@ export async function apiFetch<T>(
 ): Promise<ApiResponse<T>> {
   let res: Response;
   try {
-    res = await fetch(path, {
+    res = await fetch(apiUrl(path), {
       ...init,
       headers: {
         'Content-Type': 'application/json',

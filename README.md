@@ -2,6 +2,25 @@
 
 Mobile-first concert discovery and tracking. The **React frontend** talks only to the **internal Express API**; the server calls Ticketmaster, Bandsintown, and Setlist.fm. API keys never reach the browser.
 
+## Phone app (iOS & Android)
+
+Encore can ship as a native app using **Capacitor** (same React UI) or install as a **PWA** from the browser.
+
+See **[MOBILE.md](./MOBILE.md)** for:
+
+- Android Studio setup (Windows)
+- Xcode / iOS (Mac)
+- Google Play & App Store notes
+- PWA “Add to Home Screen”
+
+Quick run on Android:
+
+```bash
+npm install
+npm run cap:sync
+npm run cap:android
+```
+
 ## Architecture
 
 ```

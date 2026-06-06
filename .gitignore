@@ -10,3 +10,11 @@ data/user-db.json
 
 .vercel
 .env*
+!.env.example
+
+# Capacitor native build artifacts (optional local-only)
+android/.gradle/
+android/app/build/
+android/build/
+ios/App/Pods/
+ios/DerivedData/
