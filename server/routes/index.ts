@@ -15,6 +15,9 @@ import { mapRouter } from './map.js';
 import { concertsRouter } from './concerts.js';
 import { feedRouter } from './feed.js';
 import { messagesRouter } from './messages.js';
+import { spotifyRouter } from './spotify.js';
+import { recommendationsRouter } from './recommendations.js';
+import { hasSpotify } from '../env.js';
 
 export const apiRouter = Router();
 
@@ -30,6 +33,8 @@ apiRouter.use('/friends', friendsRouter);
 apiRouter.use('/concerts', concertsRouter);
 apiRouter.use('/feed', feedRouter);
 apiRouter.use('/messages', messagesRouter);
+apiRouter.use('/spotify', spotifyRouter);
+apiRouter.use('/recommendations', recommendationsRouter);
 apiRouter.use('/map', mapRouter);
 
 apiRouter.get('/health', async (_req, res) => {
@@ -45,6 +50,7 @@ apiRouter.get('/health', async (_req, res) => {
       bandsintown: Boolean(process.env.BANDSINTOWN_APP_ID),
       setlistfm: Boolean(process.env.SETLISTFM_API_KEY),
       dynamodb: dynamo.ok,
+      spotify: hasSpotify(),
     },
     storage: storageLabel(),
     storageWarning: storageWarning(),

@@ -25,7 +25,15 @@ import {
   getFollowers,
   getFollowing,
 } from '@/lib/social/socialApi';
+import { SpotifyConnectionsSection } from '@/components/spotify/SpotifyConnectionsSection';
+import {
+  disconnectSpotify,
+  getSpotifyStatus,
+  startSpotifyConnect,
+  syncSpotifyTaste,
+} from '@/lib/social/spotifyApi';
 import type { FeedPost, FollowCounts, FollowerItem, FollowItem, UserProfile } from '@/types';
+import type { SpotifyConnectionStatus } from '@/types/spotify';
 import type { ConcertReview } from '@/types/concertReview';
 import { LogOut, Pencil, Sparkles } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -64,6 +72,10 @@ export function ProfilePage() {
   );
   const [editorOpen, setEditorOpen] = useState(false);
   const [socialLoading, setSocialLoading] = useState(true);
+  const [spotifyStatus, setSpotifyStatus] = useState<SpotifyConnectionStatus | null>(null);
+  const [spotifyLoading, setSpotifyLoading] = useState(true);
+  const [spotifySyncing, setSpotifySyncing] = useState(false);
+  const [spotifyDisconnecting, setSpotifyDisconnecting] = useState(false);
 
   const { userConcerts, concertMap, loading: concertsLoading } = useProfileConcerts(user?.id);
 
@@ -91,6 +103,33 @@ export function ProfilePage() {
     setSocialLoading(true);
     void refreshSocial();
   }, [user, refreshSocial]);
+
+  const refreshSpotify = useCallback(async () => {
+    if (!user) return;
+    setSpotifyLoading(true);
+    try {
+      const status = await getSpotifyStatus();
+      setSpotifyStatus(status);
+    } catch {
+      setSpotifyStatus({ connected: false, hasTasteProfile: false });
+    } finally {
+      setSpotifyLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    void refreshSpotify();
+  }, [refreshSpotify]);
+
+  useEffect(() => {
+    const spotify = searchParams.get('spotify');
+    if (spotify === 'connected' && user) {
+      void refreshSpotify();
+      void syncSpotifyTaste()
+        .then(() => refreshSpotify())
+        .catch(() => undefined);
+    }
+  }, [searchParams, user, refreshSpotify]);
 
   useEffect(() => {
     if (!user) return;
@@ -202,6 +241,38 @@ export function ProfilePage() {
             </Button>
           </>
         }
+      />
+
+      <SpotifyConnectionsSection
+        status={spotifyStatus}
+        loading={spotifyLoading}
+        syncing={spotifySyncing}
+        disconnecting={spotifyDisconnecting}
+        onConnect={async () => {
+          try {
+            await startSpotifyConnect();
+          } catch {
+            /* surfaced via section if needed */
+          }
+        }}
+        onSync={async () => {
+          setSpotifySyncing(true);
+          try {
+            await syncSpotifyTaste();
+            await refreshSpotify();
+          } finally {
+            setSpotifySyncing(false);
+          }
+        }}
+        onDisconnect={async () => {
+          setSpotifyDisconnecting(true);
+          try {
+            await disconnectSpotify();
+            await refreshSpotify();
+          } finally {
+            setSpotifyDisconnecting(false);
+          }
+        }}
       />
 
       {socialPanel === 'followers' && (

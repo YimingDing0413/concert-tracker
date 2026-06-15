@@ -19,6 +19,9 @@ export const env = {
   awsAccessKeyId: process.env.AWS_ACCESS_KEY_ID ?? '',
   awsSecretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? '',
   dynamoTableName: process.env.DYNAMODB_TABLE_NAME ?? 'ConcertTracker',
+  spotifyClientId: process.env.SPOTIFY_CLIENT_ID ?? '',
+  spotifyClientSecret: process.env.SPOTIFY_CLIENT_SECRET ?? '',
+  spotifyRedirectUri: process.env.SPOTIFY_REDIRECT_URI ?? '',
 };
 
 export const hasTicketmaster = () => Boolean(env.ticketmasterApiKey);
@@ -26,3 +29,5 @@ export const hasBandsintown = () => Boolean(env.bandsintownAppId);
 export const hasSetlistFm = () => Boolean(env.setlistFmApiKey);
 export const hasDynamoDb = () =>
   Boolean(env.awsRegion && env.awsAccessKeyId && env.awsSecretAccessKey && env.dynamoTableName);
+export const hasSpotify = () =>
+  Boolean(env.spotifyClientId && env.spotifyClientSecret && env.spotifyRedirectUri);

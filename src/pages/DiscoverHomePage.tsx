@@ -2,6 +2,7 @@ import { apiFetch } from '@/api/http';
 import { api } from '@/api';
 import { ConcertCard } from '@/components/concert/ConcertCard';
 import { RecommendedConcertCard } from '@/components/discover/RecommendedConcertCard';
+import { SpotifyForYouSection } from '@/components/spotify/SpotifyForYouSection';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { SearchAutocomplete } from '@/components/search/SearchAutocomplete';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -196,6 +197,16 @@ export function DiscoverHomePage() {
           </Link>
         </div>
       </section>
+
+      {user && (
+        <SpotifyForYouSection
+          userId={user.id}
+          latitude={center.latitude}
+          longitude={center.longitude}
+          nearbyFallback={nearbyFallback}
+          loadingNearby={loadingNearby}
+        />
+      )}
 
       <section>
         <SectionHeader

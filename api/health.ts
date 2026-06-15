@@ -24,6 +24,11 @@ export default async function handler(
       bandsintown: Boolean(process.env.BANDSINTOWN_APP_ID),
       setlistfm: Boolean(process.env.SETLISTFM_API_KEY),
       dynamodb: dynamo.ok,
+      spotify: Boolean(
+        process.env.SPOTIFY_CLIENT_ID &&
+          process.env.SPOTIFY_CLIENT_SECRET &&
+          process.env.SPOTIFY_REDIRECT_URI
+      ),
     },
     storage: storageLabel(),
     dynamodbConfigured: dynamoConfigured,
