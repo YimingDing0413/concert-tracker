@@ -5,7 +5,10 @@ import { getMapEventsVenues } from './mapService.js';
 import { concertEventToConcert } from '../../shared/mappers.js';
 import type { Concert } from '../../shared/types/index.js';
 import type { SpotifyTasteProfile } from '../../shared/types/spotify.js';
-import { normalizeArtistName } from '../../src/lib/recommendations/artistMatching.js';
+import {
+  isExactArtistNameMatch,
+  normalizeArtistName,
+} from '../../src/lib/recommendations/artistMatching.js';
 import { RECOMMENDATION_HORIZON_DAYS } from '../../src/lib/recommendations/spotifyConcertRecommendations.js';
 import type { MapConcertEvent, MapVenue } from '../../shared/types/index.js';
 
@@ -107,7 +110,8 @@ async function searchEventsForArtist(
 
     return normalizeTmEventsResponse(payload)
       .filter((e) => e.status !== 'past')
-      .map(concertEventToConcert);
+      .map(concertEventToConcert)
+      .filter((concert) => isExactArtistNameMatch(concert.artistName ?? '', artistName));
   } catch {
     return [];
   }

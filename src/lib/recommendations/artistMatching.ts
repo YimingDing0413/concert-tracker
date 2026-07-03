@@ -98,7 +98,17 @@ function strongTokenMatch(concertArtist: string, spotifyArtist: string): boolean
 
   const shorter = aTokens.length <= bTokens.length ? aTokens : bTokens;
   const longer = shorter === aTokens ? bTokens : aTokens;
-  return shorter.every((token) => longer.some((lt) => lt === token || lt.startsWith(token)));
+  return shorter.every((token) => longer.some((lt) => lt === token));
+}
+
+/** True when the concert headliner exactly matches a listened Spotify artist name. */
+export function isExactArtistNameMatch(
+  concertArtistName: string,
+  spotifyArtistName: string
+): boolean {
+  const concertNorm = normalizeArtistName(concertArtistName);
+  const spotifyNorm = normalizeArtistName(spotifyArtistName);
+  return Boolean(concertNorm && spotifyNorm && concertNorm === spotifyNorm);
 }
 
 function highConfidenceFuzzyMatch(concertArtist: string, spotifyArtist: string): boolean {

@@ -7,9 +7,7 @@ import type {
 import {
   allowsExactArtistMatch,
   isNonArtistPerformance,
-  matchSpotifyArtist,
   normalizeArtistName,
-  type ArtistMatchKind,
 } from './artistMatching.js';
 import {
   buildSpotifyBucketWeights,
@@ -77,21 +75,31 @@ export interface SpotifyRecommendationDebugStats {
   scoredCount: number;
 }
 
-function topArtistNames(profile: SpotifyTasteProfile): Map<string, string> {
+function topArtistNames(
+  profile: SpotifyTasteProfile,
+  artistWeights: Record<string, number>
+): Map<string, string> {
   const map = new Map<string, string>();
   for (const artist of profile.topArtists) {
     const key = normalizeArtistName(artist.name);
-    if (key && !map.has(key)) map.set(key, artist.name);
+    if (key && !map.has(key) && (artistWeights[key] ?? 0) > 0) {
+      map.set(key, artist.name);
+    }
   }
   return map;
 }
 
-function trackArtistNames(profile: SpotifyTasteProfile): Map<string, string> {
+function trackArtistNames(
+  profile: SpotifyTasteProfile,
+  artistWeights: Record<string, number>
+): Map<string, string> {
   const map = new Map<string, string>();
   for (const track of profile.topTracks) {
     for (const name of track.artistNames) {
       const key = normalizeArtistName(name);
-      if (key && !map.has(key)) map.set(key, name);
+      if (key && !map.has(key) && (artistWeights[key] ?? 0) > 0) {
+        map.set(key, name);
+      }
     }
   }
   return map;
@@ -157,74 +165,36 @@ type ScoredCandidate = SpotifyConcertRecommendation & {
 };
 
 interface ArtistMatchResult {
-  kind: ArtistMatchKind;
   matchedName: string;
   isTopArtist: boolean;
   isTrackArtist: boolean;
 }
 
-function findBestArtistMatch(
+/** Only match when the concert headliner name exactly equals a listened Spotify artist. */
+function findExactListenedArtistMatch(
   concert: Concert,
+  artistWeights: Record<string, number>,
   topArtists: Map<string, string>,
   trackArtists: Map<string, string>
 ): ArtistMatchResult | null {
   const normConcert = normalizeArtistName(concert.artistName ?? '');
+  if (!normConcert) return null;
 
-  if (topArtists.has(normConcert) && allowsExactArtistMatch(concert, normConcert)) {
-    return {
-      kind: 'exact',
-      matchedName: topArtists.get(normConcert)!,
-      isTopArtist: true,
-      isTrackArtist: false,
-    };
-  }
+  const listeningWeight = artistWeights[normConcert] ?? 0;
+  if (listeningWeight <= 0) return null;
+  if (!allowsExactArtistMatch(concert, normConcert)) return null;
 
-  if (trackArtists.has(normConcert) && allowsExactArtistMatch(concert, normConcert)) {
-    return {
-      kind: 'exact',
-      matchedName: trackArtists.get(normConcert)!,
-      isTopArtist: false,
-      isTrackArtist: true,
-    };
-  }
+  const inTop = topArtists.has(normConcert);
+  const inTracks = trackArtists.has(normConcert);
+  if (!inTop && !inTracks) return null;
 
-  let best: ArtistMatchResult | null = null;
-  const rank: Record<ArtistMatchKind, number> = {
-    exact: 3,
-    strong_token: 2,
-    fuzzy: 1,
-    none: 0,
+  const matchedName = topArtists.get(normConcert) ?? trackArtists.get(normConcert)!;
+
+  return {
+    matchedName,
+    isTopArtist: inTop,
+    isTrackArtist: inTracks && !inTop,
   };
-
-  for (const [, displayName] of topArtists) {
-    const norm = normalizeArtistName(displayName);
-    const kind = matchSpotifyArtist(concert, displayName, norm);
-    if (kind === 'none') continue;
-    const candidate: ArtistMatchResult = {
-      kind,
-      matchedName: displayName,
-      isTopArtist: true,
-      isTrackArtist: false,
-    };
-    if (!best || rank[kind] > rank[best.kind]) best = candidate;
-  }
-
-  if (!best || best.kind === 'fuzzy') {
-    for (const [, displayName] of trackArtists) {
-      const norm = normalizeArtistName(displayName);
-      const kind = matchSpotifyArtist(concert, displayName, norm);
-      if (kind === 'none') continue;
-      const candidate: ArtistMatchResult = {
-        kind,
-        matchedName: displayName,
-        isTopArtist: false,
-        isTrackArtist: true,
-      };
-      if (!best || rank[kind] > rank[best.kind]) best = candidate;
-    }
-  }
-
-  return best;
 }
 
 function assignConfidence(input: {
@@ -233,13 +203,8 @@ function assignConfidence(input: {
 }): 'high' | 'medium' | 'low' {
   const { artistMatch, listeningWeight } = input;
   if (!artistMatch || listeningWeight <= 0) return 'low';
-  if (
-    artistMatch.kind === 'exact' &&
-    (artistMatch.isTopArtist || listeningWeight >= 40)
-  ) {
-    return 'high';
-  }
-  if (artistMatch.kind === 'exact' || listeningWeight >= 20) return 'medium';
+  if (artistMatch.isTopArtist || listeningWeight >= 40) return 'high';
+  if (listeningWeight >= 15) return 'medium';
   return 'medium';
 }
 
@@ -249,16 +214,10 @@ function pickPrimaryReason(input: {
 }): string {
   const { artistMatch, listeningWeight } = input;
 
-  if (artistMatch.isTopArtist && artistMatch.kind === 'exact') {
-    return `You've been listening to ${artistMatch.matchedName} on Spotify`;
-  }
   if (listeningWeight >= 60) {
     return `You've been listening to ${artistMatch.matchedName} a lot on Spotify`;
   }
-  if (artistMatch.isTrackArtist && artistMatch.kind === 'exact') {
-    return `You've been listening to ${artistMatch.matchedName} on Spotify`;
-  }
-  return `Based on your Spotify listening for ${artistMatch.matchedName}`;
+  return `You've been listening to ${artistMatch.matchedName} on Spotify`;
 }
 
 function selectWithDiversity(scored: ScoredCandidate[], limit: number): ScoredCandidate[] {
@@ -302,9 +261,9 @@ export function getSpotifyConcertRecommendations(
   recommendations: SpotifyConcertRecommendation[];
   debugStats?: SpotifyRecommendationDebugStats;
 } {
-  const topArtists = topArtistNames(spotifyTasteProfile);
-  const trackArtists = trackArtistNames(spotifyTasteProfile);
   const artistWeights = spotifyTasteProfile.artistWeights ?? {};
+  const topArtists = topArtistNames(spotifyTasteProfile, artistWeights);
+  const trackArtists = trackArtistNames(spotifyTasteProfile, artistWeights);
   const spotifyBucketWeights = buildSpotifyBucketWeights(spotifyTasteProfile.genreWeights);
 
   const scored: ScoredCandidate[] = [];
@@ -339,7 +298,12 @@ export function getSpotifyConcertRecommendations(
     }
 
     const normArtist = normalizeArtistName(concert.artistName ?? '');
-    const artistMatch = findBestArtistMatch(concert, topArtists, trackArtists);
+    const artistMatch = findExactListenedArtistMatch(
+      concert,
+      artistWeights,
+      topArtists,
+      trackArtists
+    );
 
     if (!artistMatch) {
       excludedNoListeningCount += 1;
@@ -347,7 +311,7 @@ export function getSpotifyConcertRecommendations(
     }
 
     const listeningWeight = listeningWeightForArtist(artistWeights, artistMatch.matchedName);
-    if (listeningWeight <= 0) {
+    if (listeningWeight <= 0 || normArtist !== normalizeArtistName(artistMatch.matchedName)) {
       excludedNoListeningCount += 1;
       continue;
     }
@@ -358,15 +322,12 @@ export function getSpotifyConcertRecommendations(
     breakdown.listeningWeight = scoreListeningWeight(listeningWeight);
     score += breakdown.listeningWeight;
 
-    if (artistMatch.isTopArtist && artistMatch.kind === 'exact') {
+    if (artistMatch.isTopArtist) {
       breakdown.exactTopArtist = 25;
       score += 25;
-    } else if (artistMatch.isTrackArtist && artistMatch.kind === 'exact') {
+    } else if (artistMatch.isTrackArtist) {
       breakdown.topTrackArtist = 15;
       score += 15;
-    } else if (artistMatch.kind === 'strong_token' || artistMatch.kind === 'fuzzy') {
-      breakdown.fuzzyArtist = 8;
-      score += 8;
     }
 
     const genreMatch = scoreGenreMatch(
