@@ -55,8 +55,10 @@ export function SpotifyForYouSection({
       } else {
         setRecs(null);
       }
-    } catch {
-      setError('Could not load Spotify recommendations.');
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Could not load Spotify recommendations.';
+      setError(message);
     } finally {
       setLoading(false);
     }

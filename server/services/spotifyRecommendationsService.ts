@@ -68,7 +68,8 @@ export async function getSpotifyConcertRecommendationsForUser(payload: {
     getAllUserConcerts(userId),
   ]);
 
-  const candidates = concertsFromMapVenues(mapResult.venues);
+  const venues = mapResult.data?.venues ?? [];
+  const candidates = concertsFromMapVenues(venues);
   const history = buildUserConcertHistory(userConcerts);
   const recommendations = getSpotifyConcertRecommendations(
     candidates,

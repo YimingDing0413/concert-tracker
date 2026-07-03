@@ -102,7 +102,7 @@ export function getSpotifyConcertRecommendations(
     if (concert.status === 'past') continue;
     if (userConcertHistory.attendedConcertIds.has(concert.id)) continue;
 
-    const normArtist = normalizeArtistName(concert.artistName);
+    const normArtist = normalizeArtistName(concert.artistName ?? '');
     let score = 0;
     const reasons: string[] = [];
     const matchedSpotifyArtists: string[] = [];
@@ -123,7 +123,7 @@ export function getSpotifyConcertRecommendations(
       reasons.push('Matches your recent listening');
     } else {
       for (const [, displayName] of topArtists) {
-        if (fuzzyArtistMatch(concert.artistName, displayName)) {
+        if (fuzzyArtistMatch(concert.artistName ?? '', displayName)) {
           score += 40;
           matchedSpotifyArtists.push(displayName);
           reasons.push(`Because you listen to ${displayName}`);
@@ -132,7 +132,7 @@ export function getSpotifyConcertRecommendations(
       }
       if (score < 40) {
         for (const [, displayName] of trackArtists) {
-          if (fuzzyArtistMatch(concert.artistName, displayName)) {
+          if (fuzzyArtistMatch(concert.artistName ?? '', displayName)) {
             score += 40;
             matchedSpotifyArtists.push(displayName);
             reasons.push('Matches your recent listening');
