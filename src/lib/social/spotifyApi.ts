@@ -46,12 +46,16 @@ export async function getSpotifyConcertRecommendations(payload: {
   lat: number;
   lng: number;
   radius?: number;
+  limit?: number;
 }): Promise<SpotifyRecommendationsResponse> {
   const params = new URLSearchParams({
     lat: String(payload.lat),
     lng: String(payload.lng),
     radius: String(payload.radius ?? 50),
   });
+  if (payload.limit != null) {
+    params.set('limit', String(payload.limit));
+  }
   return apiFetchData<SpotifyRecommendationsResponse>(
     `/api/recommendations/spotify-concerts?${params}`
   );

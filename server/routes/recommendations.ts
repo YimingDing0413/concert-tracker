@@ -11,6 +11,8 @@ recommendationsRouter.get('/spotify-concerts', requireAuth, requireDynamo, async
     const lat = Number(req.query.lat ?? req.query.latitude);
     const lng = Number(req.query.lng ?? req.query.longitude ?? req.query.lon);
     const radius = Number(req.query.radius ?? req.query.radiusKm ?? 50);
+    const limitRaw = Number(req.query.limit ?? 6);
+    const limit = Math.min(24, Math.max(1, Number.isNaN(limitRaw) ? 6 : limitRaw));
 
     if (
       Number.isNaN(lat) ||
@@ -56,7 +58,7 @@ recommendationsRouter.get('/spotify-concerts', requireAuth, requireDynamo, async
       latitude: lat,
       longitude: lng,
       radiusKm: Number.isNaN(radius) ? 50 : radius,
-      limit: 6,
+      limit,
     });
 
     res.json({

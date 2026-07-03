@@ -3,6 +3,7 @@ import { ConcertPosterCard } from '@/components/cards/ConcertPosterCard';
 import { Button } from '@/components/ui/app-button';
 import { ConcertCardSkeleton } from '@/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { HorizontalCarousel } from '@/components/ui/HorizontalCarousel';
 import {
   getSpotifyConcertRecommendations,
   getSpotifyStatus,
@@ -12,8 +13,9 @@ import {
 } from '@/lib/social/spotifyApi';
 import type { Concert } from '@/types';
 import type { SpotifyConnectionStatus } from '@/types/spotify';
-import { Music2 } from 'lucide-react';
+import { ChevronRight, Music2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 
 interface SpotifyForYouSectionProps {
   userId?: string;
@@ -50,6 +52,7 @@ export function SpotifyForYouSection({
           lat: latitude,
           lng: longitude,
           radius: 50,
+          limit: 12,
         });
         setRecs(data);
       } else {
@@ -94,14 +97,15 @@ export function SpotifyForYouSection({
   const connected = status?.connected ?? false;
   const synced = status?.hasTasteProfile ?? false;
   const recommendations = recs?.recommendations ?? [];
+  const showSeeAll = connected && synced && recommendations.length > 0;
 
   const cardList =
     layout === 'carousel' ? (
-      <div className="carousel-scroll">
+      <HorizontalCarousel>
         {recommendations.map((c) => (
           <SpotifyPickCard key={c.id} concert={c} backTo="/" width="carousel" />
         ))}
-      </div>
+      </HorizontalCarousel>
     ) : (
       <div className="grid gap-4 sm:grid-cols-2">
         {recommendations.map((c) => (
@@ -112,11 +116,22 @@ export function SpotifyForYouSection({
 
   return (
     <section className="space-y-3">
-      <div>
-        <h2 className="text-display-md text-foreground">For you from Spotify</h2>
-        <p className="mt-0.5 text-sm text-muted-foreground">
-          Concerts near you based on what you listen to
-        </p>
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <h2 className="text-display-md text-foreground">For you from Spotify</h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            Concerts near you based on what you listen to
+          </p>
+        </div>
+        {showSeeAll && (
+          <Link
+            to="/discover/spotify"
+            className="inline-flex shrink-0 items-center gap-0.5 text-xs font-semibold text-primary no-underline hover:underline"
+          >
+            See all
+            <ChevronRight className="size-4" aria-hidden />
+          </Link>
+        )}
       </div>
 
       {error && (
@@ -127,11 +142,11 @@ export function SpotifyForYouSection({
 
       {loading || loadingNearby ? (
         layout === 'carousel' ? (
-          <div className="carousel-scroll">
+          <HorizontalCarousel>
             {Array.from({ length: 3 }).map((_, i) => (
               <ConcertCardSkeleton key={`spotify-${i}`} className="w-[260px]" />
             ))}
-          </div>
+          </HorizontalCarousel>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
             {Array.from({ length: 2 }).map((_, i) => (
@@ -179,21 +194,20 @@ export function SpotifyForYouSection({
             title="No Spotify-based matches nearby yet"
             description="We couldn't find nearby shows that match your Spotify taste right now."
           />
-          {nearbyFallback.length > 0 && (
-            layout === 'carousel' ? (
-              <div className="carousel-scroll">
+          {nearbyFallback.length > 0 &&
+            (layout === 'carousel' ? (
+              <HorizontalCarousel>
                 {nearbyFallback.slice(0, 4).map((c) => (
                   <ConcertPosterCard key={`spotify-fallback-${c.id}`} concert={c} backTo="/" width="carousel" />
                 ))}
-              </div>
+              </HorizontalCarousel>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2">
                 {nearbyFallback.slice(0, 4).map((c) => (
                   <ConcertPosterCard key={`spotify-fallback-${c.id}`} concert={c} backTo="/" />
                 ))}
               </div>
-            )
-          )}
+            ))}
         </div>
       )}
     </section>

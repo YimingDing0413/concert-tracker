@@ -13,6 +13,7 @@ import { CreateWantPage } from '@/pages/create/CreateWantPage';
 import { CreatePage } from '@/pages/CreatePage';
 import { DiscoverHomePage } from '@/pages/DiscoverHomePage';
 import { DiscoverMapPage } from '@/pages/DiscoverMapPage';
+import { SpotifyRecommendationsPage } from '@/pages/SpotifyRecommendationsPage';
 import { FeedPage } from '@/pages/FeedPage';
 import { MessageChatView } from '@/pages/MessageChatView';
 import { MessagesChatPlaceholder, MessagesLayout } from '@/pages/MessagesLayout';
@@ -70,6 +71,7 @@ export function AppRoutes() {
       >
         <Route index element={<DiscoverHomePage />} />
         <Route path="map" element={<DiscoverMapPage />} />
+        <Route path="discover/spotify" element={<SpotifyRecommendationsPage />} />
         <Route path="feed" element={<FeedPage />} />
         <Route path="messages" element={<MessagesLayout />}>
           <Route index element={<MessagesChatPlaceholder />} />
