@@ -10,18 +10,30 @@ if (existsSync(resolve(root, '.env.local'))) {
 }
 dotenv.config({ path: resolve(root, '.env') });
 
+/** Trim whitespace and optional surrounding quotes from env values (common on Vercel). */
+export function envValue(key: string, fallback = ''): string {
+  let v = (process.env[key] ?? fallback).trim();
+  if (
+    (v.startsWith('"') && v.endsWith('"')) ||
+    (v.startsWith("'") && v.endsWith("'"))
+  ) {
+    v = v.slice(1, -1).trim();
+  }
+  return v;
+}
+
 export const env = {
-  port: Number(process.env.PORT ?? 3001),
-  ticketmasterApiKey: process.env.TICKETMASTER_API_KEY ?? '',
-  bandsintownAppId: process.env.BANDSINTOWN_APP_ID ?? '',
-  setlistFmApiKey: process.env.SETLISTFM_API_KEY ?? '',
-  awsRegion: process.env.AWS_REGION ?? '',
-  awsAccessKeyId: process.env.AWS_ACCESS_KEY_ID ?? '',
-  awsSecretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? '',
-  dynamoTableName: process.env.DYNAMODB_TABLE_NAME ?? 'ConcertTracker',
-  spotifyClientId: process.env.SPOTIFY_CLIENT_ID ?? '',
-  spotifyClientSecret: process.env.SPOTIFY_CLIENT_SECRET ?? '',
-  spotifyRedirectUri: process.env.SPOTIFY_REDIRECT_URI ?? '',
+  port: Number(envValue('PORT', '3001')),
+  ticketmasterApiKey: envValue('TICKETMASTER_API_KEY'),
+  bandsintownAppId: envValue('BANDSINTOWN_APP_ID'),
+  setlistFmApiKey: envValue('SETLISTFM_API_KEY'),
+  awsRegion: envValue('AWS_REGION'),
+  awsAccessKeyId: envValue('AWS_ACCESS_KEY_ID'),
+  awsSecretAccessKey: envValue('AWS_SECRET_ACCESS_KEY'),
+  dynamoTableName: envValue('DYNAMODB_TABLE_NAME', 'ConcertTracker'),
+  spotifyClientId: envValue('SPOTIFY_CLIENT_ID'),
+  spotifyClientSecret: envValue('SPOTIFY_CLIENT_SECRET'),
+  spotifyRedirectUri: envValue('SPOTIFY_REDIRECT_URI'),
 };
 
 export const hasTicketmaster = () => Boolean(env.ticketmasterApiKey);

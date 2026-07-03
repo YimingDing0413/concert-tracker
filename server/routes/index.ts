@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { checkDynamoHealth } from '../lib/dynamoHealth.js';
+import { checkTicketmasterHealth } from '../lib/ticketmasterHealth.js';
 import { storageLabel, storageWarning } from '../storage/persist.js';
 import { isDynamoConfigured } from '../../src/lib/db/dynamodb.js';
 import { searchRouter } from './search.js';
@@ -17,7 +18,7 @@ import { feedRouter } from './feed.js';
 import { messagesRouter } from './messages.js';
 import { spotifyRouter } from './spotify.js';
 import { recommendationsRouter } from './recommendations.js';
-import { hasSpotify } from '../env.js';
+import { hasSpotify, hasTicketmaster } from '../env.js';
 
 export const apiRouter = Router();
 
@@ -42,16 +43,21 @@ apiRouter.get('/health', async (_req, res) => {
   const dynamo = dynamoConfigured
     ? await checkDynamoHealth()
     : { ok: false as const, error: 'DynamoDB env vars not set' };
+  const ticketmaster = hasTicketmaster()
+    ? await checkTicketmasterHealth()
+    : { ok: false as const, error: 'TICKETMASTER_API_KEY not configured' };
 
   res.json({
     ok: true,
     apis: {
-      ticketmaster: Boolean(process.env.TICKETMASTER_API_KEY),
-      bandsintown: Boolean(process.env.BANDSINTOWN_APP_ID),
-      setlistfm: Boolean(process.env.SETLISTFM_API_KEY),
+      ticketmaster: ticketmaster.ok,
+      bandsintown: Boolean(process.env.BANDSINTOWN_APP_ID?.trim()),
+      setlistfm: Boolean(process.env.SETLISTFM_API_KEY?.trim()),
       dynamodb: dynamo.ok,
       spotify: hasSpotify(),
     },
+    ticketmasterConfigured: hasTicketmaster(),
+    ticketmasterError: ticketmaster.ok ? undefined : ticketmaster.error,
     storage: storageLabel(),
     storageWarning: storageWarning(),
     dynamodbConfigured: dynamoConfigured,

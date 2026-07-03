@@ -96,6 +96,7 @@ export function DiscoverHomePage() {
   const [userConcerts, setUserConcerts] = useState<UserConcert[]>([]);
   const [reviews, setReviews] = useState<ConcertReview[]>([]);
   const [historyReady, setHistoryReady] = useState(false);
+  const [nearbySource, setNearbySource] = useState<'live' | 'mock' | null>(null);
 
   useEffect(() => {
     requestUserPosition()
@@ -116,9 +117,15 @@ export function DiscoverHomePage() {
         const res = await apiFetch<MapEventsPayload>(
           `/api/map/events?lat=${center.latitude}&lng=${center.longitude}&radius=50`
         );
-        if (!cancelled) setNearbyConcerts(concertsFromMapPayload(res.data));
+        if (!cancelled) {
+          setNearbyConcerts(concertsFromMapPayload(res.data));
+          setNearbySource(res.meta?.source === 'live' ? 'live' : 'mock');
+        }
       } catch {
-        if (!cancelled) setNearbyConcerts([]);
+        if (!cancelled) {
+          setNearbyConcerts([]);
+          setNearbySource(null);
+        }
       } finally {
         if (!cancelled) setLoadingNearby(false);
       }
@@ -236,6 +243,16 @@ export function DiscoverHomePage() {
           </div>
         </div>
       </section>
+
+      {nearbySource === 'mock' && (
+        <p className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/90">
+          Live concert data is temporarily unavailable — showing sample listings. Check{' '}
+          <a href="/api/health" className="font-medium text-amber-50 underline">
+            /api/health
+          </a>{' '}
+          for Ticketmaster status.
+        </p>
+      )}
 
       {/* Featured pick */}
       {!loadingNearby && featured && (

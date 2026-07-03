@@ -9,8 +9,26 @@ export class ApiError extends Error {
   }
 }
 
-export async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, init);
+const DEFAULT_TIMEOUT_MS = 15_000;
+
+export async function fetchJson<T>(
+  url: string,
+  init?: RequestInit,
+  timeoutMs = DEFAULT_TIMEOUT_MS
+): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      ...init,
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch (err) {
+    if (err instanceof Error && err.name === 'TimeoutError') {
+      throw new ApiError(`Request timed out after ${timeoutMs}ms`, 504, 'timeout');
+    }
+    throw err;
+  }
+
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new ApiError(`HTTP ${res.status}: ${text.slice(0, 200)}`, res.status);

@@ -163,7 +163,7 @@ export async function getMapEventsVenues(payload: {
           latlong,
           radius,
           unit: 'km',
-          size: 200,
+          size: 80,
           sort: 'date,asc',
           startDateTime: todayStartUtc(),
           classificationName: 'music',
