@@ -5,15 +5,15 @@ export function ConcertCardSkeleton({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        'relative overflow-hidden rounded-2xl border border-border/50 bg-card',
+        'relative w-[11.75rem] shrink-0 overflow-hidden rounded-xl border border-border/50 bg-card sm:w-[12.5rem]',
         className
       )}
     >
-      <Skeleton className="aspect-[5/6] w-full rounded-none sm:aspect-[4/5]" />
-      <div className="absolute inset-x-0 bottom-0 space-y-2 p-4">
-        <Skeleton className="h-6 w-3/4 bg-white/10" />
-        <Skeleton className="h-4 w-1/2 bg-white/10" />
-        <Skeleton className="h-3 w-2/3 bg-white/10" />
+      <Skeleton className="h-[4.75rem] w-full rounded-none" />
+      <div className="space-y-1.5 p-2.5">
+        <Skeleton className="h-3.5 w-4/5" />
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-3 w-2/3" />
       </div>
     </div>
   );
@@ -31,9 +31,9 @@ export function StatRowSkeleton() {
 
 export function ListRowSkeleton({ count = 3 }: { count?: number }) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {Array.from({ length: count }).map((_, i) => (
-        <Skeleton key={i} className="h-24 rounded-2xl" />
+        <Skeleton key={i} className="h-[4.5rem] rounded-xl" />
       ))}
     </div>
   );

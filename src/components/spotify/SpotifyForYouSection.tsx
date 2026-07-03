@@ -147,7 +147,7 @@ export function SpotifyForYouSection({
         layout === 'carousel' ? (
           <HorizontalCarousel>
             {Array.from({ length: 3 }).map((_, i) => (
-              <ConcertCardSkeleton key={`spotify-${i}`} className="w-[260px]" />
+              <ConcertCardSkeleton key={`spotify-${i}`} />
             ))}
           </HorizontalCarousel>
         ) : (

@@ -13,9 +13,9 @@ export function ArtistUpcomingPage() {
       {concerts.length === 0 ? (
         <EmptyState title="No upcoming shows" description="Check back later for new tour dates." />
       ) : (
-        <div className="card-list">
+        <div className="grid gap-3 sm:grid-cols-2">
           {concerts.map((c) => (
-            <ConcertCard key={c.id} concert={c} backTo={pathname} />
+            <ConcertCard key={c.id} concert={c} backTo={pathname} showCta />
           ))}
         </div>
       )}

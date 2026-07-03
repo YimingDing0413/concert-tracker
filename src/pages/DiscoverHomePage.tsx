@@ -5,7 +5,7 @@ import { ConcertPosterCard } from '@/components/cards/ConcertPosterCard';
 import { SpotifyForYouSection } from '@/components/spotify/SpotifyForYouSection';
 import { SearchAutocomplete } from '@/components/search/SearchAutocomplete';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { ConcertCardSkeleton } from '@/components/ui/LoadingSkeleton';
+import { ConcertCardSkeleton, ListRowSkeleton } from '@/components/ui/LoadingSkeleton';
 import { useAuth } from '@/context/AuthContext';
 import { DISCOVER_DEFAULT_CENTER, requestUserPosition } from '@/lib/geolocation';
 import {
@@ -278,7 +278,7 @@ export function DiscoverHomePage() {
         {!historyReady || loadingNearby ? (
           <div className="carousel-scroll">
             {Array.from({ length: 3 }).map((_, i) => (
-              <ConcertCardSkeleton key={`for-you-${i}`} className="w-[260px]" />
+              <ConcertCardSkeleton key={`for-you-${i}`} />
             ))}
           </div>
         ) : hasTasteProfile && forYou.length > 0 ? (
@@ -359,11 +359,7 @@ export function DiscoverHomePage() {
           </Link>
         </div>
         {loadingNearby ? (
-          <div className="space-y-2">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <ConcertCardSkeleton key={i} className="max-h-16 rounded-xl" />
-            ))}
-          </div>
+          <ListRowSkeleton count={4} />
         ) : upcoming.length === 0 ? (
           <EmptyState title="Nothing on the calendar nearby" description="Search a city or widen your map radius." />
         ) : (
