@@ -34,12 +34,12 @@ import type {
   SpotifyTasteTrack,
   SpotifyTimeRange,
 } from '../../shared/types/spotify.js';
-import { env } from '../env.js';
+import { env, envValue } from '../env.js';
 
 const TIME_RANGES: SpotifyTimeRange[] = ['short_term', 'medium_term', 'long_term'];
 
 function appPublicUrl(): string {
-  const explicit = process.env.APP_PUBLIC_URL?.trim();
+  const explicit = envValue('APP_PUBLIC_URL');
   if (explicit) return explicit.replace(/\/$/, '');
   const redirect = env.spotifyRedirectUri;
   if (redirect) {

@@ -18,7 +18,7 @@ import { feedRouter } from './feed.js';
 import { messagesRouter } from './messages.js';
 import { spotifyRouter } from './spotify.js';
 import { recommendationsRouter } from './recommendations.js';
-import { hasSpotify, hasTicketmaster } from '../env.js';
+import { hasSpotify, hasTicketmaster, env } from '../env.js';
 
 export const apiRouter = Router();
 
@@ -58,6 +58,8 @@ apiRouter.get('/health', async (_req, res) => {
     },
     ticketmasterConfigured: hasTicketmaster(),
     ticketmasterError: ticketmaster.ok ? undefined : ticketmaster.error,
+    spotifyConfigured: hasSpotify(),
+    spotifyRedirectUri: hasSpotify() ? env.spotifyRedirectUri : undefined,
     storage: storageLabel(),
     storageWarning: storageWarning(),
     dynamodbConfigured: dynamoConfigured,

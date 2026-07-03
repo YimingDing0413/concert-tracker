@@ -1,16 +1,12 @@
 import crypto from 'node:crypto';
+import { authSecret } from '../env.js';
 
-const DEFAULT_SECRET = 'encore-dev-secret-change-in-production';
 const TTL_MS = 30 * 24 * 60 * 60 * 1000;
-
-function secret(): string {
-  return process.env.AUTH_SECRET?.trim() || DEFAULT_SECRET;
-}
 
 export function createAuthToken(userId: string): string {
   const exp = Date.now() + TTL_MS;
   const payload = `${userId}:${exp}`;
-  const sig = crypto.createHmac('sha256', secret()).update(payload).digest('base64url');
+  const sig = crypto.createHmac('sha256', authSecret()).update(payload).digest('base64url');
   return Buffer.from(`${payload}:${sig}`).toString('base64url');
 }
 
@@ -27,7 +23,7 @@ export function verifyAuthToken(token: string): string | null {
     const exp = Number(rest.slice(expSep + 1));
     if (!userId || !Number.isFinite(exp) || Date.now() > exp) return null;
     const payload = `${userId}:${exp}`;
-    const expected = crypto.createHmac('sha256', secret()).update(payload).digest('base64url');
+    const expected = crypto.createHmac('sha256', authSecret()).update(payload).digest('base64url');
     if (sig !== expected) return null;
     return userId;
   } catch {

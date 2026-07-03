@@ -1,14 +1,12 @@
 import crypto from 'node:crypto';
+import { authSecret, envValue } from '../env.js';
 
 const ALGO = 'aes-256-gcm';
 const IV_LEN = 12;
 const TAG_LEN = 16;
 
 function encryptionKey(): Buffer {
-  const raw =
-    process.env.SPOTIFY_TOKEN_ENCRYPTION_KEY?.trim() ||
-    process.env.AUTH_SECRET?.trim() ||
-    'encore-dev-secret-change-in-production';
+  const raw = envValue('SPOTIFY_TOKEN_ENCRYPTION_KEY') || authSecret();
   return crypto.createHash('sha256').update(raw).digest();
 }
 

@@ -30,6 +30,7 @@ import {
   startSpotifyConnect,
   syncSpotifyTaste,
 } from '@/lib/social/spotifyApi';
+import { spotifyConnectErrorMessage } from '@/lib/spotifyConnectErrors';
 import type { FeedPost, FollowCounts, FollowerItem, FollowItem, UserProfile } from '@/types';
 import type { SpotifyConnectionStatus } from '@/types/spotify';
 import type { ConcertReview } from '@/types/concertReview';
@@ -75,6 +76,7 @@ export function ProfilePage() {
   const [spotifyLoading, setSpotifyLoading] = useState(true);
   const [spotifySyncing, setSpotifySyncing] = useState(false);
   const [spotifyDisconnecting, setSpotifyDisconnecting] = useState(false);
+  const [spotifyConnectError, setSpotifyConnectError] = useState<string | null>(null);
 
   const { userConcerts, concertMap, loading: concertsLoading } = useProfileConcerts(user?.id);
 
@@ -122,13 +124,26 @@ export function ProfilePage() {
 
   useEffect(() => {
     const spotify = searchParams.get('spotify');
+    const reason = searchParams.get('reason');
+
+    if (spotify === 'error' && reason) {
+      setSpotifyConnectError(spotifyConnectErrorMessage(reason));
+      setSearchParams({}, { replace: true });
+      return;
+    }
+
     if (spotify === 'connected' && user) {
+      setSpotifyConnectError(null);
       void refreshSpotify();
       void syncSpotifyTaste()
         .then(() => refreshSpotify())
-        .catch(() => undefined);
+        .catch((err) => {
+          setSpotifyConnectError(
+            err instanceof Error ? err.message : 'Spotify connected but sync failed.'
+          );
+        });
     }
-  }, [searchParams, user, refreshSpotify]);
+  }, [searchParams, user, refreshSpotify, setSearchParams]);
 
   useEffect(() => {
     if (!user) return;
@@ -246,11 +261,15 @@ export function ProfilePage() {
         loading={spotifyLoading}
         syncing={spotifySyncing}
         disconnecting={spotifyDisconnecting}
+        error={spotifyConnectError}
         onConnect={async () => {
+          setSpotifyConnectError(null);
           try {
             await startSpotifyConnect();
-          } catch {
-            /* surfaced via section if needed */
+          } catch (err) {
+            setSpotifyConnectError(
+              err instanceof Error ? err.message : 'Could not connect Spotify.'
+            );
           }
         }}
         onSync={async () => {

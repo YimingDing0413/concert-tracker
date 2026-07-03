@@ -22,6 +22,10 @@ export function envValue(key: string, fallback = ''): string {
   return v;
 }
 
+export function authSecret(): string {
+  return envValue('AUTH_SECRET', 'encore-dev-secret-change-in-production');
+}
+
 export const env = {
   port: Number(envValue('PORT', '3001')),
   ticketmasterApiKey: envValue('TICKETMASTER_API_KEY'),

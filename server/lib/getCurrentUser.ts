@@ -34,7 +34,6 @@ export async function getCurrentUserFromRequest(
       getUserProfile(userId).catch(() => null),
       getSocialProfile(userId).catch(() => null),
     ]);
-    if (!authProfile && !social) return null;
     return {
       userId,
       email: authProfile?.email,

@@ -18,10 +18,26 @@ export async function startSpotifyConnect(): Promise<void> {
       Accept: 'application/json',
     },
   });
-  const body = (await res.json()) as { data?: { url?: string }; error?: string };
+
+  let body: { data?: { url?: string }; error?: string } = {};
+  try {
+    body = (await res.json()) as typeof body;
+  } catch {
+    body = {};
+  }
+
+  if (res.status === 401) {
+    throw new Error('Please log in again, then tap Connect Spotify.');
+  }
+
+  if (res.status === 503) {
+    throw new Error(body.error ?? 'Spotify is not configured on this server.');
+  }
+
   if (!res.ok || !body.data?.url) {
     throw new Error(body.error ?? 'Could not start Spotify connect.');
   }
+
   window.location.assign(body.data.url);
 }
 

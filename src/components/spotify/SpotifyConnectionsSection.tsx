@@ -8,6 +8,7 @@ interface SpotifyConnectionsSectionProps {
   loading?: boolean;
   syncing?: boolean;
   disconnecting?: boolean;
+  error?: string | null;
   onConnect: () => void;
   onSync: () => void;
   onDisconnect: () => void;
@@ -18,6 +19,7 @@ export function SpotifyConnectionsSection({
   loading,
   syncing,
   disconnecting,
+  error,
   onConnect,
   onSync,
   onDisconnect,
@@ -77,9 +79,14 @@ export function SpotifyConnectionsSection({
               </div>
             </div>
           ) : (
-            <Button variant="primary" size="sm" onClick={() => void onConnect()}>
-              Connect Spotify
-            </Button>
+            <div className="space-y-2">
+              {error && (
+                <p className="rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
+              )}
+              <Button variant="primary" size="sm" onClick={() => void onConnect()}>
+                Connect Spotify
+              </Button>
+            </div>
           )}
         </div>
       </div>

@@ -1,17 +1,14 @@
 import crypto from 'node:crypto';
+import { authSecret } from '../env.js';
 
 const TTL_MS = 10 * 60 * 1000;
-
-function secret(): string {
-  return process.env.AUTH_SECRET?.trim() || 'encore-dev-secret-change-in-production';
-}
 
 /** Signed OAuth state embedding userId — no cookies required. */
 export function createSpotifyOAuthState(userId: string): string {
   const nonce = crypto.randomUUID();
   const exp = Date.now() + TTL_MS;
   const payload = `${userId}:${nonce}:${exp}`;
-  const sig = crypto.createHmac('sha256', secret()).update(payload).digest('base64url');
+  const sig = crypto.createHmac('sha256', authSecret()).update(payload).digest('base64url');
   return Buffer.from(`${payload}:${sig}`).toString('base64url');
 }
 
@@ -32,7 +29,7 @@ export function verifySpotifyOAuthState(state: string): string | null {
     const nonce = beforeExp.slice(nonceSep + 1);
     if (!userId || !nonce || !Number.isFinite(exp) || Date.now() > exp) return null;
     const payload = `${userId}:${nonce}:${exp}`;
-    const expected = crypto.createHmac('sha256', secret()).update(payload).digest('base64url');
+    const expected = crypto.createHmac('sha256', authSecret()).update(payload).digest('base64url');
     if (sig !== expected) return null;
     return userId;
   } catch {
