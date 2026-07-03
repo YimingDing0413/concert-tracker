@@ -119,6 +119,15 @@ async function getTicketmasterArtistEvents(attractionId: string, mode: 'upcoming
   return normalizeTmEventsResponse(payload).filter((e) => e.date < today);
 }
 
+export async function resolveArtistImageFallback(artistName: string): Promise<string | undefined> {
+  const [searchRes, profileRes] = await Promise.all([
+    searchArtists(artistName),
+    getArtistProfile(artistName),
+  ]);
+  const fromSearch = searchRes.data[0]?.imageUrl ?? searchRes.data[0]?.thumbUrl;
+  return fromSearch ?? profileRes.data.imageUrl ?? profileRes.data.thumbUrl;
+}
+
 export async function getArtistDetail(idOrName: string): Promise<{
   data: ArtistDetail;
   meta?: { source: string; message?: string };
@@ -214,6 +223,12 @@ export async function getArtistDetail(idOrName: string): Promise<{
     imageUrl: artist.imageUrl ?? profileRes.data.imageUrl,
     source: artist.source ?? profileRes.data.source,
   };
+  const artistImageFallback = mergedArtist.imageUrl ?? mergedArtist.thumbUrl;
+
+  const withArtistImage = (concert: ReturnType<typeof concertEventToConcert>) => ({
+    ...concert,
+    imageUrl: concert.imageUrl ?? artistImageFallback,
+  });
 
   const nextUpcoming = upcoming[0];
   const predicted = buildPredictedSetlistWithTourFallback(
@@ -237,8 +252,8 @@ export async function getArtistDetail(idOrName: string): Promise<{
   return {
     data: {
       ...mergedArtist,
-      upcomingConcerts: upcoming,
-      pastConcerts: past,
+      upcomingConcerts: upcoming.map(withArtistImage),
+      pastConcerts: past.map(withArtistImage),
       recentSetlists: setlists.slice(0, 8),
       predictedSetlist: predicted.songs.length > 0 ? predicted : undefined,
     },

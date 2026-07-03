@@ -58,12 +58,17 @@ export function ConcertPosterCard({
         state={{ concertSnapshot: concert, ...(backTo ? { backTo } : {}) }}
         className="block no-underline"
       >
-        <div className="relative aspect-[3/4] max-h-[320px] overflow-hidden sm:aspect-[4/5]">
+        <div
+          className={cn(
+            'relative w-full overflow-hidden bg-muted',
+            width === 'carousel' ? 'aspect-[4/5]' : 'aspect-[16/10]'
+          )}
+        >
           {concert.imageUrl ? (
             <img
               src={concert.imageUrl}
               alt=""
-              className="absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-105"
+              className="size-full object-cover object-center transition-transform duration-500 group-hover:scale-[1.02]"
               loading="lazy"
             />
           ) : (

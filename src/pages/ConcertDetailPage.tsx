@@ -8,6 +8,7 @@ import { ApiNotice } from '@/components/ui/ApiNotice';
 import { useAuth } from '@/context/AuthContext';
 import type {
   AggregatedShowTiming,
+  Concert,
   ConcertDetail,
   ShowReportInput,
   UserConcert,
@@ -18,6 +19,33 @@ import { TicketCtaLink } from '@/components/ui/TicketCtaLink';
 import { Calendar, MapPin } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
+
+function mergeConcertDetail(
+  apiConcert: ConcertDetail | null,
+  snapshot?: Partial<Concert>
+): ConcertDetail | null {
+  if (!apiConcert && !snapshot) return null;
+  if (!apiConcert) return snapshot as ConcertDetail;
+  if (!snapshot) return apiConcert;
+
+  return {
+    ...apiConcert,
+    ...snapshot,
+    id: apiConcert.id,
+    imageUrl: apiConcert.imageUrl ?? snapshot.imageUrl,
+    artistName: snapshot.artistName || apiConcert.artistName,
+    venueName: snapshot.venueName || apiConcert.venueName,
+    city: snapshot.city || apiConcert.city,
+    state: snapshot.state ?? apiConcert.state,
+    country: snapshot.country || apiConcert.country,
+    date: snapshot.date || apiConcert.date,
+    startTime: snapshot.startTime ?? apiConcert.startTime,
+    setlist: apiConcert.setlist,
+    predictedSetlist: apiConcert.predictedSetlist,
+    artist: apiConcert.artist,
+    venue: apiConcert.venue,
+  };
+}
 
 export function ConcertDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -39,9 +67,7 @@ export function ConcertDetailPage() {
     if (!user) {
       const [c, timing] = await Promise.all([api.getConcert(id), timingPromise]);
       const snapshot = navState.concertSnapshot;
-      const merged =
-        snapshot && c?.source === 'mock' ? ({ ...c, ...snapshot, id: c.id } as ConcertDetail) : c;
-      setConcert(merged);
+      setConcert(mergeConcertDetail(c, snapshot));
       setUserConcert(null);
       setShowTiming(timing.aggregated);
       setShowReportCount(timing.reports.length);
@@ -53,9 +79,7 @@ export function ConcertDetailPage() {
       timingPromise,
     ]);
     const snapshot = navState.concertSnapshot;
-    const merged =
-      snapshot && c?.source === 'mock' ? ({ ...c, ...snapshot, id: c.id } as ConcertDetail) : c;
-    setConcert(merged);
+    setConcert(mergeConcertDetail(c, snapshot));
     setUserConcert(ucs.find((uc) => uc.concertId === id) ?? null);
     setShowTiming(timing.aggregated);
     setShowReportCount(timing.reports.length);
@@ -115,12 +139,12 @@ export function ConcertDetailPage() {
     <div className="min-h-dvh bg-background pb-10">
       {/* Cinematic hero */}
       <div className="relative">
-        <div className="relative aspect-[4/5] max-h-[420px] w-full sm:aspect-[21/9] sm:max-h-[480px]">
+        <div className="relative aspect-[16/10] w-full overflow-hidden bg-muted sm:aspect-[21/9]">
           {concert.imageUrl ? (
             <img
               src={concert.imageUrl}
               alt=""
-              className="absolute inset-0 size-full object-cover"
+              className="size-full object-cover object-center"
             />
           ) : (
             <div className="poster-gradient absolute inset-0" />

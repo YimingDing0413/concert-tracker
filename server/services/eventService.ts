@@ -16,7 +16,7 @@ import {
   setlistToPastEvent,
   type TourContext,
 } from '../normalize/setlistfm.js';
-import { getSetlistsForArtist } from './artistService.js';
+import { getSetlistsForArtist, resolveArtistImageFallback } from './artistService.js';
 
 export async function listEvents(params: {
   keyword?: string;
@@ -178,6 +178,8 @@ export async function mergeEventDetail(
   event: ConcertEvent,
   artistName: string
 ): Promise<ConcertEvent> {
+  let merged = event;
+
   if (hasBandsintown()) {
     try {
       const bitEvents = await bit.bitGetArtistEvents(artistName);
@@ -188,16 +190,23 @@ export async function mergeEventDetail(
           e.venueName.toLowerCase().includes(event.venueName.toLowerCase().slice(0, 8))
       );
       if (match) {
-        return {
-          ...event,
-          openers: match.openers ?? event.openers,
-          ticketUrl: match.ticketUrl ?? event.ticketUrl,
+        merged = {
+          ...merged,
+          openers: match.openers ?? merged.openers,
+          ticketUrl: match.ticketUrl ?? merged.ticketUrl,
           lineup: match.lineup,
+          imageUrl: match.imageUrl ?? merged.imageUrl,
         };
       }
     } catch {
       /* optional enrichment */
     }
   }
-  return event;
+
+  if (!merged.imageUrl) {
+    const fallback = await resolveArtistImageFallback(artistName);
+    if (fallback) merged = { ...merged, imageUrl: fallback };
+  }
+
+  return merged;
 }
