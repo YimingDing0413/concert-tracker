@@ -23,7 +23,7 @@ import {
   saveSpotifyConnection,
   saveSpotifyTasteProfile,
 } from '../../src/lib/db/spotifyRepository.js';
-import { normalizeArtistName } from '../../src/lib/recommendations/spotifyConcertRecommendations.js';
+import { normalizeArtistName } from '../../src/lib/recommendations/artistMatching.js';
 import type {
   SpotifyConnection,
   SpotifyConnectionStatus,

@@ -54,5 +54,6 @@ export function concertEventToConcert(event: ConcertEvent): Concert {
     segmentName: event.segmentName,
     genreName: event.genreName,
     subGenreName: event.subGenreName,
+    title: event.title,
   };
 }

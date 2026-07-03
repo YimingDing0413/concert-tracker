@@ -13,6 +13,7 @@ recommendationsRouter.get('/spotify-concerts', requireAuth, requireDynamo, async
     const radius = Number(req.query.radius ?? req.query.radiusKm ?? 50);
     const limitRaw = Number(req.query.limit ?? 6);
     const limit = Math.min(24, Math.max(1, Number.isNaN(limitRaw) ? 6 : limitRaw));
+    const debug = req.query.debug === 'true' || req.query.debug === '1';
 
     if (
       Number.isNaN(lat) ||
@@ -59,6 +60,7 @@ recommendationsRouter.get('/spotify-concerts', requireAuth, requireDynamo, async
       longitude: lng,
       radiusKm: Number.isNaN(radius) ? 50 : radius,
       limit,
+      debug,
     });
 
     res.json({
@@ -67,6 +69,7 @@ recommendationsRouter.get('/spotify-concerts', requireAuth, requireDynamo, async
         synced: true,
         recommendations: result.recommendations,
         nearbyCount: result.nearbyCount,
+        ...(result.debug ? { debug: result.debug } : {}),
       },
     });
   } catch (err) {

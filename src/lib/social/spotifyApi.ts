@@ -4,6 +4,7 @@ import { authHeaders } from '@/lib/auth/session';
 import type {
   SpotifyConnectionStatus,
   SpotifyConcertRecommendation,
+  SpotifyRecommendationsDebugMeta,
 } from '@/types/spotify';
 
 export async function getSpotifyStatus(): Promise<SpotifyConnectionStatus> {
@@ -40,6 +41,7 @@ export interface SpotifyRecommendationsResponse {
   synced: boolean;
   recommendations: SpotifyConcertRecommendation[];
   nearbyCount: number;
+  debug?: SpotifyRecommendationsDebugMeta;
 }
 
 export async function getSpotifyConcertRecommendations(payload: {
@@ -47,6 +49,7 @@ export async function getSpotifyConcertRecommendations(payload: {
   lng: number;
   radius?: number;
   limit?: number;
+  debug?: boolean;
 }): Promise<SpotifyRecommendationsResponse> {
   const params = new URLSearchParams({
     lat: String(payload.lat),
@@ -55,6 +58,9 @@ export async function getSpotifyConcertRecommendations(payload: {
   });
   if (payload.limit != null) {
     params.set('limit', String(payload.limit));
+  }
+  if (payload.debug) {
+    params.set('debug', 'true');
   }
   return apiFetchData<SpotifyRecommendationsResponse>(
     `/api/recommendations/spotify-concerts?${params}`

@@ -6,4 +6,6 @@ export type {
   SpotifyConnection,
   SpotifyConnectionStatus,
   SpotifyConcertRecommendation,
+  SpotifyRecommendationScoreBreakdown,
+  SpotifyRecommendationsDebugMeta,
 } from '@shared/types/spotify';

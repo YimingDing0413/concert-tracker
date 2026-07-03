@@ -72,8 +72,36 @@ export interface SpotifyConcertRecommendation {
   venueLatitude?: number;
   venueLongitude?: number;
   spotifyScore: number;
+  confidence: 'high' | 'medium' | 'low';
   reasons: string[];
   matchedSpotifyArtists: string[];
   alreadySaved?: boolean;
   alreadyGoing?: boolean;
+  /** Present only when API called with debug=true */
+  scoreBreakdown?: SpotifyRecommendationScoreBreakdown;
+}
+
+export interface SpotifyRecommendationScoreBreakdown {
+  exactTopArtist?: number;
+  topTrackArtist?: number;
+  fuzzyArtist?: number;
+  artistWeight?: number;
+  genre?: number;
+  subgenre?: number;
+  encoreHistory?: number;
+  attendedArtist?: number;
+  image?: number;
+  dateUrgency?: number;
+  distance?: number;
+}
+
+export interface SpotifyRecommendationsDebugMeta {
+  candidateCount: number;
+  nearbyCandidateCount: number;
+  artistSearchCandidateCount: number;
+  excludedAlreadyAttendedCount: number;
+  excludedSavedGoingCount: number;
+  excludedLowQualityCount: number;
+  finalRecommendationCount: number;
+  topScore?: number;
 }
