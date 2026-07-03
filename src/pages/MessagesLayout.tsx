@@ -23,8 +23,8 @@ function MessagesInbox() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="shrink-0 border-b border-border/50 px-4 py-4">
-        <h1 className="text-xl font-bold">Messages</h1>
+      <div className="shrink-0 px-4 py-4">
+        <h1 className="font-display text-display-md text-foreground">Messages</h1>
         <p className="text-sm text-muted-foreground">@{user.username || user.displayName || 'you'}</p>
       </div>
 

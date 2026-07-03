@@ -1,0 +1,158 @@
+/**
+ * Encore design tokens — dark-first social concert app.
+ * Maps semantic tokens to Tailwind via @theme in index.css.
+ */
+
+.dark {
+  --encore-bg: #0a0b10;
+  --encore-surface-1: #12141c;
+  --encore-surface-2: #1a1d28;
+  --encore-surface-3: #242836;
+  --encore-text-primary: #f4f4f7;
+  --encore-text-secondary: #c4c8d4;
+  --encore-text-muted: #8b92a8;
+  --encore-brand-purple: #a855f7;
+  --encore-brand-pink: #ec4899;
+  --encore-ticket-amber: #fbbf24;
+  --encore-review-gold: #f59e0b;
+  --encore-spotify-green: #1db954;
+  --encore-border-subtle: rgb(255 255 255 / 0.06);
+  --encore-border-strong: rgb(255 255 255 / 0.12);
+
+  /* Bridge to existing shadcn tokens */
+  --background: var(--encore-bg);
+  --foreground: var(--encore-text-primary);
+  --card: var(--encore-surface-1);
+  --card-foreground: var(--encore-text-primary);
+  --popover: var(--encore-surface-2);
+  --popover-foreground: var(--encore-text-primary);
+  --primary: var(--encore-brand-purple);
+  --primary-foreground: #fafafa;
+  --secondary: var(--encore-surface-2);
+  --secondary-foreground: var(--encore-text-secondary);
+  --muted: var(--encore-surface-2);
+  --muted-foreground: var(--encore-text-muted);
+  --accent: var(--encore-brand-pink);
+  --accent-foreground: var(--encore-text-primary);
+  --destructive: #ef4444;
+  --destructive-foreground: #fafafa;
+  --border: var(--encore-border-subtle);
+  --input: var(--encore-surface-3);
+  --ring: var(--encore-brand-purple);
+}
+
+/* Typography */
+.font-display {
+  font-family: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+  letter-spacing: -0.025em;
+}
+
+.text-display-xl {
+  font-family: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+  font-size: clamp(1.75rem, 5vw, 2.5rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.text-display-lg {
+  font-family: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+  font-size: clamp(1.35rem, 4vw, 1.75rem);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+}
+
+.text-display-md {
+  font-family: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+/* Surfaces — prefer over bordered cards */
+.surface-1 {
+  background: var(--encore-surface-1);
+}
+
+.surface-2 {
+  background: var(--encore-surface-2);
+}
+
+.surface-3 {
+  background: var(--encore-surface-3);
+}
+
+.glass-encore {
+  background: rgb(18 20 28 / 0.72);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--encore-border-subtle);
+}
+
+.divide-subtle {
+  border-color: var(--encore-border-subtle);
+}
+
+.text-ticket {
+  color: var(--encore-ticket-amber);
+}
+
+.text-review-gold {
+  color: var(--encore-review-gold);
+}
+
+.text-spotify {
+  color: var(--encore-spotify-green);
+}
+
+.bg-ticket-soft {
+  background: rgb(251 191 36 / 0.1);
+}
+
+.bg-review-soft {
+  background: rgb(245 158 11 / 0.1);
+}
+
+.bg-spotify-soft {
+  background: rgb(29 185 84 / 0.12);
+}
+
+.brand-gradient {
+  background: linear-gradient(135deg, var(--encore-brand-purple), var(--encore-brand-pink));
+}
+
+.brand-gradient-text {
+  background: linear-gradient(135deg, var(--encore-brand-purple), var(--encore-brand-pink));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.poster-gradient {
+  background: linear-gradient(
+    160deg,
+    rgb(168 85 247 / 0.45) 0%,
+    rgb(236 72 153 / 0.25) 40%,
+    var(--encore-bg) 100%
+  );
+}
+
+/* Horizontal scroll carousel */
+.carousel-scroll {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  padding-bottom: 0.25rem;
+}
+
+.carousel-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.carousel-scroll > * {
+  scroll-snap-align: start;
+  flex-shrink: 0;
+}

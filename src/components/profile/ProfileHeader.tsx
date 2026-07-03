@@ -39,7 +39,7 @@ export function ProfileHeader({
   return (
     <header className="space-y-5 pb-2">
       <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start sm:gap-5">
-        <Avatar className="size-24 shrink-0 border-2 border-border/60 ring-2 ring-primary/20">
+        <Avatar className="size-24 shrink-0 ring-2 ring-primary/30">
           <AvatarImage src={avatarUrl} alt="" />
           <AvatarFallback className="bg-gradient-to-br from-primary/30 to-violet-900/40 text-3xl font-semibold text-primary">
             {initial}
@@ -47,7 +47,7 @@ export function ProfileHeader({
         </Avatar>
 
         <div className="min-w-0 flex-1 text-center sm:text-left">
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{displayName}</h1>
+          <h1 className="font-display text-display-lg text-foreground">{displayName}</h1>
           {username ? (
             <p className="mt-0.5 text-muted-foreground">@{username}</p>
           ) : (

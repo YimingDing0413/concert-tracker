@@ -16,7 +16,7 @@ import { buildTicketPrefill } from '@/lib/social/messagesApi';
 import { useState, type MouseEvent, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
-export type ProfileContentTab = 'concerts' | 'going' | 'reviews' | 'posts' | 'wrapped';
+export type ProfileContentTab = 'concerts' | 'going' | 'want' | 'reviews' | 'posts' | 'wrapped';
 
 interface ProfileContentTabsProps {
   userId: string;
@@ -46,8 +46,10 @@ export function ProfileContentTabs({
   const viewerUserId = user?.id;
   const attended = userConcerts.filter((uc) => uc.status === 'attended');
   const going = userConcerts.filter((uc) => uc.status === 'going');
+  const want = userConcerts.filter((uc) => uc.status === 'saved');
   const attendedSorted = sortUserConcertsByDate(attended, concertMap);
   const goingSorted = sortUserConcertsByDate(going, concertMap);
+  const wantSorted = sortUserConcertsByDate(want, concertMap);
 
   const avg = averageOverallRating(reviews.map((r) => r.overallRating));
 
@@ -139,6 +141,34 @@ export function ProfileContentTabs({
         >
           <ul className="grid gap-4 sm:grid-cols-2">
             {goingSorted.map((uc) => (
+              <li key={uc.id}>
+                <ConcertCard
+                  concert={resolveConcertForUserConcert(uc, concertMap[uc.concertId])}
+                  userConcert={uc}
+                  concertId={uc.concertId}
+                  backTo={backTo}
+                  variant="memory"
+                  showSource={false}
+                />
+              </li>
+            ))}
+          </ul>
+        </TabBody>
+      )}
+
+      {mode === 'full' && tab === 'want' && (
+        <TabBody
+          emptyTitle="No saved shows yet"
+          emptyDescription="Save concerts you want tickets for — they'll appear here."
+          emptyAction={
+            <Link to="/" className="text-sm font-medium text-primary">
+              Discover shows →
+            </Link>
+          }
+          isEmpty={wantSorted.length === 0}
+        >
+          <ul className="grid gap-4 sm:grid-cols-2">
+            {wantSorted.map((uc) => (
               <li key={uc.id}>
                 <ConcertCard
                   concert={resolveConcertForUserConcert(uc, concertMap[uc.concertId])}

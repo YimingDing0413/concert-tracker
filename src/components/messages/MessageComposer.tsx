@@ -32,7 +32,7 @@ export function MessageComposer({
   return (
     <form
       onSubmit={(e) => void handleSubmit(e)}
-      className="flex items-end gap-2 border-t border-border/50 bg-background/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-xl"
+      className="flex items-end gap-2 border-t border-[var(--encore-border-subtle)] bg-background/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-xl"
     >
       <textarea
         value={text}
@@ -40,7 +40,7 @@ export function MessageComposer({
         rows={1}
         placeholder={placeholder}
         disabled={disabled || sending}
-        className="max-h-28 min-h-[2.5rem] flex-1 resize-none rounded-2xl border border-border/60 bg-card px-4 py-2.5 text-sm outline-none focus:border-primary/40"
+        className="max-h-28 min-h-[2.5rem] flex-1 resize-none rounded-2xl bg-surface-2 px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30"
         onKeyDown={(e) => {
           if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();

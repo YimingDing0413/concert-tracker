@@ -8,6 +8,9 @@ function mapLegacyTab(tab: string | null): ProfileContentTab | null {
       return 'concerts';
     case 'going':
       return 'going';
+    case 'saved':
+    case 'want':
+      return 'want';
     case 'reviewed':
       return 'reviews';
     case 'wrapped':

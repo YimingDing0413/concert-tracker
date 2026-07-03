@@ -1,9 +1,8 @@
-import { SpotifyRecommendedConcertCard } from '@/components/discover/SpotifyRecommendedConcertCard';
+import { SpotifyPickCard } from '@/components/cards/SpotifyPickCard';
+import { ConcertPosterCard } from '@/components/cards/ConcertPosterCard';
 import { Button } from '@/components/ui/app-button';
-import { ConcertCard } from '@/components/concert/ConcertCard';
 import { ConcertCardSkeleton } from '@/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { SectionHeader } from '@/components/ui/SectionHeader';
 import {
   getSpotifyConcertRecommendations,
   getSpotifyStatus,
@@ -22,6 +21,7 @@ interface SpotifyForYouSectionProps {
   longitude: number;
   nearbyFallback: Concert[];
   loadingNearby: boolean;
+  layout?: 'grid' | 'carousel';
 }
 
 export function SpotifyForYouSection({
@@ -30,6 +30,7 @@ export function SpotifyForYouSection({
   longitude,
   nearbyFallback,
   loadingNearby,
+  layout = 'grid',
 }: SpotifyForYouSectionProps) {
   const [status, setStatus] = useState<SpotifyConnectionStatus | null>(null);
   const [recs, setRecs] = useState<SpotifyRecommendationsResponse | null>(null);
@@ -92,31 +93,54 @@ export function SpotifyForYouSection({
   const synced = status?.hasTasteProfile ?? false;
   const recommendations = recs?.recommendations ?? [];
 
+  const cardList =
+    layout === 'carousel' ? (
+      <div className="carousel-scroll">
+        {recommendations.map((c) => (
+          <SpotifyPickCard key={c.id} concert={c} backTo="/" width="carousel" />
+        ))}
+      </div>
+    ) : (
+      <div className="grid gap-4 sm:grid-cols-2">
+        {recommendations.map((c) => (
+          <SpotifyPickCard key={c.id} concert={c} backTo="/" />
+        ))}
+      </div>
+    );
+
   return (
-    <section>
-      <SectionHeader
-        title="For You from Spotify"
-        subtitle="Concerts near you based on what you listen to"
-        actionLabel="Profile"
-        actionTo="/profile"
-      />
+    <section className="space-y-3">
+      <div>
+        <h2 className="text-display-md text-foreground">For you from Spotify</h2>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          Concerts near you based on what you listen to
+        </p>
+      </div>
 
       {error && (
-        <p className="mb-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <p className="rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {error}
         </p>
       )}
 
       {loading || loadingNearby ? (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {Array.from({ length: 2 }).map((_, i) => (
-            <ConcertCardSkeleton key={`spotify-${i}`} />
-          ))}
-        </div>
+        layout === 'carousel' ? (
+          <div className="carousel-scroll">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <ConcertCardSkeleton key={`spotify-${i}`} className="w-[260px]" />
+            ))}
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {Array.from({ length: 2 }).map((_, i) => (
+              <ConcertCardSkeleton key={`spotify-${i}`} />
+            ))}
+          </div>
+        )
       ) : !connected ? (
-        <div className="rounded-2xl border border-border/50 bg-card/50 p-5">
+        <div className="rounded-2xl bg-spotify-soft p-5">
           <div className="flex items-start gap-3">
-            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-[#1DB954]/15 text-[#1DB954]">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-spotify/15 text-spotify">
               <Music2 className="size-5" aria-hidden />
             </span>
             <div className="space-y-3">
@@ -130,9 +154,9 @@ export function SpotifyForYouSection({
           </div>
         </div>
       ) : !synced ? (
-        <div className="rounded-2xl border border-border/50 bg-card/50 p-5">
+        <div className="rounded-2xl bg-spotify-soft p-5">
           <div className="flex items-start gap-3">
-            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-[#1DB954]/15 text-[#1DB954]">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-spotify/15 text-spotify">
               <Music2 className="size-5" aria-hidden />
             </span>
             <div className="space-y-3">
@@ -146,11 +170,7 @@ export function SpotifyForYouSection({
           </div>
         </div>
       ) : recommendations.length > 0 ? (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {recommendations.map((c) => (
-            <SpotifyRecommendedConcertCard key={c.id} concert={c} backTo="/" />
-          ))}
-        </div>
+        cardList
       ) : (
         <div className="space-y-4">
           <EmptyState
@@ -158,11 +178,19 @@ export function SpotifyForYouSection({
             description="We couldn't find nearby shows that match your Spotify taste right now."
           />
           {nearbyFallback.length > 0 && (
-            <div className="grid gap-4 sm:grid-cols-2">
-              {nearbyFallback.slice(0, 4).map((c) => (
-                <ConcertCard key={`spotify-fallback-${c.id}`} concert={c} backTo="/" variant="poster" />
-              ))}
-            </div>
+            layout === 'carousel' ? (
+              <div className="carousel-scroll">
+                {nearbyFallback.slice(0, 4).map((c) => (
+                  <ConcertPosterCard key={`spotify-fallback-${c.id}`} concert={c} backTo="/" width="carousel" />
+                ))}
+              </div>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2">
+                {nearbyFallback.slice(0, 4).map((c) => (
+                  <ConcertPosterCard key={`spotify-fallback-${c.id}`} concert={c} backTo="/" />
+                ))}
+              </div>
+            )
           )}
         </div>
       )}

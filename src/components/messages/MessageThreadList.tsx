@@ -1,4 +1,4 @@
-import { MessageThreadListItem } from '@/components/messages/MessageThreadListItem';
+import { MessageThreadRow } from '@/components/cards/MessageThreadRow';
 import { EmptyState } from '@/components/ui/EmptyState';
 import type { MessageThread } from '@/types';
 import { Link } from 'react-router-dom';
@@ -37,9 +37,9 @@ export function MessageThreadList({
   }
 
   return (
-    <ul className="divide-y divide-border/30">
+    <ul>
       {threads.map((thread) => (
-        <MessageThreadListItem
+        <MessageThreadRow
           key={thread.id}
           thread={thread}
           currentUserId={currentUserId}

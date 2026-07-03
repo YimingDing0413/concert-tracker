@@ -1,6 +1,6 @@
-import { ConcertPostCard } from '@/components/feed/ConcertPostCard';
-import { LookingForTicketsPostCard } from '@/components/feed/LookingForTicketsPostCard';
-import { ReviewFeedPostCard } from '@/components/feed/ReviewFeedPostCard';
+import { ConcertMemoryPostCard } from '@/components/cards/ConcertMemoryPostCard';
+import { ReviewPostCard } from '@/components/cards/ReviewPostCard';
+import { TicketPostCard } from '@/components/cards/TicketPostCard';
 import type { FeedPost } from '@/types';
 
 interface FeedPostCardProps {
@@ -16,16 +16,12 @@ export function FeedPostCard({ post, viewerUserId, onHaveTickets }: FeedPostCard
   switch (post.type) {
     case 'looking_for_tickets':
       return (
-        <LookingForTicketsPostCard
-          post={post}
-          onHaveTickets={onHaveTickets}
-          isOwnPost={isOwnPost}
-        />
+        <TicketPostCard post={post} onHaveTickets={onHaveTickets} isOwnPost={isOwnPost} />
       );
     case 'review':
-      return <ReviewFeedPostCard post={post} isOwnPost={isOwnPost} />;
+      return <ReviewPostCard post={post} isOwnPost={isOwnPost} />;
     case 'concert_post':
     default:
-      return <ConcertPostCard post={post} />;
+      return <ConcertMemoryPostCard post={post} />;
   }
 }

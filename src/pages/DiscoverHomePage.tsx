@@ -1,9 +1,8 @@
 import { apiFetch } from '@/api/http';
 import { api } from '@/api';
-import { ConcertCard } from '@/components/concert/ConcertCard';
-import { RecommendedConcertCard } from '@/components/discover/RecommendedConcertCard';
+import { CompactConcertRow } from '@/components/cards/CompactConcertRow';
+import { ConcertPosterCard } from '@/components/cards/ConcertPosterCard';
 import { SpotifyForYouSection } from '@/components/spotify/SpotifyForYouSection';
-import { SectionHeader } from '@/components/ui/SectionHeader';
 import { SearchAutocomplete } from '@/components/search/SearchAutocomplete';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ConcertCardSkeleton } from '@/components/ui/LoadingSkeleton';
@@ -24,8 +23,8 @@ import {
 } from '@/lib/recommendations/concertRecommendations';
 import type { Concert, MapEventsPayload, UserConcert } from '@/types';
 import type { ConcertReview } from '@/types/concertReview';
-import { sortUserConcertsByDate } from '@/utils/userConcert';
-import { TrendingUp } from 'lucide-react';
+import { formatDate, formatLocation } from '@/utils/format';
+import { MapPin, Sparkles, TrendingUp } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -38,6 +37,54 @@ function concertsFromMapPayload(data: MapEventsPayload): Concert[] {
   return list.sort((a, b) => a.date.localeCompare(b.date));
 }
 
+function FeaturedHero({
+  concert,
+  label,
+  backTo = '/',
+}: {
+  concert: RecommendedConcert | Concert;
+  label: string;
+  backTo?: string;
+}) {
+  const location = formatLocation(concert.city, concert.state, concert.country);
+
+  return (
+    <Link
+      to={`/concert/${concert.id}`}
+      state={{ backTo, concertSnapshot: concert }}
+      className="group relative block overflow-hidden rounded-3xl no-underline"
+    >
+      <div className="relative aspect-[16/11] sm:aspect-[21/9]">
+        {concert.imageUrl ? (
+          <img
+            src={concert.imageUrl}
+            alt=""
+            className="absolute inset-0 size-full object-cover transition-transform duration-700 group-hover:scale-105"
+          />
+        ) : (
+          <div className="poster-gradient absolute inset-0" />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-black/10" />
+        <div className="absolute inset-x-0 bottom-0 space-y-2 p-5 sm:p-7">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+            <Sparkles className="size-3.5 text-primary" aria-hidden />
+            {label}
+          </span>
+          <h2 className="text-display-lg text-white">{concert.artistName}</h2>
+          <p className="flex items-center gap-1.5 text-sm text-white/75">
+            <MapPin className="size-4 shrink-0" aria-hidden />
+            {concert.venueName}
+            {location ? ` · ${location}` : ''}
+          </p>
+          {concert.date && (
+            <p className="text-sm font-medium text-white/90">{formatDate(concert.date)}</p>
+          )}
+        </div>
+      </div>
+    </Link>
+  );
+}
+
 export function DiscoverHomePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -46,8 +93,6 @@ export function DiscoverHomePage() {
   }));
   const [nearbyConcerts, setNearbyConcerts] = useState<Concert[]>([]);
   const [loadingNearby, setLoadingNearby] = useState(true);
-  const [recentUserConcerts, setRecentUserConcerts] = useState<UserConcert[]>([]);
-  const [recentConcertMap, setRecentConcertMap] = useState<Record<string, Partial<Concert>>>({});
   const [userConcerts, setUserConcerts] = useState<UserConcert[]>([]);
   const [reviews, setReviews] = useState<ConcertReview[]>([]);
   const [historyReady, setHistoryReady] = useState(false);
@@ -102,24 +147,12 @@ export function DiscoverHomePage() {
         if (cancelled) return;
         setUserConcerts(ucs);
         setReviews(syncedReviews);
-        setRecentUserConcerts(sortUserConcertsByDate(ucs, {}).slice(0, 6));
-        const map: Record<string, Partial<Concert>> = {};
-        for (const uc of ucs) {
-          if (uc.concertSnapshot) map[uc.concertId] = uc.concertSnapshot;
-        }
-        setRecentConcertMap(map);
       } catch {
         if (cancelled) return;
         const ucs = await api.getUserConcerts(user.id);
         if (cancelled) return;
         setUserConcerts(ucs);
         setReviews(getAllConcertReviews(user.id));
-        setRecentUserConcerts(sortUserConcertsByDate(ucs, {}).slice(0, 6));
-        const map: Record<string, Partial<Concert>> = {};
-        for (const uc of ucs) {
-          if (uc.concertSnapshot) map[uc.concertId] = uc.concertSnapshot;
-        }
-        setRecentConcertMap(map);
       } finally {
         if (!cancelled) setHistoryReady(true);
       }
@@ -166,119 +199,135 @@ export function DiscoverHomePage() {
 
   const forYou = useMemo((): RecommendedConcert[] => {
     if (!historyReady || !hasTasteProfile || loadingNearby) return [];
-    return getRecommendedConcerts(nearbyConcerts, concertHistory, 6);
+    return getRecommendedConcerts(nearbyConcerts, concertHistory, 8);
   }, [historyReady, hasTasteProfile, loadingNearby, nearbyConcerts, concertHistory]);
 
-  const nearbyFallback = nearbyConcerts.slice(0, 6);
-  const upcoming = nearbyConcerts.slice(0, 12);
+  const featured = forYou[0] ?? nearbyConcerts[0] ?? null;
+  const featuredLabel = forYou[0] ? 'Picked for you' : 'Featured near you';
+  const upcoming = nearbyConcerts.slice(0, 8);
 
   return (
-    <div className="space-y-10 pb-4">
-      <section className="space-y-3 pt-2">
-        <SearchAutocomplete placeholder="Search artists, venues, cities…" />
-        <div className="flex flex-wrap gap-2">
-          <Link
-            to="/search"
-            className="rounded-full border border-border/60 bg-card/80 px-3.5 py-1.5 text-xs font-semibold text-foreground no-underline transition-colors hover:border-primary/40 hover:bg-primary/10"
-          >
-            Browse all concerts
-          </Link>
-          <Link
-            to="/search?mode=members"
-            className="rounded-full border border-primary/40 bg-primary/10 px-3.5 py-1.5 text-xs font-semibold text-primary no-underline transition-colors hover:bg-primary/15"
-          >
-            Find members
-          </Link>
-          <Link
-            to="/map"
-            className="rounded-full border border-border/60 bg-card/80 px-3.5 py-1.5 text-xs font-semibold text-foreground no-underline transition-colors hover:border-primary/40 hover:bg-primary/10"
-          >
-            Explore near me
-          </Link>
+    <div className="space-y-10 pb-6">
+      {/* Search hero */}
+      <section className="relative -mx-4 overflow-hidden rounded-b-3xl bg-surface-2 px-4 pb-6 pt-2 sm:-mx-0 sm:rounded-3xl sm:px-6">
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/5" />
+        <div className="relative space-y-4">
+          <div>
+            <h1 className="text-display-md text-foreground">Discover</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Find your next night out
+            </p>
+          </div>
+          <SearchAutocomplete placeholder="Search artists, venues, cities…" />
+          <div className="flex flex-wrap gap-2">
+            <Link
+              to="/map"
+              className="inline-flex items-center gap-1.5 rounded-full bg-surface-3 px-3.5 py-1.5 text-xs font-semibold text-foreground no-underline transition-colors hover:bg-primary/15 hover:text-primary"
+            >
+              <MapPin className="size-3.5" aria-hidden />
+              Explore near me
+            </Link>
+            <Link
+              to="/search?mode=members"
+              className="rounded-full bg-surface-3 px-3.5 py-1.5 text-xs font-semibold text-muted-foreground no-underline transition-colors hover:text-foreground"
+            >
+              Find members
+            </Link>
+          </div>
         </div>
       </section>
 
+      {/* Featured pick */}
+      {!loadingNearby && featured && (
+        <section>
+          <FeaturedHero concert={featured} label={featuredLabel} />
+        </section>
+      )}
+      {loadingNearby && (
+        <ConcertCardSkeleton className="aspect-[16/11] rounded-3xl sm:aspect-[21/9]" />
+      )}
+
+      {/* Spotify carousel */}
       {user && (
         <SpotifyForYouSection
           userId={user.id}
           latitude={center.latitude}
           longitude={center.longitude}
-          nearbyFallback={nearbyFallback}
+          nearbyFallback={nearbyConcerts.slice(0, 4)}
           loadingNearby={loadingNearby}
+          layout="carousel"
         />
       )}
 
-      <section>
-        <SectionHeader
-          title="For you"
-          subtitle={
-            hasTasteProfile
-              ? 'Based on concerts you’ve attended and rated'
-              : 'Upcoming shows around you'
-          }
-          actionLabel="See map"
-          actionTo="/map"
-        />
+      {/* Personalized For You */}
+      <section className="space-y-3">
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <h2 className="text-display-md text-foreground">For you</h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {hasTasteProfile
+                ? 'Based on shows you’ve been to'
+                : 'Upcoming around you'}
+            </p>
+          </div>
+          <Link to="/map" className="shrink-0 text-xs font-semibold text-primary no-underline">
+            Map →
+          </Link>
+        </div>
+
         {!historyReady || loadingNearby ? (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {Array.from({ length: 2 }).map((_, i) => (
-              <ConcertCardSkeleton key={`for-you-${i}`} />
+          <div className="carousel-scroll">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <ConcertCardSkeleton key={`for-you-${i}`} className="w-[260px]" />
             ))}
           </div>
         ) : hasTasteProfile && forYou.length > 0 ? (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {forYou.map((c) => (
-              <RecommendedConcertCard key={c.id} concert={c} backTo="/" />
+          <div className="carousel-scroll">
+            {forYou.slice(featured ? 1 : 0).map((c) => (
+              <ConcertPosterCard key={c.id} concert={c} backTo="/" width="carousel" />
             ))}
           </div>
         ) : hasTasteProfile && forYou.length === 0 ? (
           <EmptyState
             title="No strong matches yet"
-            description="We couldn’t find nearby shows that match your taste right now. Browse Upcoming near you below or try the map."
+            description="Try the map or browse upcoming shows below."
             action={
               <Link to="/map" className="text-sm font-medium text-primary">
                 Explore map →
               </Link>
             }
           />
-        ) : nearbyFallback.length === 0 ? (
-          <EmptyState
-            title="No nearby shows yet"
-            description="Try the map or search another city."
-            action={
-              <Link to="/map" className="text-sm font-medium text-primary">
-                Explore map →
-              </Link>
-            }
-          />
+        ) : upcoming.length === 0 ? (
+          <EmptyState title="No nearby shows yet" description="Search another city or try the map." />
         ) : (
-          <div className="space-y-4">
+          <>
             {!hasTasteProfile && (
               <p className="text-sm text-muted-foreground">
-                Rate or attend a few concerts to unlock personalized picks.{' '}
+                Rate a few shows to unlock personalized picks.{' '}
                 <Link to="/profile" className="font-medium text-primary">
-                  Go to profile →
+                  Your profile →
                 </Link>
               </p>
             )}
-            <div className="grid gap-4 sm:grid-cols-2">
-              {nearbyFallback.map((c) => (
-                <ConcertCard key={c.id} concert={c} backTo="/" variant="poster" />
+            <div className="carousel-scroll">
+              {upcoming.slice(0, 6).map((c) => (
+                <ConcertPosterCard key={c.id} concert={c} backTo="/" width="carousel" />
               ))}
             </div>
-          </div>
+          </>
         )}
       </section>
 
+      {/* Trending chips */}
       {trendingArtists.length > 0 && (
-        <section>
-          <SectionHeader title="Trending artists" subtitle="Popular in your area" />
+        <section className="space-y-3">
+          <h2 className="text-display-md text-foreground">Trending artists</h2>
           <div className="flex flex-wrap gap-2">
             {trendingArtists.map((name) => (
               <button
                 key={name}
                 type="button"
-                className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-card/80 px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-primary/10"
+                className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-3"
                 onClick={() => navigate(`/search?q=${encodeURIComponent(name)}`)}
               >
                 <TrendingUp className="size-3.5 text-accent" aria-hidden />
@@ -289,43 +338,30 @@ export function DiscoverHomePage() {
         </section>
       )}
 
-      <section>
-        <SectionHeader title="Upcoming near you" actionLabel="View all" actionTo="/map" />
+      {/* Upcoming compact list */}
+      <section className="space-y-3">
+        <div className="flex items-end justify-between gap-3">
+          <h2 className="text-display-md text-foreground">Upcoming near you</h2>
+          <Link to="/map" className="shrink-0 text-xs font-semibold text-primary no-underline">
+            View all →
+          </Link>
+        </div>
         {loadingNearby ? (
-          <div className="space-y-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <ConcertCardSkeleton key={i} className="max-h-24" />
+          <div className="space-y-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <ConcertCardSkeleton key={i} className="max-h-16 rounded-xl" />
             ))}
           </div>
         ) : upcoming.length === 0 ? (
           <EmptyState title="Nothing on the calendar nearby" description="Search a city or widen your map radius." />
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {upcoming.map((c) => (
-              <ConcertCard key={c.id} concert={c} backTo="/" variant="compact" showCta={false} />
+              <CompactConcertRow key={c.id} concert={c} backTo="/" />
             ))}
           </div>
         )}
       </section>
-
-      {user && recentUserConcerts.length > 0 && (
-        <section>
-          <SectionHeader title="Recently added" subtitle="From your concert diary" actionTo="/profile" actionLabel="Profile" />
-          <div className="space-y-3">
-            {recentUserConcerts.map((uc) => (
-              <ConcertCard
-                key={uc.id}
-                concert={recentConcertMap[uc.concertId] ?? { id: uc.concertId }}
-                userConcert={uc}
-                concertId={uc.concertId}
-                backTo="/"
-                variant="compact"
-                showCta={false}
-              />
-            ))}
-          </div>
-        </section>
-      )}
     </div>
   );
 }

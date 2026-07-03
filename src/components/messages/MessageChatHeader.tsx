@@ -16,7 +16,7 @@ export function MessageChatHeader({ thread, currentUserId, showBack }: MessageCh
   const initial = name.replace('@', '').slice(0, 1).toUpperCase();
 
   return (
-    <header className="flex shrink-0 items-center gap-3 border-b border-border/50 bg-background/95 px-3 py-2.5 backdrop-blur-md">
+    <header className="flex shrink-0 items-center gap-3 border-b border-[var(--encore-border-subtle)] bg-background/95 px-3 py-2.5 backdrop-blur-md">
       {showBack && (
         <Link
           to="/messages"
@@ -32,14 +32,14 @@ export function MessageChatHeader({ thread, currentUserId, showBack }: MessageCh
           to={`/member/${encodeURIComponent(other.userId)}`}
           className="flex min-w-0 flex-1 items-center gap-3 no-underline"
         >
-          <Avatar className="size-9 border border-border/50">
+          <Avatar className="size-9">
             <AvatarImage src={other.avatarUrl} alt="" />
             <AvatarFallback className="bg-primary/15 text-sm font-semibold text-primary">
               {initial}
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-foreground">{name}</p>
+            <p className="truncate font-display text-sm font-semibold text-foreground">{name}</p>
             {other.username && (
               <p className="truncate text-xs text-muted-foreground">@{other.username}</p>
             )}
@@ -47,7 +47,7 @@ export function MessageChatHeader({ thread, currentUserId, showBack }: MessageCh
         </Link>
       ) : (
         <div className="flex min-w-0 flex-1 items-center gap-3">
-          <Avatar className="size-9 border border-border/50">
+          <Avatar className="size-9">
             <AvatarFallback className="bg-primary/15 text-sm font-semibold text-primary">
               {initial}
             </AvatarFallback>

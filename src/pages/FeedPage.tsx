@@ -2,7 +2,6 @@ import { EmptyFeedState } from '@/components/feed/EmptyFeedState';
 import { FeedFilterTabs } from '@/components/feed/FeedFilterTabs';
 import { FeedPostCard } from '@/components/feed/FeedPostCard';
 import { StartMessageModal } from '@/components/messages/StartMessageModal';
-import { SectionHeader } from '@/components/ui/SectionHeader';
 import { ListRowSkeleton } from '@/components/ui/LoadingSkeleton';
 import { useAuth } from '@/context/AuthContext';
 import { getFeed } from '@/lib/social/feedApi';
@@ -81,8 +80,11 @@ export function FeedPage() {
     : messagePost?.userDisplayName;
 
   return (
-    <div className="space-y-6 pb-4">
-      <SectionHeader title="Feed" subtitle="See what the community is sharing" />
+    <div className="space-y-5 pb-4">
+      <header>
+        <h1 className="font-display text-display-lg text-foreground">Feed</h1>
+        <p className="mt-1 text-sm text-muted-foreground">See what the community is sharing</p>
+      </header>
 
       <FeedFilterTabs filter={filter} onFilterChange={selectFilter} showFollowing />
 
@@ -97,7 +99,7 @@ export function FeedPage() {
       ) : posts.length === 0 ? (
         <EmptyFeedState filter={filter} />
       ) : (
-        <ul className="space-y-5">
+        <ul className="space-y-8">
           {posts.map((post) => (
             <li key={post.id}>
               <FeedPostCard

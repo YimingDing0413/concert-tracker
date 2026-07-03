@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./styles/encore-tokens.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -26,6 +27,7 @@
 }
 
 .dark {
+  /* Encore tokens in encore-tokens.css override these when loaded */
   --background: oklch(0.12 0.012 280);
   --foreground: oklch(0.96 0.008 280);
   --card: oklch(0.17 0.014 280);
@@ -71,22 +73,30 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-surface-1: var(--encore-surface-1, var(--card));
+  --color-surface-2: var(--encore-surface-2, var(--secondary));
+  --color-surface-3: var(--encore-surface-3, var(--input));
+  --color-ticket: var(--encore-ticket-amber, #fbbf24);
+  --color-review-gold: var(--encore-review-gold, #f59e0b);
+  --color-spotify: var(--encore-spotify-green, #1db954);
   --font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-display: 'Space Grotesk', 'Inter', system-ui, sans-serif;
 }
 
 .logo {
-  font-weight: 800;
+  font-family: var(--font-display);
+  font-weight: 700;
   letter-spacing: -0.03em;
-  background: linear-gradient(135deg, var(--primary), oklch(0.75 0.18 330));
+  background: linear-gradient(135deg, var(--encore-brand-purple, var(--primary)), var(--encore-brand-pink, #ec4899));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 
 .glass-panel {
-  border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
-  background: color-mix(in oklch, var(--card) 88%, transparent);
-  backdrop-filter: blur(12px);
+  border: 1px solid var(--encore-border-subtle, rgb(255 255 255 / 0.06));
+  background: rgb(18 20 28 / 0.72);
+  backdrop-filter: blur(16px);
   box-shadow: 0 12px 40px rgb(0 0 0 / 35%);
 }
 
@@ -1416,7 +1426,7 @@ textarea {
 /* Bottom venue carousel */
 .discover-carousel {
   padding: 0 0 0.65rem;
-  background: linear-gradient(to top, rgb(15 17 23 / 96%) 55%, transparent);
+  background: linear-gradient(to top, rgb(10 11 16 / 96%) 55%, transparent);
 }
 
 .discover-carousel__heading {
@@ -1448,11 +1458,11 @@ textarea {
   gap: 0.75rem;
   text-align: left;
   border-radius: var(--radius-xl);
-  border: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
-  background: color-mix(in oklch, var(--card) 94%, transparent);
+  border: none;
+  background: var(--encore-surface-2, rgb(26 29 40 / 0.95));
   padding: 0.75rem;
   box-shadow: 0 12px 32px rgb(0 0 0 / 45%);
-  transition: border-color 0.15s ease, transform 0.15s ease;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .discover-venue-card:active {
@@ -1460,8 +1470,7 @@ textarea {
 }
 
 .discover-venue-card--selected {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 1px color-mix(in oklch, var(--primary) 50%, transparent),
+  box-shadow: 0 0 0 2px var(--encore-brand-purple, var(--primary)),
     0 12px 32px rgb(0 0 0 / 45%);
 }
 
@@ -1544,8 +1553,8 @@ textarea {
 .discover-sheet {
   margin: 0 0.75rem 0.65rem;
   border-radius: var(--radius-xl);
-  border: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
-  background: color-mix(in oklch, var(--card) 96%, transparent);
+  border: none;
+  background: var(--encore-surface-2, rgb(26 29 40 / 0.98));
   box-shadow: 0 -8px 40px rgb(0 0 0 / 55%);
   max-height: min(52vh, 22rem);
   display: flex;
@@ -1600,6 +1609,7 @@ textarea {
 
 .discover-sheet__title {
   margin: 0;
+  font-family: var(--font-display, 'Space Grotesk', system-ui, sans-serif);
   font-size: 1.05rem;
   font-weight: 700;
   line-height: 1.25;
@@ -1656,18 +1666,21 @@ textarea {
   align-items: center;
   gap: 0.65rem;
   border-radius: var(--radius-lg);
-  border: 1px solid var(--border);
+  border: none;
+  background: var(--encore-surface-3, rgb(36 40 54 / 0.6));
   padding: 0.55rem 0.65rem;
+  text-decoration: none;
+  color: inherit;
   transition: background 0.15s ease;
 }
 
 .discover-show-row:hover {
-  background: color-mix(in oklch, var(--accent) 50%, transparent);
+  background: var(--encore-surface-3, rgb(36 40 54));
 }
 
 .discover-show-row__img {
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 3.5rem;
+  height: 4.25rem;
   border-radius: var(--radius-md);
   object-fit: cover;
   flex-shrink: 0;
@@ -1676,13 +1689,23 @@ textarea {
 .discover-show-row__img--placeholder {
   display: grid;
   place-items: center;
-  background: color-mix(in oklch, var(--primary) 15%, var(--muted));
+  background: linear-gradient(
+    160deg,
+    rgb(168 85 247 / 0.45) 0%,
+    rgb(236 72 153 / 0.25) 40%,
+    var(--encore-bg, #0a0b10) 100%
+  );
+  font-family: var(--font-display, 'Space Grotesk', system-ui, sans-serif);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: rgb(255 255 255 / 0.7);
 }
 
 .discover-show-row__artist {
   margin: 0;
+  font-family: var(--font-display, 'Space Grotesk', system-ui, sans-serif);
   font-size: 0.88rem;
-  font-weight: 600;
+  font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

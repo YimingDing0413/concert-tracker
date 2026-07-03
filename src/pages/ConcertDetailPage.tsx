@@ -2,7 +2,6 @@ import { api } from '@/api';
 import { ConcertActions } from '@/components/concert/ConcertActions';
 import { CommunityShowTiming } from '@/components/concert/CommunityShowTiming';
 import { SetlistDisplay } from '@/components/concert/SetlistDisplay';
-import { EntityIconBadge } from '@/components/ui/EntityIconBadge';
 import { SolidBackButton } from '@/components/ui/SolidBackButton';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { ApiNotice } from '@/components/ui/ApiNotice';
@@ -81,7 +80,7 @@ export function ConcertDetailPage() {
     load().catch(() => setError('Could not load event')).finally(() => setLoading(false));
   }, [id, load]);
 
-  async function setStatus(status: 'going' | 'attended') {
+  async function setStatus(status: 'going' | 'attended' | 'saved') {
     if (!user || !id || !concert) return;
     setActionLoading(true);
     try {
@@ -114,61 +113,64 @@ export function ConcertDetailPage() {
 
   return (
     <div className="min-h-dvh bg-background pb-10">
-      <header className="border-b border-border/60 bg-gradient-to-br from-primary/15 via-card/80 to-background">
-        <div className="mx-auto max-w-lg px-4 py-4 md:max-w-3xl">
-          <SolidBackButton to={backTo} className="mb-4" />
-          <ApiNotice source={concert.source} />
-          <div className="mt-4 flex gap-4">
-            <EntityIconBadge name={concert.artistName} imageUrl={concert.imageUrl} size="lg" />
-            <div className="min-w-0 flex-1 pt-0.5">
-              <h1 className="text-2xl font-bold leading-tight tracking-tight md:text-3xl">
-                {concert.artistName}
-              </h1>
-              <p className="mt-2 flex items-start gap-2 text-sm text-muted-foreground">
-                <MapPin className="mt-0.5 size-4 shrink-0" aria-hidden />
-                <span>
-                  {concert.venueName} · {formatLocation(concert.city, concert.state, concert.country)}
-                </span>
-              </p>
-              <p className="mt-1 flex items-center gap-2 text-sm font-medium text-foreground/90">
-                <Calendar className="size-4 shrink-0" aria-hidden />
-                {formatDate(concert.date)}
-                {concert.startTime && ` · ${formatTime(concert.startTime)}`}
-              </p>
-            </div>
+      {/* Cinematic hero */}
+      <div className="relative">
+        <div className="relative aspect-[4/5] max-h-[420px] w-full sm:aspect-[21/9] sm:max-h-[480px]">
+          {concert.imageUrl ? (
+            <img
+              src={concert.imageUrl}
+              alt=""
+              className="absolute inset-0 size-full object-cover"
+            />
+          ) : (
+            <div className="poster-gradient absolute inset-0" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-black/60 to-black/20" />
+          <div className="absolute inset-x-0 top-0 p-4">
+            <SolidBackButton to={backTo} className="bg-black/40 backdrop-blur-sm" />
+          </div>
+          <div className="absolute inset-x-0 bottom-0 space-y-2 p-5 sm:p-8">
+            <ApiNotice source={concert.source} />
+            <h1 className="text-display-xl text-white">{concert.artistName}</h1>
+            <p className="flex items-start gap-2 text-sm text-white/80">
+              <MapPin className="mt-0.5 size-4 shrink-0" aria-hidden />
+              <span>
+                {concert.venueName} · {formatLocation(concert.city, concert.state, concert.country)}
+              </span>
+            </p>
+            <p className="flex items-center gap-2 text-sm font-medium text-white/90">
+              <Calendar className="size-4 shrink-0" aria-hidden />
+              {formatDate(concert.date)}
+              {concert.startTime && ` · ${formatTime(concert.startTime)}`}
+            </p>
           </div>
         </div>
-      </header>
+      </div>
 
-      <div className="mx-auto max-w-lg space-y-6 px-4 py-6 md:max-w-3xl">
+      <div className="mx-auto max-w-lg space-y-8 px-4 py-6 md:max-w-3xl">
         {concert.ticketUrl && <TicketCtaLink href={concert.ticketUrl} />}
 
         {user && (
-          <section className="rounded-2xl border border-border/60 bg-card p-4 shadow-lg">
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Your concert
-            </h2>
+          <section className="space-y-3">
             <ConcertActions
+              concertId={id!}
               concertStatus={concert.status}
               userStatus={userConcert?.status}
               loading={actionLoading}
               onGoing={() => setStatus('going')}
+              onWant={() => setStatus('saved')}
               onAttended={() => setStatus('attended')}
             />
             {concert.status === 'past' && (
-              <p className="mt-3 text-xs text-muted-foreground">
-                Been to this show? Mark it attended, then rate it from{' '}
-                <Link to="/profile" className="font-medium text-primary">
-                  Profile
-                </Link>
-                .
+              <p className="text-xs text-muted-foreground">
+                Been to this show? Mark attended, then leave a review.
               </p>
             )}
           </section>
         )}
 
-        <section className="rounded-2xl border border-border/60 bg-card p-4">
-          <h2 className="mb-3 text-lg font-semibold">Event info</h2>
+        <section className="space-y-3 rounded-2xl bg-surface-2 p-4">
+          <h2 className="font-display text-base font-semibold">Event info</h2>
           {concert.openers?.length ? (
             <p className="text-sm text-foreground">
               <span className="text-muted-foreground">Openers: </span>
@@ -180,7 +182,7 @@ export function ConcertDetailPage() {
             </p>
           )}
           {concert.tourName && (
-            <p className="mt-2 text-sm">
+            <p className="text-sm">
               <span className="text-muted-foreground">Tour: </span>
               {concert.tourName}
             </p>
@@ -199,15 +201,15 @@ export function ConcertDetailPage() {
         <SetlistDisplay setlist={displaySetlist} />
 
         {userConcert?.notes && (
-          <section className="rounded-2xl border border-border/60 bg-card p-4">
-            <h2 className="mb-2 text-lg font-semibold">Your notes</h2>
+          <section className="rounded-2xl bg-surface-2 p-4">
+            <h2 className="mb-2 font-display text-base font-semibold">Your notes</h2>
             <p className="text-sm text-muted-foreground">{userConcert.notes}</p>
           </section>
         )}
 
         {concert.venueId && (
-          <section className="rounded-2xl border border-border/60 bg-card p-4">
-            <h2 className="mb-2 text-lg font-semibold">Venue</h2>
+          <section className="rounded-2xl bg-surface-2 p-4">
+            <h2 className="mb-2 font-display text-base font-semibold">Venue</h2>
             <p className="font-medium">{concert.venueName}</p>
             <p className="text-sm text-muted-foreground">
               {formatLocation(concert.city, concert.state, concert.country)}

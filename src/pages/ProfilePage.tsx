@@ -5,7 +5,6 @@ import {
   type ProfileContentTab,
 } from '@/components/profile/ProfileContentTabs';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
-import { ProfileHighlightsRow } from '@/components/profile/ProfileHighlightsRow';
 import { ProfileTabBar } from '@/components/profile/ProfileTabBar';
 import { Button } from '@/components/ui/app-button';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -18,7 +17,6 @@ import {
   syncConcertReviewsFromServer,
 } from '@/lib/concertReviewsLocal';
 import { getUserFeed } from '@/lib/social/feedApi';
-import { buildProfileActivityStats } from '@/lib/profileStats';
 import {
   ensureMyProfile,
   getFollowCounts,
@@ -42,6 +40,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 function parseProfileTab(value: string | null): ProfileContentTab {
   if (
     value === 'going' ||
+    value === 'want' ||
     value === 'reviews' ||
     value === 'posts' ||
     value === 'wrapped' ||
@@ -170,17 +169,16 @@ export function ProfilePage() {
     [followingList]
   );
 
-  const activityStats = useMemo(
-    () => buildProfileActivityStats(userConcerts, concertMap, reviews),
-    [userConcerts, concertMap, reviews]
-  );
-
   const attendedCount = useMemo(
     () => userConcerts.filter((uc) => uc.status === 'attended').length,
     [userConcerts]
   );
   const goingCount = useMemo(
     () => userConcerts.filter((uc) => uc.status === 'going').length,
+    [userConcerts]
+  );
+  const wantCount = useMemo(
+    () => userConcerts.filter((uc) => uc.status === 'saved').length,
     [userConcerts]
   );
 
@@ -341,14 +339,9 @@ export function ProfilePage() {
             onTabChange={selectContentTab}
             concertCount={attendedCount}
             goingCount={goingCount}
+            wantCount={wantCount}
             reviewCount={reviews.length}
             postCount={feedPosts.length}
-          />
-
-          <ProfileHighlightsRow
-            stats={activityStats}
-            onOpenReviews={() => selectContentTab('reviews')}
-            onOpenWrap={() => selectContentTab('wrapped')}
           />
 
           <ProfileContentTabs
