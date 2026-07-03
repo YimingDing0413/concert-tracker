@@ -13,6 +13,7 @@ function mapEventToConcert(venue: MapVenue, e: MapConcertEvent): Concert {
     id: e.id,
     artistId: e.artistId ?? e.id,
     artistName: e.artistName ?? e.title,
+    title: e.title,
     venueId: venue.id,
     venueName: venue.name,
     city: venue.city ?? '',

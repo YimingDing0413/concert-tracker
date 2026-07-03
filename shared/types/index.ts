@@ -187,6 +187,8 @@ export interface Concert {
   segmentName?: string;
   genreName?: string;
   subGenreName?: string;
+  /** Original event title from the provider (e.g. Ticketmaster event name). */
+  title?: string;
 }
 
 export type UserConcertStatus = 'going' | 'attended' | 'saved';

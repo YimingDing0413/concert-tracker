@@ -15,6 +15,52 @@ export function normalizeArtistName(name: string): string {
   return s;
 }
 
+/** Event names that indicate a themed night, not the artist performing live. */
+const NON_ARTIST_PERFORMANCE_PATTERNS = [
+  /\bdance\s+party\b/i,
+  /\bafter\s*party\b/i,
+  /\bclub\s+night\b/i,
+  /\btribute\b/i,
+  /\bkaraoke\b/i,
+  /\bcover\s+(band|night)\b/i,
+  /\bdj\s+(set|night|party)\b/i,
+  /\bsilent\s+disco\b/i,
+  /\blisten(ing)?\s+party\b/i,
+  /\btheme(d)?\s+night\b/i,
+  /\bwatch\s+party\b/i,
+  /\bvs\.?\s+/i,
+  /\bbattle\b/i,
+];
+
+export function isNonArtistPerformance(artistName: string, eventTitle?: string): boolean {
+  const hay = `${artistName} ${eventTitle ?? ''}`.trim();
+  if (!hay) return true;
+  return NON_ARTIST_PERFORMANCE_PATTERNS.some((pattern) => pattern.test(hay));
+}
+
+export function artistCityDedupeKey(concert: Pick<Concert, 'artistName' | 'city' | 'state' | 'country'>): string {
+  const artist = normalizeArtistName(concert.artistName ?? '');
+  const city = (concert.city ?? '').trim().toLowerCase();
+  const region = (concert.state ?? concert.country ?? '').trim().toLowerCase();
+  return `${artist}|${city}|${region}`;
+}
+
+function dedupeByArtistCity(
+  recommendations: SpotifyConcertRecommendation[],
+  limit: number
+): SpotifyConcertRecommendation[] {
+  const seen = new Set<string>();
+  const result: SpotifyConcertRecommendation[] = [];
+  for (const rec of recommendations) {
+    const key = artistCityDedupeKey(rec);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(rec);
+    if (result.length >= limit) break;
+  }
+  return result;
+}
+
 function fuzzyArtistMatch(concertArtist: string, spotifyArtist: string): boolean {
   const a = normalizeArtistName(concertArtist);
   const b = normalizeArtistName(spotifyArtist);
@@ -101,6 +147,7 @@ export function getSpotifyConcertRecommendations(
   for (const concert of candidates) {
     if (concert.status === 'past') continue;
     if (userConcertHistory.attendedConcertIds.has(concert.id)) continue;
+    if (isNonArtistPerformance(concert.artistName ?? '', concert.title)) continue;
 
     const normArtist = normalizeArtistName(concert.artistName ?? '');
     let score = 0;
@@ -167,6 +214,7 @@ export function getSpotifyConcertRecommendations(
     if (days >= 0 && days <= 60) score += 5;
 
     if (score <= 0) continue;
+    if (matchedSpotifyArtists.length === 0) continue;
 
     const uniqueReasons = [...new Set(reasons)].slice(0, 3);
 
@@ -197,7 +245,8 @@ export function getSpotifyConcertRecommendations(
     });
   }
 
-  return scored
-    .sort((a, b) => b.spotifyScore - a.spotifyScore || a.date.localeCompare(b.date))
-    .slice(0, limit);
+  return dedupeByArtistCity(
+    scored.sort((a, b) => b.spotifyScore - a.spotifyScore || a.date.localeCompare(b.date)),
+    limit
+  );
 }
