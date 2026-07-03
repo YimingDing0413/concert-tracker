@@ -1,5 +1,6 @@
 import { CompactConcertRow } from '@/components/cards/CompactConcertRow';
 import { ConcertPosterCard } from '@/components/cards/ConcertPosterCard';
+import type { ConcertCardBadgeType } from '@/components/cards/ConcertCardBadge';
 import type { Concert, ConcertRating, UserConcert } from '@/types';
 import type { ReactNode } from 'react';
 
@@ -11,6 +12,8 @@ interface ConcertCardProps {
   backTo?: string;
   variant?: 'poster' | 'compact' | 'memory';
   showCta?: boolean;
+  badge?: ConcertCardBadgeType;
+  featured?: boolean;
   /** @deprecated No longer shown */
   showSource?: boolean;
   footer?: ReactNode;
@@ -26,6 +29,8 @@ export function ConcertCard({
   backTo,
   variant = 'poster',
   showCta = true,
+  badge,
+  featured,
   footer,
   action,
 }: ConcertCardProps) {
@@ -39,6 +44,7 @@ export function ConcertCard({
         rating={rating}
         concertId={concertId}
         backTo={backTo}
+        badge={badge}
       />
     );
   }
@@ -52,6 +58,8 @@ export function ConcertCard({
       backTo={backTo}
       showCta={showCta && variant === 'poster'}
       footer={cardFooter}
+      badge={badge}
+      featured={featured}
       width="full"
     />
   );

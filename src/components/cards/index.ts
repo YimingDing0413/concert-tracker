@@ -1,4 +1,6 @@
 export { CompactConcertRow } from './CompactConcertRow';
+export { ConcertCardBadge, badgeFromUserConcertStatus } from './ConcertCardBadge';
+export type { ConcertCardBadgeType } from './ConcertCardBadge';
 export { ConcertMemoryPostCard } from './ConcertMemoryPostCard';
 export { ConcertPosterCard } from './ConcertPosterCard';
 export { FeedPostShell } from './FeedPostShell';

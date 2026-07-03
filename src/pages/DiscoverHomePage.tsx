@@ -284,7 +284,13 @@ export function DiscoverHomePage() {
         ) : hasTasteProfile && forYou.length > 0 ? (
           <div className="carousel-scroll">
             {forYou.slice(featured ? 1 : 0).map((c) => (
-              <ConcertPosterCard key={c.id} concert={c} backTo="/" width="carousel" />
+              <ConcertPosterCard
+                key={c.id}
+                concert={c}
+                backTo="/"
+                width="carousel"
+                badge="nearby"
+              />
             ))}
           </div>
         ) : hasTasteProfile && forYou.length === 0 ? (
@@ -311,7 +317,13 @@ export function DiscoverHomePage() {
             )}
             <div className="carousel-scroll">
               {upcoming.slice(0, 6).map((c) => (
-                <ConcertPosterCard key={c.id} concert={c} backTo="/" width="carousel" />
+                <ConcertPosterCard
+                key={c.id}
+                concert={c}
+                backTo="/"
+                width="carousel"
+                badge="nearby"
+              />
               ))}
             </div>
           </>
@@ -357,7 +369,7 @@ export function DiscoverHomePage() {
         ) : (
           <div className="space-y-2">
             {upcoming.map((c) => (
-              <CompactConcertRow key={c.id} concert={c} backTo="/" />
+              <CompactConcertRow key={c.id} concert={c} backTo="/" badge="nearby" />
             ))}
           </div>
         )}

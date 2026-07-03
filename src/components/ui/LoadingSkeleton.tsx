@@ -5,15 +5,15 @@ export function ConcertCardSkeleton({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        'overflow-hidden rounded-2xl border border-border/50 bg-card',
+        'relative overflow-hidden rounded-2xl border border-border/50 bg-card',
         className
       )}
     >
-      <Skeleton className="aspect-[5/4] w-full rounded-none" />
-      <div className="space-y-2 p-4">
-        <Skeleton className="h-5 w-3/4" />
-        <Skeleton className="h-4 w-1/2" />
-        <Skeleton className="h-4 w-2/3" />
+      <Skeleton className="aspect-[5/6] w-full rounded-none sm:aspect-[4/5]" />
+      <div className="absolute inset-x-0 bottom-0 space-y-2 p-4">
+        <Skeleton className="h-6 w-3/4 bg-white/10" />
+        <Skeleton className="h-4 w-1/2 bg-white/10" />
+        <Skeleton className="h-3 w-2/3 bg-white/10" />
       </div>
     </div>
   );
