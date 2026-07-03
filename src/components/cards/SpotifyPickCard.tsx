@@ -52,7 +52,8 @@ export function SpotifyPickCard({ concert, backTo = '/', width = 'full' }: Spoti
           <Button
             variant={saved ? 'secondary' : 'primary'}
             size="sm"
-            className="h-7 w-full text-[0.7rem]"
+            fullWidth
+            className="h-7 text-[0.625rem] font-semibold"
             disabled={saving || saved}
             onClick={(e) => void handleSave(e)}
           >
