@@ -12,12 +12,14 @@ import {
   type ArtistMatchKind,
 } from './artistMatching.js';
 import {
-  bucketDisplayLabel,
   buildSpotifyBucketWeights,
   scoreGenreMatch,
 } from './genreMapping.js';
 
 export { isNonArtistPerformance, normalizeArtistName };
+
+/** Include upcoming shows through ~6 months out. */
+export const RECOMMENDATION_HORIZON_DAYS = 183;
 
 export type UserConcertHistory = {
   attendedConcertIds: Set<string>;
@@ -69,6 +71,8 @@ export function buildUserConcertHistory(
 export interface SpotifyRecommendationDebugStats {
   excludedAlreadyAttendedCount: number;
   excludedSavedGoingCount: number;
+  excludedNoListeningCount: number;
+  excludedOutsideWindowCount: number;
   excludedLowQualityCount: number;
   scoredCount: number;
 }
@@ -117,12 +121,25 @@ function haversineKm(
 }
 
 function scoreDateUrgency(days: number): number {
-  if (days < 0) return 0;
-  if (days <= 14) return 8;
-  if (days <= 30) return 6;
+  if (days < 0 || days > RECOMMENDATION_HORIZON_DAYS) return 0;
+  if (days <= 14) return 6;
+  if (days <= 30) return 5;
   if (days <= 60) return 4;
-  if (days <= 90) return 2;
-  return 0;
+  if (days <= 90) return 3;
+  if (days <= 120) return 2;
+  return 1;
+}
+
+function listeningWeightForArtist(
+  artistWeights: Record<string, number>,
+  matchedName: string
+): number {
+  return artistWeights[normalizeArtistName(matchedName)] ?? 0;
+}
+
+/** Primary rank signal: how much the user listens to the matched artist on Spotify. */
+function scoreListeningWeight(weight: number): number {
+  return Math.min(150, Math.round(weight * 0.75));
 }
 
 function scoreDistanceKm(distanceKm: number | null): number {
@@ -135,6 +152,7 @@ function scoreDistanceKm(distanceKm: number | null): number {
 }
 
 type ScoredCandidate = SpotifyConcertRecommendation & {
+  listeningWeight: number;
   scoreBreakdown?: SpotifyRecommendationScoreBreakdown;
 };
 
@@ -211,53 +229,44 @@ function findBestArtistMatch(
 
 function assignConfidence(input: {
   artistMatch: ArtistMatchResult | null;
-  genreScore: number;
-  subgenreScore: number;
-  totalScore: number;
+  listeningWeight: number;
 }): 'high' | 'medium' | 'low' {
-  const { artistMatch, genreScore, subgenreScore } = input;
+  const { artistMatch, listeningWeight } = input;
+  if (!artistMatch || listeningWeight <= 0) return 'low';
   if (
-    artistMatch &&
     artistMatch.kind === 'exact' &&
-    (artistMatch.isTopArtist || artistMatch.isTrackArtist)
+    (artistMatch.isTopArtist || listeningWeight >= 40)
   ) {
     return 'high';
   }
-  if (artistMatch && (artistMatch.kind === 'strong_token' || artistMatch.kind === 'fuzzy')) {
-    return 'medium';
-  }
-  if (genreScore >= 15 || subgenreScore >= 18) return 'medium';
-  return 'low';
+  if (artistMatch.kind === 'exact' || listeningWeight >= 20) return 'medium';
+  return 'medium';
 }
 
 function pickPrimaryReason(input: {
-  artistMatch: ArtistMatchResult | null;
-  genreBucketLabel?: string;
-  highRatedArtistMatch: boolean;
+  artistMatch: ArtistMatchResult;
+  listeningWeight: number;
 }): string {
-  const { artistMatch, genreBucketLabel, highRatedArtistMatch } = input;
+  const { artistMatch, listeningWeight } = input;
 
-  if (artistMatch?.isTopArtist && artistMatch.kind === 'exact') {
-    return `Because ${artistMatch.matchedName} is one of your top Spotify artists`;
+  if (artistMatch.isTopArtist && artistMatch.kind === 'exact') {
+    return `You've been listening to ${artistMatch.matchedName} on Spotify`;
   }
-  if (artistMatch?.isTrackArtist && artistMatch.kind === 'exact') {
-    return 'A top-track artist is playing near you';
+  if (listeningWeight >= 60) {
+    return `You've been listening to ${artistMatch.matchedName} a lot on Spotify`;
   }
-  if (artistMatch && (artistMatch.kind === 'fuzzy' || artistMatch.kind === 'strong_token')) {
-    return 'Based on your recent Spotify taste';
+  if (artistMatch.isTrackArtist && artistMatch.kind === 'exact') {
+    return `You've been listening to ${artistMatch.matchedName} on Spotify`;
   }
-  if (highRatedArtistMatch) {
-    return 'Similar to artists you rated highly';
-  }
-  if (genreBucketLabel) {
-    return `More ${genreBucketLabel} shows near you`;
-  }
-  return 'Based on your Spotify taste';
+  return `Based on your Spotify listening for ${artistMatch.matchedName}`;
 }
 
 function selectWithDiversity(scored: ScoredCandidate[], limit: number): ScoredCandidate[] {
   const sorted = [...scored].sort(
-    (a, b) => b.spotifyScore - a.spotifyScore || a.date.localeCompare(b.date)
+    (a, b) =>
+      b.listeningWeight - a.listeningWeight ||
+      b.spotifyScore - a.spotifyScore ||
+      a.date.localeCompare(b.date)
   );
 
   const artistSeen = new Set<string>();
@@ -301,10 +310,18 @@ export function getSpotifyConcertRecommendations(
   const scored: ScoredCandidate[] = [];
   let excludedAlreadyAttendedCount = 0;
   let excludedSavedGoingCount = 0;
+  let excludedNoListeningCount = 0;
+  let excludedOutsideWindowCount = 0;
   let excludedLowQualityCount = 0;
 
   for (const concert of candidates) {
     if (concert.status === 'past') continue;
+
+    const days = daysUntil(concert.date);
+    if (days > RECOMMENDATION_HORIZON_DAYS) {
+      excludedOutsideWindowCount += 1;
+      continue;
+    }
     if (userConcertHistory.attendedConcertIds.has(concert.id)) {
       excludedAlreadyAttendedCount += 1;
       continue;
@@ -323,30 +340,33 @@ export function getSpotifyConcertRecommendations(
 
     const normArtist = normalizeArtistName(concert.artistName ?? '');
     const artistMatch = findBestArtistMatch(concert, topArtists, trackArtists);
-    const breakdown: SpotifyRecommendationScoreBreakdown = {};
 
-    let score = 0;
-    let genreScore = 0;
-    let subgenreScore = 0;
-    let genreBucketLabel: string | undefined;
-
-    if (artistMatch) {
-      if (artistMatch.isTopArtist && artistMatch.kind === 'exact') {
-        breakdown.exactTopArtist = 120;
-        score += 120;
-      } else if (artistMatch.isTrackArtist && artistMatch.kind === 'exact') {
-        breakdown.topTrackArtist = 70;
-        score += 70;
-      } else if (artistMatch.kind === 'strong_token' || artistMatch.kind === 'fuzzy') {
-        breakdown.fuzzyArtist = 35;
-        score += 35;
-      }
+    if (!artistMatch) {
+      excludedNoListeningCount += 1;
+      continue;
     }
 
-    const weight = artistWeights[normArtist] ?? 0;
-    if (weight > 0) {
-      breakdown.artistWeight = Math.min(30, Math.round(weight / 10));
-      score += breakdown.artistWeight;
+    const listeningWeight = listeningWeightForArtist(artistWeights, artistMatch.matchedName);
+    if (listeningWeight <= 0) {
+      excludedNoListeningCount += 1;
+      continue;
+    }
+
+    const breakdown: SpotifyRecommendationScoreBreakdown = {};
+    let score = 0;
+
+    breakdown.listeningWeight = scoreListeningWeight(listeningWeight);
+    score += breakdown.listeningWeight;
+
+    if (artistMatch.isTopArtist && artistMatch.kind === 'exact') {
+      breakdown.exactTopArtist = 25;
+      score += 25;
+    } else if (artistMatch.isTrackArtist && artistMatch.kind === 'exact') {
+      breakdown.topTrackArtist = 15;
+      score += 15;
+    } else if (artistMatch.kind === 'strong_token' || artistMatch.kind === 'fuzzy') {
+      breakdown.fuzzyArtist = 8;
+      score += 8;
     }
 
     const genreMatch = scoreGenreMatch(
@@ -355,29 +375,22 @@ export function getSpotifyConcertRecommendations(
       concert.subGenreName
     );
     if (genreMatch.genreScore > 0) {
-      genreScore = genreMatch.genreScore;
-      breakdown.genre = genreScore;
-      score += genreScore;
-      if (genreMatch.bucket) genreBucketLabel = bucketDisplayLabel(genreMatch.bucket);
+      breakdown.genre = Math.min(6, Math.round(genreMatch.genreScore / 3));
+      score += breakdown.genre;
     }
     if (genreMatch.subgenreScore > 0) {
-      subgenreScore = genreMatch.subgenreScore;
-      breakdown.subgenre = subgenreScore;
-      score += subgenreScore;
-      if (genreMatch.bucket && !genreBucketLabel) {
-        genreBucketLabel = bucketDisplayLabel(genreMatch.bucket);
-      }
+      breakdown.subgenre = Math.min(4, Math.round(genreMatch.subgenreScore / 4));
+      score += breakdown.subgenre;
     }
 
-    const highRatedArtistMatch = userConcertHistory.highRatedArtistKeys.has(normArtist);
-    if (highRatedArtistMatch) {
-      breakdown.encoreHistory = 15;
-      score += 15;
+    if (userConcertHistory.highRatedArtistKeys.has(normArtist)) {
+      breakdown.encoreHistory = 10;
+      score += 10;
     }
 
     if (userConcertHistory.attendedArtistKeys.has(normArtist)) {
-      breakdown.attendedArtist = 10;
-      score += 10;
+      breakdown.attendedArtist = 8;
+      score += 8;
     }
 
     if (concert.imageUrl) {
@@ -385,7 +398,6 @@ export function getSpotifyConcertRecommendations(
       score += 2;
     }
 
-    const days = daysUntil(concert.date);
     breakdown.dateUrgency = scoreDateUrgency(days);
     score += breakdown.dateUrgency;
 
@@ -405,30 +417,17 @@ export function getSpotifyConcertRecommendations(
       score += breakdown.distance;
     }
 
-    const confidence = assignConfidence({
-      artistMatch,
-      genreScore,
-      subgenreScore,
-      totalScore: score,
-    });
+    const confidence = assignConfidence({ artistMatch, listeningWeight });
 
-    if (score < 35 || confidence === 'low') {
+    if (confidence === 'low') {
       excludedLowQualityCount += 1;
       continue;
     }
 
-    if (!artistMatch && genreScore + subgenreScore < 10) {
-      excludedLowQualityCount += 1;
-      continue;
-    }
-
-    const reason = pickPrimaryReason({
-      artistMatch,
-      genreBucketLabel,
-      highRatedArtistMatch,
-    });
+    const reason = pickPrimaryReason({ artistMatch, listeningWeight });
 
     const rec: ScoredCandidate = {
+      listeningWeight,
       id: concert.id,
       artistId: concert.artistId,
       artistName: concert.artistName,
@@ -470,6 +469,8 @@ export function getSpotifyConcertRecommendations(
       ? {
           excludedAlreadyAttendedCount,
           excludedSavedGoingCount,
+          excludedNoListeningCount,
+          excludedOutsideWindowCount,
           excludedLowQualityCount,
           scoredCount: scored.length,
         }

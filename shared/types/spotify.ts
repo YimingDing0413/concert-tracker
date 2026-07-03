@@ -82,6 +82,7 @@ export interface SpotifyConcertRecommendation {
 }
 
 export interface SpotifyRecommendationScoreBreakdown {
+  listeningWeight?: number;
   exactTopArtist?: number;
   topTrackArtist?: number;
   fuzzyArtist?: number;
@@ -101,6 +102,8 @@ export interface SpotifyRecommendationsDebugMeta {
   artistSearchCandidateCount: number;
   excludedAlreadyAttendedCount: number;
   excludedSavedGoingCount: number;
+  excludedNoListeningCount: number;
+  excludedOutsideWindowCount: number;
   excludedLowQualityCount: number;
   finalRecommendationCount: number;
   topScore?: number;

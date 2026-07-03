@@ -83,6 +83,8 @@ export async function getSpotifyConcertRecommendationsForUser(payload: {
       artistSearchCandidateCount: candidatePool.artistSearchCandidateCount,
       excludedAlreadyAttendedCount: debugStats.excludedAlreadyAttendedCount,
       excludedSavedGoingCount: debugStats.excludedSavedGoingCount,
+      excludedNoListeningCount: debugStats.excludedNoListeningCount,
+      excludedOutsideWindowCount: debugStats.excludedOutsideWindowCount,
       excludedLowQualityCount: debugStats.excludedLowQualityCount,
       finalRecommendationCount: recommendations.length,
       topScore: recommendations[0]?.spotifyScore,

@@ -6,15 +6,22 @@ import { concertEventToConcert } from '../../shared/mappers.js';
 import type { Concert } from '../../shared/types/index.js';
 import type { SpotifyTasteProfile } from '../../shared/types/spotify.js';
 import { normalizeArtistName } from '../../src/lib/recommendations/artistMatching.js';
+import { RECOMMENDATION_HORIZON_DAYS } from '../../src/lib/recommendations/spotifyConcertRecommendations.js';
 import type { MapConcertEvent, MapVenue } from '../../shared/types/index.js';
 
 const MAX_CANDIDATE_POOL = 250;
 const TOP_ARTIST_SEARCH_COUNT = 25;
-const EVENTS_PER_ARTIST_SEARCH = 6;
+const EVENTS_PER_ARTIST_SEARCH = 8;
 const ARTIST_SEARCH_CONCURRENCY = 5;
 
 function todayStartUtc(): string {
   return `${new Date().toISOString().slice(0, 10)}T00:00:00Z`;
+}
+
+function horizonEndUtc(): string {
+  const end = new Date();
+  end.setUTCDate(end.getUTCDate() + RECOMMENDATION_HORIZON_DAYS);
+  return `${end.toISOString().slice(0, 10)}T23:59:59Z`;
 }
 
 function mapEventToConcert(venue: MapVenue, e: MapConcertEvent): Concert {
@@ -68,6 +75,7 @@ function topSpotifyArtistsByWeight(taste: SpotifyTasteProfile, limit: number): s
       displayName,
       weight: weights[key] ?? 0,
     }))
+    .filter((entry) => entry.weight > 0)
     .sort((a, b) => b.weight - a.weight || a.displayName.localeCompare(b.displayName))
     .slice(0, limit)
     .map((entry) => entry.displayName);
@@ -93,6 +101,7 @@ async function searchEventsForArtist(
       size: EVENTS_PER_ARTIST_SEARCH,
       sort: 'date,asc',
       startDateTime: todayStartUtc(),
+      endDateTime: horizonEndUtc(),
       classificationName: 'music',
     });
 
