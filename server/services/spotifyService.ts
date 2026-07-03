@@ -1,6 +1,7 @@
 import {
   buildSpotifyAuthorizeUrl,
   exchangeSpotifyCode,
+  fetchRecentlyPlayed,
   fetchSpotifyProfile,
   fetchTopArtists,
   fetchTopTracks,
@@ -27,6 +28,7 @@ import { normalizeArtistName } from '../../src/lib/recommendations/artistMatchin
 import type {
   SpotifyConnection,
   SpotifyConnectionStatus,
+  SpotifyRecentlyPlayedArtist,
   SpotifyTasteArtist,
   SpotifyTasteProfile,
   SpotifyTasteTrack,
@@ -138,15 +140,26 @@ function trackArtistWeight(rank: number): number {
   return Math.max(1, 20 - Math.floor(rank / 2));
 }
 
+function recentlyPlayedWeightForRank(rank: number): number {
+  return Math.max(5, 85 - rank * 2);
+}
+
 function buildTasteProfile(
   userId: string,
   artistsByRange: Record<SpotifyTimeRange, SpotifyApiArtist[]>,
-  tracksByRange: Record<SpotifyTimeRange, SpotifyApiTrack[]>
+  tracksByRange: Record<SpotifyTimeRange, SpotifyApiTrack[]>,
+  recentlyPlayedItems: Awaited<ReturnType<typeof fetchRecentlyPlayed>> = []
 ): SpotifyTasteProfile {
   const topArtists: SpotifyTasteArtist[] = [];
   const topTracks: SpotifyTasteTrack[] = [];
   const artistWeights: Record<string, number> = {};
   const genreWeights: Record<string, number> = {};
+  const recentlyPlayedArtists: SpotifyRecentlyPlayedArtist[] = [];
+  const recentlyPlayedArtistWeights: Record<string, number> = {};
+  const recentArtistMeta = new Map<
+    string,
+    { spotifyArtistId: string; name: string; playCount: number; lastPlayedAt?: string }
+  >();
 
   for (const range of TIME_RANGES) {
     artistsByRange[range].forEach((artist, index) => {
@@ -192,12 +205,47 @@ function buildTasteProfile(
     });
   }
 
+  recentlyPlayedItems.forEach((item, index) => {
+    const rank = index + 1;
+    for (const artist of item.track.artists ?? []) {
+      const key = normalizeArtistName(artist.name);
+      if (!key) continue;
+      recentlyPlayedArtistWeights[key] =
+        (recentlyPlayedArtistWeights[key] ?? 0) + recentlyPlayedWeightForRank(rank);
+      const existing = recentArtistMeta.get(key);
+      if (existing) {
+        existing.playCount += 1;
+        if (!existing.lastPlayedAt || item.played_at > existing.lastPlayedAt) {
+          existing.lastPlayedAt = item.played_at;
+        }
+      } else {
+        recentArtistMeta.set(key, {
+          spotifyArtistId: artist.id,
+          name: artist.name,
+          playCount: 1,
+          lastPlayedAt: item.played_at,
+        });
+      }
+    }
+  });
+
+  for (const [, meta] of recentArtistMeta) {
+    recentlyPlayedArtists.push({
+      spotifyArtistId: meta.spotifyArtistId,
+      name: meta.name,
+      playCount: meta.playCount,
+      lastPlayedAt: meta.lastPlayedAt,
+    });
+  }
+
   return {
     userId,
     topArtists,
     topTracks,
     artistWeights,
     genreWeights,
+    recentlyPlayedArtists,
+    recentlyPlayedArtistWeights,
     lastSyncedAt: new Date().toISOString(),
   };
 }
@@ -206,7 +254,7 @@ export async function syncSpotifyTaste(userId: string): Promise<SpotifyTasteProf
   const connection = await getSpotifyConnection(userId);
   if (!connection) throw new Error('Spotify is not connected.');
 
-  const { accessToken } = await ensureValidAccessToken(connection);
+  const { accessToken, connection: activeConnection } = await ensureValidAccessToken(connection);
 
   const artistsByRange = {} as Record<SpotifyTimeRange, SpotifyApiArtist[]>;
   const tracksByRange = {} as Record<SpotifyTimeRange, SpotifyApiTrack[]>;
@@ -220,7 +268,17 @@ export async function syncSpotifyTaste(userId: string): Promise<SpotifyTasteProf
     tracksByRange[range] = tracks;
   }
 
-  const profile = buildTasteProfile(userId, artistsByRange, tracksByRange);
+  let recentlyPlayedItems: Awaited<ReturnType<typeof fetchRecentlyPlayed>> = [];
+  const hasRecentlyPlayedScope = activeConnection.scopes.includes('user-read-recently-played');
+  if (hasRecentlyPlayedScope) {
+    try {
+      recentlyPlayedItems = await fetchRecentlyPlayed(accessToken, 50);
+    } catch {
+      recentlyPlayedItems = [];
+    }
+  }
+
+  const profile = buildTasteProfile(userId, artistsByRange, tracksByRange, recentlyPlayedItems);
   await saveSpotifyTasteProfile(profile);
   return profile;
 }

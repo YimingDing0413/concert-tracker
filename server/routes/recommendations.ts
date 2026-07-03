@@ -14,6 +14,8 @@ recommendationsRouter.get('/spotify-concerts', requireAuth, requireDynamo, async
     const limitRaw = Number(req.query.limit ?? 6);
     const limit = Math.min(24, Math.max(1, Number.isNaN(limitRaw) ? 6 : limitRaw));
     const debug = req.query.debug === 'true' || req.query.debug === '1';
+    const debugArtist =
+      typeof req.query.debugArtist === 'string' ? req.query.debugArtist.trim() : undefined;
 
     if (
       Number.isNaN(lat) ||
@@ -37,6 +39,8 @@ recommendationsRouter.get('/spotify-concerts', requireAuth, requireDynamo, async
           synced: false,
           recommendations: [],
           nearbyCount: 0,
+          totalAvailableRecommendationCount: 0,
+          hiddenCandidatesCount: 0,
         },
       });
       return;
@@ -49,6 +53,8 @@ recommendationsRouter.get('/spotify-concerts', requireAuth, requireDynamo, async
           synced: false,
           recommendations: [],
           nearbyCount: 0,
+          totalAvailableRecommendationCount: 0,
+          hiddenCandidatesCount: 0,
         },
       });
       return;
@@ -60,7 +66,8 @@ recommendationsRouter.get('/spotify-concerts', requireAuth, requireDynamo, async
       longitude: lng,
       radiusKm: Number.isNaN(radius) ? 50 : radius,
       limit,
-      debug,
+      debug: debug || Boolean(debugArtist),
+      debugArtist,
     });
 
     res.json({
@@ -69,6 +76,12 @@ recommendationsRouter.get('/spotify-concerts', requireAuth, requireDynamo, async
         synced: true,
         recommendations: result.recommendations,
         nearbyCount: result.nearbyCount,
+        totalAvailableRecommendationCount: result.totalAvailableRecommendationCount,
+        hiddenCandidatesCount: result.hiddenCandidatesCount,
+        sparseRecommendations:
+          result.recommendations.length > 0 &&
+          result.recommendations.length <= 2 &&
+          result.totalAvailableRecommendationCount <= 3,
         ...(result.debug ? { debug: result.debug } : {}),
       },
     });

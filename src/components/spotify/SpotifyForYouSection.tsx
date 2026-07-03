@@ -97,6 +97,9 @@ export function SpotifyForYouSection({
   const connected = status?.connected ?? false;
   const synced = status?.hasTasteProfile ?? false;
   const recommendations = recs?.recommendations ?? [];
+  const sparseRecommendations =
+    recs?.sparseRecommendations ||
+    (synced && recommendations.length > 0 && recommendations.length <= 2);
   const showSeeAll = connected && synced && recommendations.length > 0;
 
   const cardList =
@@ -187,12 +190,20 @@ export function SpotifyForYouSection({
           </div>
         </div>
       ) : recommendations.length > 0 ? (
-        cardList
+        <>
+          {sparseRecommendations && (
+            <p className="rounded-xl bg-muted/60 px-4 py-3 text-sm text-muted-foreground">
+              Only a few exact artist matches found near you. Try increasing radius or syncing Spotify
+              again.
+            </p>
+          )}
+          {cardList}
+        </>
       ) : (
         <div className="space-y-4">
           <EmptyState
-            title="No Spotify-based matches nearby yet"
-            description="We couldn't find nearby shows that match your Spotify taste right now."
+            title="Only a few exact artist matches found nearby"
+            description="Try increasing your search radius on the map or sync Spotify again to refresh your taste profile."
           />
           {nearbyFallback.length > 0 &&
             (layout === 'carousel' ? (

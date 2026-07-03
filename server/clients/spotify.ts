@@ -8,6 +8,7 @@ export const SPOTIFY_MVP_SCOPES = [
   'user-top-read',
   'user-read-email',
   'user-read-private',
+  'user-read-recently-played',
 ] as const;
 
 export function spotifyConfigured(): boolean {
@@ -148,6 +149,23 @@ export async function fetchTopTracks(
   const data = await spotifyGet<{ items?: SpotifyApiTrack[] }>(
     accessToken,
     `/me/top/tracks?${params}`
+  );
+  return data.items ?? [];
+}
+
+export interface SpotifyRecentlyPlayedItem {
+  played_at: string;
+  track: SpotifyApiTrack;
+}
+
+export async function fetchRecentlyPlayed(
+  accessToken: string,
+  limit = 50
+): Promise<SpotifyRecentlyPlayedItem[]> {
+  const params = new URLSearchParams({ limit: String(Math.min(50, Math.max(1, limit))) });
+  const data = await spotifyGet<{ items?: SpotifyRecentlyPlayedItem[] }>(
+    accessToken,
+    `/me/player/recently-played?${params}`
   );
   return data.items ?? [];
 }

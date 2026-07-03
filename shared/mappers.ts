@@ -39,6 +39,7 @@ export function concertEventToConcert(event: ConcertEvent): Concert {
     startTime: event.time,
     status: event.status ?? eventStatus(event.date),
     openers: event.openers,
+    attractionNames: event.attractionNames,
     tourName: event.tourName,
     ticketUrl: event.ticketUrl,
     timing,

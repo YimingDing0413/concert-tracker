@@ -95,6 +95,8 @@ export interface ConcertEvent {
   ticketUrl?: string;
   imageUrl?: string;
   openers?: string[];
+  /** All Ticketmaster attraction names on the event (headliner + support). */
+  attractionNames?: string[];
   rawSourceUrl?: string;
   status?: 'upcoming' | 'past';
   lineup?: string[];
@@ -168,6 +170,8 @@ export interface Concert {
   startTime?: string;
   status: 'upcoming' | 'past';
   openers?: string[];
+  /** All Ticketmaster attraction names on the event (headliner + support). */
+  attractionNames?: string[];
   tourName?: string;
   ticketUrl?: string;
   timing?: ConcertTiming;

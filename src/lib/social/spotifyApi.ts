@@ -41,6 +41,9 @@ export interface SpotifyRecommendationsResponse {
   synced: boolean;
   recommendations: SpotifyConcertRecommendation[];
   nearbyCount: number;
+  totalAvailableRecommendationCount?: number;
+  hiddenCandidatesCount?: number;
+  sparseRecommendations?: boolean;
   debug?: SpotifyRecommendationsDebugMeta;
 }
 
@@ -50,6 +53,7 @@ export async function getSpotifyConcertRecommendations(payload: {
   radius?: number;
   limit?: number;
   debug?: boolean;
+  debugArtist?: string;
 }): Promise<SpotifyRecommendationsResponse> {
   const params = new URLSearchParams({
     lat: String(payload.lat),
@@ -61,6 +65,9 @@ export async function getSpotifyConcertRecommendations(payload: {
   }
   if (payload.debug) {
     params.set('debug', 'true');
+  }
+  if (payload.debugArtist) {
+    params.set('debugArtist', payload.debugArtist);
   }
   return apiFetchData<SpotifyRecommendationsResponse>(
     `/api/recommendations/spotify-concerts?${params}`

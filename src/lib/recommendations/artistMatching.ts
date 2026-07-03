@@ -101,7 +101,6 @@ function strongTokenMatch(concertArtist: string, spotifyArtist: string): boolean
   return shorter.every((token) => longer.some((lt) => lt === token));
 }
 
-/** True when the concert headliner exactly matches a listened Spotify artist name. */
 export function isExactArtistNameMatch(
   concertArtistName: string,
   spotifyArtistName: string
@@ -109,6 +108,63 @@ export function isExactArtistNameMatch(
   const concertNorm = normalizeArtistName(concertArtistName);
   const spotifyNorm = normalizeArtistName(spotifyArtistName);
   return Boolean(concertNorm && spotifyNorm && concertNorm === spotifyNorm);
+}
+
+/** All performer names associated with a concert (headliner, TM attractions, openers). */
+export function getConcertAttractionNames(concert: Concert): string[] {
+  const names: string[] = [];
+  if (concert.artistName) names.push(concert.artistName);
+  for (const name of concert.attractionNames ?? []) names.push(name);
+  for (const name of concert.openers ?? []) names.push(name);
+  const seen = new Set<string>();
+  return names.filter((name) => {
+    const key = normalizeArtistName(name);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+export type SpotifyArtistMatchVia = 'headliner' | 'attraction' | 'opener' | 'none';
+
+export function findSpotifyArtistOnConcert(
+  concert: Concert,
+  spotifyArtistNormalized: string,
+  spotifyArtistDisplay: string
+): { via: SpotifyArtistMatchVia; matchedName: string } | null {
+  if (!spotifyArtistNormalized) return null;
+
+  const headlinerNorm = normalizeArtistName(concert.artistName ?? '');
+  if (
+    headlinerNorm === spotifyArtistNormalized &&
+    allowsExactArtistMatch(concert, spotifyArtistNormalized)
+  ) {
+    return { via: 'headliner', matchedName: spotifyArtistDisplay };
+  }
+
+  for (const name of getConcertAttractionNames(concert)) {
+    const norm = normalizeArtistName(name);
+    if (norm !== spotifyArtistNormalized) continue;
+    if (isNonArtistPerformance(name, concert.title)) continue;
+    if (norm === headlinerNorm && allowsExactArtistMatch(concert, spotifyArtistNormalized)) {
+      return { via: 'headliner', matchedName: spotifyArtistDisplay };
+    }
+    return { via: norm === headlinerNorm ? 'headliner' : 'attraction', matchedName: spotifyArtistDisplay };
+  }
+
+  return null;
+}
+
+/** Exclude junk events unless a listened artist is listed as a TM attraction/performer. */
+export function shouldExcludeAsNonPerformance(
+  concert: Concert,
+  matchedSpotifyNorm?: string
+): boolean {
+  if (!isNonArtistPerformance(concert.artistName ?? '', concert.title)) return false;
+  if (!matchedSpotifyNorm) return true;
+  return !getConcertAttractionNames(concert).some(
+    (name) => normalizeArtistName(name) === matchedSpotifyNorm
+  );
 }
 
 function highConfidenceFuzzyMatch(concertArtist: string, spotifyArtist: string): boolean {

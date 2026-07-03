@@ -10,6 +10,7 @@ import {
   getSpotifyStatus,
   startSpotifyConnect,
   syncSpotifyTaste,
+  type SpotifyRecommendationsResponse,
 } from '@/lib/social/spotifyApi';
 import type { SpotifyConcertRecommendation } from '@/types/spotify';
 import { Music2 } from 'lucide-react';
@@ -22,11 +23,17 @@ export function SpotifyRecommendationsPage() {
     ...DISCOVER_DEFAULT_CENTER,
   }));
   const [recommendations, setRecommendations] = useState<SpotifyConcertRecommendation[]>([]);
+  const [sparseRecommendations, setSparseRecommendations] = useState(false);
+  const [debugMeta, setDebugMeta] = useState<SpotifyRecommendationsResponse['debug']>();
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState('');
   const [connected, setConnected] = useState(false);
   const [synced, setSynced] = useState(false);
+  const [debugArtist, setDebugArtist] = useState('');
+  const debugMode =
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('debug') === 'true';
 
   useEffect(() => {
     requestUserPosition()
@@ -53,8 +60,12 @@ export function SpotifyRecommendationsPage() {
           lng: center.longitude,
           radius: 50,
           limit: 24,
+          debug: debugMode,
+          debugArtist: debugArtist.trim() || undefined,
         });
         setRecommendations(data.recommendations);
+        setSparseRecommendations(Boolean(data.sparseRecommendations));
+        setDebugMeta(data.debug);
       } else {
         setRecommendations([]);
       }
@@ -64,7 +75,7 @@ export function SpotifyRecommendationsPage() {
     } finally {
       setLoading(false);
     }
-  }, [user, center.latitude, center.longitude]);
+  }, [user, center.latitude, center.longitude, debugMode, debugArtist]);
 
   useEffect(() => {
     void load();
@@ -124,8 +135,8 @@ export function SpotifyRecommendationsPage() {
         />
       ) : recommendations.length === 0 ? (
         <EmptyState
-          title="No matches nearby"
-          description="We couldn't find upcoming shows that match your Spotify taste in this area."
+          title="Only a few exact artist matches found nearby"
+          description="Try increasing your search radius on the map or sync Spotify again to refresh your taste profile."
           action={
             <Link to="/map" className="text-sm font-medium text-primary">
               Explore map →
@@ -133,13 +144,47 @@ export function SpotifyRecommendationsPage() {
           }
         />
       ) : (
-        <ul className="grid gap-4 sm:grid-cols-2">
-          {recommendations.map((c) => (
-            <li key={c.id}>
-              <SpotifyPickCard concert={c} backTo="/discover/spotify" />
-            </li>
-          ))}
-        </ul>
+        <>
+          {sparseRecommendations && (
+            <p className="rounded-xl bg-muted/60 px-4 py-3 text-sm text-muted-foreground">
+              Only a few exact artist matches found near you. Try increasing radius or syncing Spotify
+              again.
+            </p>
+          )}
+          <ul className="grid gap-4 sm:grid-cols-2">
+            {recommendations.map((c) => (
+              <li key={c.id}>
+                <SpotifyPickCard concert={c} backTo="/discover/spotify" />
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      {debugMode && debugMeta && (
+        <section className="rounded-2xl border border-border bg-card p-4 text-xs text-muted-foreground">
+          <h2 className="mb-2 text-sm font-semibold text-foreground">Recommendation debug</h2>
+          <p>Pool: {debugMeta.uniqueSpotifyArtistPoolCount} artists · Targeted searches: {debugMeta.targetedArtistSearchCount}</p>
+          <p>
+            Candidates: {debugMeta.candidateCountBeforeFilters} before filters ·{' '}
+            {debugMeta.candidateCountAfterFilters} after · {debugMeta.totalAvailableRecommendationCount}{' '}
+            ranked total
+          </p>
+          {debugMeta.tracedArtist && (
+            <pre className="mt-3 overflow-x-auto rounded-lg bg-muted/50 p-3 text-[11px]">
+              {JSON.stringify(debugMeta.tracedArtist, null, 2)}
+            </pre>
+          )}
+          <label className="mt-3 block">
+            <span className="mb-1 block text-foreground">Trace artist</span>
+            <input
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+              value={debugArtist}
+              onChange={(e) => setDebugArtist(e.target.value)}
+              placeholder="Artist name"
+            />
+          </label>
+        </section>
       )}
 
       {!loading && connected && synced && recommendations.length > 0 && (

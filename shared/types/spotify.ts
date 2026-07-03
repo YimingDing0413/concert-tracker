@@ -21,12 +21,21 @@ export interface SpotifyTasteTrack {
   timeRange: SpotifyTimeRange;
 }
 
+export interface SpotifyRecentlyPlayedArtist {
+  spotifyArtistId: string;
+  name: string;
+  playCount: number;
+  lastPlayedAt?: string;
+}
+
 export interface SpotifyTasteProfile {
   userId: string;
   topArtists: SpotifyTasteArtist[];
   topTracks: SpotifyTasteTrack[];
   artistWeights: Record<string, number>;
   genreWeights?: Record<string, number>;
+  recentlyPlayedArtists?: SpotifyRecentlyPlayedArtist[];
+  recentlyPlayedArtistWeights?: Record<string, number>;
   lastSyncedAt: string;
 }
 
@@ -83,8 +92,10 @@ export interface SpotifyConcertRecommendation {
 
 export interface SpotifyRecommendationScoreBreakdown {
   listeningWeight?: number;
+  recentlyPlayedWeight?: number;
   exactTopArtist?: number;
   topTrackArtist?: number;
+  attractionMatch?: number;
   fuzzyArtist?: number;
   artistWeight?: number;
   genre?: number;
@@ -96,15 +107,48 @@ export interface SpotifyRecommendationScoreBreakdown {
   distance?: number;
 }
 
+export interface ArtistRecommendationDebug {
+  spotifyArtistName: string;
+  normalizedName: string;
+  artistWeight: number;
+  recentlyPlayedWeight?: number;
+  sourceSignals: {
+    shortTermTopArtist?: boolean;
+    mediumTermTopArtist?: boolean;
+    longTermTopArtist?: boolean;
+    topTrackArtist?: boolean;
+    recentlyPlayedArtist?: boolean;
+  };
+  wasInTargetedSearchPool: boolean;
+  ticketmasterAttractionFound?: boolean;
+  ticketmasterAttractionId?: string;
+  ticketmasterEventsFound?: number;
+  nearbyEventsFound?: number;
+  finalRecommendationsForArtist?: number;
+  excludedReasons?: string[];
+}
+
 export interface SpotifyRecommendationsDebugMeta {
-  candidateCount: number;
-  nearbyCandidateCount: number;
-  artistSearchCandidateCount: number;
-  excludedAlreadyAttendedCount: number;
-  excludedSavedGoingCount: number;
-  excludedNoListeningCount: number;
-  excludedOutsideWindowCount: number;
-  excludedLowQualityCount: number;
+  spotifyTopArtistsCount: number;
+  spotifyTopTracksCount: number;
+  uniqueSpotifyArtistPoolCount: number;
+  targetedArtistSearchCount: number;
+  candidateCountBeforeFilters: number;
+  candidateCountAfterFilters: number;
   finalRecommendationCount: number;
+  totalAvailableRecommendationCount: number;
+  hiddenCandidatesCount: number;
+  excludedCountsByReason: Record<string, number>;
+  /** @deprecated use candidateCountBeforeFilters */
+  candidateCount?: number;
+  nearbyCandidateCount?: number;
+  artistSearchCandidateCount?: number;
+  excludedAlreadyAttendedCount?: number;
+  excludedSavedGoingCount?: number;
+  excludedNoListeningCount?: number;
+  excludedOutsideWindowCount?: number;
+  excludedLowQualityCount?: number;
   topScore?: number;
+  artistDebug?: ArtistRecommendationDebug[];
+  tracedArtist?: ArtistRecommendationDebug;
 }

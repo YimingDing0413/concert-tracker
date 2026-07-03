@@ -1,31 +1,20 @@
-import * as tm from '../clients/ticketmaster.js';
-import { hasTicketmaster } from '../env.js';
-import { normalizeTmEventsResponse } from '../normalize/ticketmaster.js';
 import { getMapEventsVenues } from './mapService.js';
-import { concertEventToConcert } from '../../shared/mappers.js';
+import { searchTicketmasterEventsForSpotifyArtist, type TicketmasterAttractionCache } from './ticketmasterArtistLookup.js';
 import type { Concert } from '../../shared/types/index.js';
-import type { SpotifyTasteProfile } from '../../shared/types/spotify.js';
+import type { ArtistRecommendationDebug, SpotifyTasteProfile } from '../../shared/types/spotify.js';
 import {
-  isExactArtistNameMatch,
-  normalizeArtistName,
-} from '../../src/lib/recommendations/artistMatching.js';
-import { RECOMMENDATION_HORIZON_DAYS } from '../../src/lib/recommendations/spotifyConcertRecommendations.js';
+  buildSpotifyArtistPool,
+  targetedArtistPool,
+  type SpotifyArtistPoolEntry,
+} from '../../src/lib/recommendations/spotifyArtistPool.js';
+import {
+  ARTIST_SEARCH_CONCURRENCY,
+  getRecommendationWindowDays,
+  getTargetedArtistSearchLimit,
+  MAX_CANDIDATE_POOL,
+} from '../../src/lib/recommendations/config.js';
+import { normalizeArtistName } from '../../src/lib/recommendations/artistMatching.js';
 import type { MapConcertEvent, MapVenue } from '../../shared/types/index.js';
-
-const MAX_CANDIDATE_POOL = 250;
-const TOP_ARTIST_SEARCH_COUNT = 25;
-const EVENTS_PER_ARTIST_SEARCH = 8;
-const ARTIST_SEARCH_CONCURRENCY = 5;
-
-function todayStartUtc(): string {
-  return `${new Date().toISOString().slice(0, 10)}T00:00:00Z`;
-}
-
-function horizonEndUtc(): string {
-  const end = new Date();
-  end.setUTCDate(end.getUTCDate() + RECOMMENDATION_HORIZON_DAYS);
-  return `${end.toISOString().slice(0, 10)}T23:59:59Z`;
-}
 
 function mapEventToConcert(venue: MapVenue, e: MapConcertEvent): Concert {
   return {
@@ -63,60 +52,6 @@ function concertsFromMapVenues(venues: MapVenue[]): Concert[] {
   return list;
 }
 
-function topSpotifyArtistsByWeight(taste: SpotifyTasteProfile, limit: number): string[] {
-  const weights = taste.artistWeights ?? {};
-  const names = new Map<string, string>();
-
-  for (const artist of taste.topArtists) {
-    const key = normalizeArtistName(artist.name);
-    if (key && !names.has(key)) names.set(key, artist.name);
-  }
-
-  return [...names.entries()]
-    .map(([key, displayName]) => ({
-      key,
-      displayName,
-      weight: weights[key] ?? 0,
-    }))
-    .filter((entry) => entry.weight > 0)
-    .sort((a, b) => b.weight - a.weight || a.displayName.localeCompare(b.displayName))
-    .slice(0, limit)
-    .map((entry) => entry.displayName);
-}
-
-async function searchEventsForArtist(
-  artistName: string,
-  latitude: number,
-  longitude: number,
-  radiusKm: number
-): Promise<Concert[]> {
-  if (!hasTicketmaster()) return [];
-
-  const latlong = `${latitude},${longitude}`;
-  const radius = String(Math.min(100, Math.max(10, Math.round(radiusKm))));
-
-  try {
-    const payload = await tm.tmSearchEvents({
-      keyword: artistName,
-      latlong,
-      radius,
-      unit: 'km',
-      size: EVENTS_PER_ARTIST_SEARCH,
-      sort: 'date,asc',
-      startDateTime: todayStartUtc(),
-      endDateTime: horizonEndUtc(),
-      classificationName: 'music',
-    });
-
-    return normalizeTmEventsResponse(payload)
-      .filter((e) => e.status !== 'past')
-      .map(concertEventToConcert)
-      .filter((concert) => isExactArtistNameMatch(concert.artistName ?? '', artistName));
-  } catch {
-    return [];
-  }
-}
-
 async function mapWithConcurrency<T, R>(
   items: T[],
   concurrency: number,
@@ -131,10 +66,50 @@ async function mapWithConcurrency<T, R>(
   return results;
 }
 
+function dedupeConcerts(concerts: Concert[]): Concert[] {
+  const byId = new Map<string, Concert>();
+  const byFallback = new Map<string, Concert>();
+
+  for (const concert of concerts) {
+    if (concert.id) {
+      if (!byId.has(concert.id)) byId.set(concert.id, concert);
+      continue;
+    }
+    const fallbackKey = [
+      normalizeArtistName(concert.artistName ?? ''),
+      normalizeArtistName(concert.venueName ?? ''),
+      concert.date,
+      normalizeArtistName(concert.city ?? ''),
+    ].join('|');
+    if (!byFallback.has(fallbackKey)) byFallback.set(fallbackKey, concert);
+  }
+
+  return [...byId.values(), ...byFallback.values()];
+}
+
 export interface SpotifyCandidatePool {
   candidates: Concert[];
   nearbyCandidateCount: number;
   artistSearchCandidateCount: number;
+  uniqueSpotifyArtistPoolCount: number;
+  targetedArtistSearchCount: number;
+  artistPool: SpotifyArtistPoolEntry[];
+  artistDebug: Map<string, ArtistRecommendationDebug>;
+}
+
+function initArtistDebug(entry: SpotifyArtistPoolEntry, inSearchPool: boolean): ArtistRecommendationDebug {
+  return {
+    spotifyArtistName: entry.spotifyArtistName,
+    normalizedName: entry.normalizedName,
+    artistWeight: entry.artistWeight,
+    recentlyPlayedWeight: entry.recentlyPlayedWeight,
+    sourceSignals: { ...entry.sourceSignals },
+    wasInTargetedSearchPool: inSearchPool,
+    ticketmasterEventsFound: 0,
+    nearbyEventsFound: 0,
+    finalRecommendationsForArtist: 0,
+    excludedReasons: [],
+  };
 }
 
 export async function buildSpotifyRecommendationCandidates(payload: {
@@ -144,28 +119,75 @@ export async function buildSpotifyRecommendationCandidates(payload: {
   radiusKm: number;
 }): Promise<SpotifyCandidatePool> {
   const { taste, latitude, longitude, radiusKm } = payload;
+  const artistPool = buildSpotifyArtistPool(taste);
+  const searchPool = targetedArtistPool(taste, getTargetedArtistSearchLimit());
+  const searchPoolKeys = new Set(searchPool.map((entry) => entry.normalizedName));
+  const artistDebug = new Map<string, ArtistRecommendationDebug>();
+
+  for (const entry of artistPool) {
+    artistDebug.set(
+      entry.normalizedName,
+      initArtistDebug(entry, searchPoolKeys.has(entry.normalizedName))
+    );
+  }
 
   const mapResult = await getMapEventsVenues({ latitude, longitude, radiusKm });
   const nearby = concertsFromMapVenues(mapResult.data?.venues ?? []);
+  const nearbyCandidateCount = nearby.length;
+
+  for (const concert of nearby) {
+    for (const entry of artistPool) {
+      const names = [
+        concert.artistName,
+        ...(concert.attractionNames ?? []),
+        ...(concert.openers ?? []),
+      ].filter(Boolean) as string[];
+      if (names.some((name) => normalizeArtistName(name) === entry.normalizedName)) {
+        const debug = artistDebug.get(entry.normalizedName);
+        if (debug) debug.nearbyEventsFound = (debug.nearbyEventsFound ?? 0) + 1;
+      }
+    }
+  }
 
   const byId = new Map<string, Concert>();
   for (const concert of nearby) {
     byId.set(concert.id, concert);
   }
-  const nearbyCandidateCount = byId.size;
 
-  const topArtists = topSpotifyArtistsByWeight(taste, TOP_ARTIST_SEARCH_COUNT);
+  const attractionCache: TicketmasterAttractionCache = new Map();
   let artistSearchCandidateCount = 0;
 
-  if (hasTicketmaster() && topArtists.length > 0) {
+  if (searchPool.length > 0) {
     const searchResults = await mapWithConcurrency(
-      topArtists,
+      searchPool,
       ARTIST_SEARCH_CONCURRENCY,
-      (artistName) => searchEventsForArtist(artistName, latitude, longitude, radiusKm)
+      async (entry) => {
+        const result = await searchTicketmasterEventsForSpotifyArtist({
+          spotifyArtistName: entry.spotifyArtistName,
+          latitude,
+          longitude,
+          radiusKm,
+          attractionCache,
+        });
+        return { entry, result };
+      }
     );
 
-    for (const concerts of searchResults) {
-      for (const concert of concerts) {
+    for (const { entry, result } of searchResults) {
+      const debug = artistDebug.get(entry.normalizedName);
+      if (debug) {
+        debug.ticketmasterAttractionFound = result.attractionFound;
+        debug.ticketmasterAttractionId = result.attractionId;
+        debug.ticketmasterEventsFound = result.eventsFound;
+        if (!result.attractionFound) {
+          debug.excludedReasons?.push('no_ticketmaster_attraction_match');
+        }
+        if (result.eventsFound === 0) {
+          debug.excludedReasons?.push('no_ticketmaster_events_found');
+        }
+      }
+
+      for (const concert of result.concerts) {
         if (byId.has(concert.id)) continue;
         byId.set(concert.id, concert);
         artistSearchCandidateCount += 1;
@@ -175,9 +197,19 @@ export async function buildSpotifyRecommendationCandidates(payload: {
     }
   }
 
+  for (const entry of artistPool) {
+    if (!searchPoolKeys.has(entry.normalizedName)) {
+      artistDebug.get(entry.normalizedName)?.excludedReasons?.push('not_in_targeted_search_pool');
+    }
+  }
+
   return {
-    candidates: [...byId.values()].slice(0, MAX_CANDIDATE_POOL),
+    candidates: dedupeConcerts([...byId.values()]).slice(0, MAX_CANDIDATE_POOL),
     nearbyCandidateCount,
     artistSearchCandidateCount,
+    uniqueSpotifyArtistPoolCount: artistPool.length,
+    targetedArtistSearchCount: searchPool.length,
+    artistPool,
+    artistDebug,
   };
 }

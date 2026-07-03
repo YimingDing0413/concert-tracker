@@ -74,6 +74,12 @@ export function normalizeTmEvent(raw: any): ConcertEvent | null {
       ?.map((a: { name: string }) => a.name)
       .filter(Boolean) ?? [];
 
+  const attractionNames =
+    e._embedded?.attractions
+      ?.map((a: { name?: string }) => a.name)
+      .filter((name: unknown): name is string => typeof name === 'string' && name.trim().length > 0) ??
+    [];
+
   const latRaw = venue?.location?.latitude;
   const lngRaw = venue?.location?.longitude;
   const venueLatitude =
@@ -108,6 +114,7 @@ export function normalizeTmEvent(raw: any): ConcertEvent | null {
     ticketUrl: e.url,
     imageUrl: pickImage(e.images),
     openers: openers.length ? openers : undefined,
+    attractionNames: attractionNames.length ? attractionNames : undefined,
     tourName: extractTourNameFromTmEvent(e),
     rawSourceUrl: e.url,
     status: date >= new Date().toISOString().slice(0, 10) ? 'upcoming' : 'past',

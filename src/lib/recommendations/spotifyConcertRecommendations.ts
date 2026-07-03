@@ -1,30 +1,31 @@
 import type { Concert, UserConcert } from '../../../shared/types/index.js';
 import type {
+  ArtistRecommendationDebug,
   SpotifyConcertRecommendation,
   SpotifyRecommendationScoreBreakdown,
   SpotifyTasteProfile,
 } from '../../../shared/types/spotify.js';
 import {
-  allowsExactArtistMatch,
+  findSpotifyArtistOnConcert,
   isNonArtistPerformance,
   normalizeArtistName,
+  shouldExcludeAsNonPerformance,
+  type SpotifyArtistMatchVia,
 } from './artistMatching.js';
+import { buildSpotifyBucketWeights, scoreGenreMatch } from './genreMapping.js';
+import { getRecommendationWindowDays } from './config.js';
 import {
-  buildSpotifyBucketWeights,
-  scoreGenreMatch,
-} from './genreMapping.js';
+  buildSpotifyArtistPool,
+  type SpotifyArtistPoolEntry,
+} from './spotifyArtistPool.js';
 
-export { isNonArtistPerformance, normalizeArtistName };
-
-/** Include upcoming shows through ~6 months out. */
-export const RECOMMENDATION_HORIZON_DAYS = 183;
+export { getRecommendationWindowDays, isNonArtistPerformance, normalizeArtistName };
 
 export type UserConcertHistory = {
   attendedConcertIds: Set<string>;
   savedConcertIds: Set<string>;
   goingConcertIds: Set<string>;
   attendedArtistKeys: Set<string>;
-  /** Artists the user rated highly on Encore (overall >= 4). */
   highRatedArtistKeys: Set<string>;
 };
 
@@ -66,43 +67,21 @@ export function buildUserConcertHistory(
   };
 }
 
+export type ExclusionReason =
+  | 'past_event'
+  | 'outside_date_window'
+  | 'already_attended'
+  | 'already_saved_or_going'
+  | 'non_performance'
+  | 'no_listening_match'
+  | 'outside_radius'
+  | 'low_confidence';
+
 export interface SpotifyRecommendationDebugStats {
-  excludedAlreadyAttendedCount: number;
-  excludedSavedGoingCount: number;
-  excludedNoListeningCount: number;
-  excludedOutsideWindowCount: number;
-  excludedLowQualityCount: number;
-  scoredCount: number;
-}
-
-function topArtistNames(
-  profile: SpotifyTasteProfile,
-  artistWeights: Record<string, number>
-): Map<string, string> {
-  const map = new Map<string, string>();
-  for (const artist of profile.topArtists) {
-    const key = normalizeArtistName(artist.name);
-    if (key && !map.has(key) && (artistWeights[key] ?? 0) > 0) {
-      map.set(key, artist.name);
-    }
-  }
-  return map;
-}
-
-function trackArtistNames(
-  profile: SpotifyTasteProfile,
-  artistWeights: Record<string, number>
-): Map<string, string> {
-  const map = new Map<string, string>();
-  for (const track of profile.topTracks) {
-    for (const name of track.artistNames) {
-      const key = normalizeArtistName(name);
-      if (key && !map.has(key) && (artistWeights[key] ?? 0) > 0) {
-        map.set(key, name);
-      }
-    }
-  }
-  return map;
+  candidateCountBeforeFilters: number;
+  candidateCountAfterFilters: number;
+  excludedCountsByReason: Record<string, number>;
+  artistDebug: Map<string, ArtistRecommendationDebug>;
 }
 
 function daysUntil(dateStr: string): number {
@@ -113,12 +92,7 @@ function daysUntil(dateStr: string): number {
   return Math.round((d.getTime() - today.getTime()) / (24 * 60 * 60 * 1000));
 }
 
-function haversineKm(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-): number {
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const toRad = (deg: number) => (deg * Math.PI) / 180;
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
@@ -128,8 +102,8 @@ function haversineKm(
   return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function scoreDateUrgency(days: number): number {
-  if (days < 0 || days > RECOMMENDATION_HORIZON_DAYS) return 0;
+function scoreDateUrgency(days: number, windowDays: number): number {
+  if (days < 0 || days > windowDays) return 0;
   if (days <= 14) return 6;
   if (days <= 30) return 5;
   if (days <= 60) return 4;
@@ -138,14 +112,6 @@ function scoreDateUrgency(days: number): number {
   return 1;
 }
 
-function listeningWeightForArtist(
-  artistWeights: Record<string, number>,
-  matchedName: string
-): number {
-  return artistWeights[normalizeArtistName(matchedName)] ?? 0;
-}
-
-/** Primary rank signal: how much the user listens to the matched artist on Spotify. */
 function scoreListeningWeight(weight: number): number {
   return Math.min(150, Math.round(weight * 0.75));
 }
@@ -159,92 +125,122 @@ function scoreDistanceKm(distanceKm: number | null): number {
   return 0;
 }
 
+function combinedWeightForEntry(entry: SpotifyArtistPoolEntry): number {
+  return entry.combinedWeight;
+}
+
 type ScoredCandidate = SpotifyConcertRecommendation & {
-  listeningWeight: number;
+  combinedWeight: number;
+  matchVia: SpotifyArtistMatchVia;
+  distanceKm: number | null;
   scoreBreakdown?: SpotifyRecommendationScoreBreakdown;
 };
 
 interface ArtistMatchResult {
+  entry: SpotifyArtistPoolEntry;
   matchedName: string;
-  isTopArtist: boolean;
-  isTrackArtist: boolean;
+  via: SpotifyArtistMatchVia;
+  combinedWeight: number;
 }
 
-/** Only match when the concert headliner name exactly equals a listened Spotify artist. */
-function findExactListenedArtistMatch(
+function findBestListenedArtistMatch(
   concert: Concert,
-  artistWeights: Record<string, number>,
-  topArtists: Map<string, string>,
-  trackArtists: Map<string, string>
+  artistPool: SpotifyArtistPoolEntry[]
 ): ArtistMatchResult | null {
-  const normConcert = normalizeArtistName(concert.artistName ?? '');
-  if (!normConcert) return null;
+  let best: ArtistMatchResult | null = null;
 
-  const listeningWeight = artistWeights[normConcert] ?? 0;
-  if (listeningWeight <= 0) return null;
-  if (!allowsExactArtistMatch(concert, normConcert)) return null;
+  for (const entry of artistPool) {
+    const match = findSpotifyArtistOnConcert(
+      concert,
+      entry.normalizedName,
+      entry.spotifyArtistName
+    );
+    if (!match) continue;
 
-  const inTop = topArtists.has(normConcert);
-  const inTracks = trackArtists.has(normConcert);
-  if (!inTop && !inTracks) return null;
+    const candidate: ArtistMatchResult = {
+      entry,
+      matchedName: entry.spotifyArtistName,
+      via: match.via,
+      combinedWeight: combinedWeightForEntry(entry),
+    };
 
-  const matchedName = topArtists.get(normConcert) ?? trackArtists.get(normConcert)!;
+    if (
+      !best ||
+      candidate.combinedWeight > best.combinedWeight ||
+      (candidate.combinedWeight === best.combinedWeight &&
+        rankMatchVia(candidate.via) > rankMatchVia(best.via))
+    ) {
+      best = candidate;
+    }
+  }
 
-  return {
-    matchedName,
-    isTopArtist: inTop,
-    isTrackArtist: inTracks && !inTop,
-  };
+  return best;
+}
+
+function rankMatchVia(via: SpotifyArtistMatchVia): number {
+  if (via === 'headliner') return 3;
+  if (via === 'attraction') return 2;
+  if (via === 'opener') return 1;
+  return 0;
 }
 
 function assignConfidence(input: {
-  artistMatch: ArtistMatchResult | null;
-  listeningWeight: number;
+  artistMatch: ArtistMatchResult;
 }): 'high' | 'medium' | 'low' {
-  const { artistMatch, listeningWeight } = input;
-  if (!artistMatch || listeningWeight <= 0) return 'low';
-  if (artistMatch.isTopArtist || listeningWeight >= 40) return 'high';
-  if (listeningWeight >= 15) return 'medium';
+  const { artistMatch } = input;
+  if (artistMatch.combinedWeight <= 0) return 'low';
+  if (
+    artistMatch.entry.sourceSignals.shortTermTopArtist ||
+    artistMatch.combinedWeight >= 40 ||
+    artistMatch.via === 'headliner'
+  ) {
+    return 'high';
+  }
   return 'medium';
 }
 
 function pickPrimaryReason(input: {
   artistMatch: ArtistMatchResult;
-  listeningWeight: number;
 }): string {
-  const { artistMatch, listeningWeight } = input;
-
-  if (listeningWeight >= 60) {
+  const { artistMatch } = input;
+  if (artistMatch.combinedWeight >= 60) {
     return `You've been listening to ${artistMatch.matchedName} a lot on Spotify`;
+  }
+  if (artistMatch.entry.sourceSignals.recentlyPlayedArtist) {
+    return `You've been listening to ${artistMatch.matchedName} recently on Spotify`;
   }
   return `You've been listening to ${artistMatch.matchedName} on Spotify`;
 }
 
-function selectWithDiversity(scored: ScoredCandidate[], limit: number): ScoredCandidate[] {
-  const sorted = [...scored].sort(
-    (a, b) =>
-      b.listeningWeight - a.listeningWeight ||
-      b.spotifyScore - a.spotifyScore ||
-      a.date.localeCompare(b.date)
-  );
-
-  const artistSeen = new Set<string>();
-  const venueCounts = new Map<string, number>();
-  const picked: ScoredCandidate[] = [];
-
-  for (const rec of sorted) {
-    const artistKey = normalizeArtistName(rec.artistName);
-    const venueKey = rec.venueId || rec.venueName;
-    if (artistSeen.has(artistKey)) continue;
-    if ((venueCounts.get(venueKey) ?? 0) >= 2) continue;
-
-    picked.push(rec);
-    artistSeen.add(artistKey);
-    venueCounts.set(venueKey, (venueCounts.get(venueKey) ?? 0) + 1);
-    if (picked.length >= limit) break;
+function recordArtistExclusion(
+  artistDebug: Map<string, ArtistRecommendationDebug>,
+  normalizedName: string | undefined,
+  reason: string
+) {
+  if (!normalizedName) return;
+  const debug = artistDebug.get(normalizedName);
+  if (!debug) return;
+  if (!debug.excludedReasons?.includes(reason)) {
+    debug.excludedReasons = [...(debug.excludedReasons ?? []), reason];
   }
+}
 
-  return picked;
+function incrementExcluded(
+  excludedCountsByReason: Record<string, number>,
+  reason: ExclusionReason | string
+) {
+  excludedCountsByReason[reason] = (excludedCountsByReason[reason] ?? 0) + 1;
+}
+
+function sortRecommendations(scored: ScoredCandidate[]): ScoredCandidate[] {
+  return [...scored].sort(
+    (a, b) =>
+      b.combinedWeight - a.combinedWeight ||
+      rankMatchVia(b.matchVia) - rankMatchVia(a.matchVia) ||
+      b.spotifyScore - a.spotifyScore ||
+      a.date.localeCompare(b.date) ||
+      (a.distanceKm ?? 9999) - (b.distanceKm ?? 9999)
+  );
 }
 
 export function getSpotifyConcertRecommendations(
@@ -255,79 +251,119 @@ export function getSpotifyConcertRecommendations(
   options?: {
     userLatitude?: number;
     userLongitude?: number;
+    radiusKm?: number;
     includeDebug?: boolean;
+    artistDebug?: Map<string, ArtistRecommendationDebug>;
+    debugArtistNormalized?: string;
   }
 ): {
   recommendations: SpotifyConcertRecommendation[];
+  allRecommendations: SpotifyConcertRecommendation[];
+  totalAvailableRecommendationCount: number;
+  hiddenCandidatesCount: number;
   debugStats?: SpotifyRecommendationDebugStats;
 } {
-  const artistWeights = spotifyTasteProfile.artistWeights ?? {};
-  const topArtists = topArtistNames(spotifyTasteProfile, artistWeights);
-  const trackArtists = trackArtistNames(spotifyTasteProfile, artistWeights);
+  const windowDays = getRecommendationWindowDays();
+  const artistPool = buildSpotifyArtistPool(spotifyTasteProfile);
+  const poolByNorm = new Map(artistPool.map((entry) => [entry.normalizedName, entry]));
   const spotifyBucketWeights = buildSpotifyBucketWeights(spotifyTasteProfile.genreWeights);
-
+  const artistDebug = options?.artistDebug ?? new Map<string, ArtistRecommendationDebug>();
+  const excludedCountsByReason: Record<string, number> = {};
   const scored: ScoredCandidate[] = [];
-  let excludedAlreadyAttendedCount = 0;
-  let excludedSavedGoingCount = 0;
-  let excludedNoListeningCount = 0;
-  let excludedOutsideWindowCount = 0;
-  let excludedLowQualityCount = 0;
 
   for (const concert of candidates) {
-    if (concert.status === 'past') continue;
-
-    const days = daysUntil(concert.date);
-    if (days > RECOMMENDATION_HORIZON_DAYS) {
-      excludedOutsideWindowCount += 1;
+    if (concert.status === 'past') {
+      incrementExcluded(excludedCountsByReason, 'past_event');
       continue;
     }
+
+    const days = daysUntil(concert.date);
+    if (days > windowDays) {
+      incrementExcluded(excludedCountsByReason, 'outside_date_window');
+      for (const entry of artistPool) {
+        const match = findSpotifyArtistOnConcert(
+          concert,
+          entry.normalizedName,
+          entry.spotifyArtistName
+        );
+        if (match) recordArtistExclusion(artistDebug, entry.normalizedName, 'outside_date_window');
+      }
+      continue;
+    }
+
     if (userConcertHistory.attendedConcertIds.has(concert.id)) {
-      excludedAlreadyAttendedCount += 1;
+      incrementExcluded(excludedCountsByReason, 'already_attended');
       continue;
     }
     if (
       userConcertHistory.savedConcertIds.has(concert.id) ||
       userConcertHistory.goingConcertIds.has(concert.id)
     ) {
-      excludedSavedGoingCount += 1;
+      incrementExcluded(excludedCountsByReason, 'already_saved_or_going');
       continue;
     }
-    if (isNonArtistPerformance(concert.artistName ?? '', concert.title)) {
-      excludedLowQualityCount += 1;
+
+    const artistMatch = findBestListenedArtistMatch(concert, artistPool);
+    if (!artistMatch || artistMatch.combinedWeight <= 0) {
+      incrementExcluded(excludedCountsByReason, 'no_listening_match');
       continue;
+    }
+
+    if (shouldExcludeAsNonPerformance(concert, artistMatch.entry.normalizedName)) {
+      incrementExcluded(excludedCountsByReason, 'non_performance');
+      recordArtistExclusion(artistDebug, artistMatch.entry.normalizedName, 'filtered_as_non_performance');
+      continue;
+    }
+
+    let distanceKm: number | null = null;
+    if (
+      options?.userLatitude != null &&
+      options?.userLongitude != null &&
+      concert.venueLatitude != null &&
+      concert.venueLongitude != null
+    ) {
+      distanceKm = haversineKm(
+        options.userLatitude,
+        options.userLongitude,
+        concert.venueLatitude,
+        concert.venueLongitude
+      );
+      const maxRadius = options.radiusKm ?? 100;
+      if (distanceKm > maxRadius) {
+        incrementExcluded(excludedCountsByReason, 'outside_radius');
+        recordArtistExclusion(artistDebug, artistMatch.entry.normalizedName, 'outside_radius');
+        continue;
+      }
     }
 
     const normArtist = normalizeArtistName(concert.artistName ?? '');
-    const artistMatch = findExactListenedArtistMatch(
-      concert,
-      artistWeights,
-      topArtists,
-      trackArtists
-    );
-
-    if (!artistMatch) {
-      excludedNoListeningCount += 1;
-      continue;
-    }
-
-    const listeningWeight = listeningWeightForArtist(artistWeights, artistMatch.matchedName);
-    if (listeningWeight <= 0 || normArtist !== normalizeArtistName(artistMatch.matchedName)) {
-      excludedNoListeningCount += 1;
-      continue;
-    }
-
     const breakdown: SpotifyRecommendationScoreBreakdown = {};
     let score = 0;
 
-    breakdown.listeningWeight = scoreListeningWeight(listeningWeight);
+    breakdown.listeningWeight = scoreListeningWeight(artistMatch.entry.artistWeight);
     score += breakdown.listeningWeight;
+    if (artistMatch.entry.recentlyPlayedWeight > 0) {
+      breakdown.recentlyPlayedWeight = Math.min(
+        80,
+        Math.round(artistMatch.entry.recentlyPlayedWeight * 0.9)
+      );
+      score += breakdown.recentlyPlayedWeight;
+    }
 
-    if (artistMatch.isTopArtist) {
+    if (artistMatch.entry.sourceSignals.shortTermTopArtist) {
       breakdown.exactTopArtist = 25;
       score += 25;
-    } else if (artistMatch.isTrackArtist) {
+    } else if (artistMatch.entry.sourceSignals.topTrackArtist) {
       breakdown.topTrackArtist = 15;
       score += 15;
+    }
+
+    if (artistMatch.via === 'headliner') {
+      breakdown.attractionMatch = 20;
+      score += 20;
+    } else if (artistMatch.via === 'attraction') {
+      breakdown.attractionMatch = 12;
+      score += 12;
     }
 
     const genreMatch = scoreGenreMatch(
@@ -348,47 +384,34 @@ export function getSpotifyConcertRecommendations(
       breakdown.encoreHistory = 10;
       score += 10;
     }
-
     if (userConcertHistory.attendedArtistKeys.has(normArtist)) {
       breakdown.attendedArtist = 8;
       score += 8;
     }
-
     if (concert.imageUrl) {
       breakdown.image = 2;
       score += 2;
     }
 
-    breakdown.dateUrgency = scoreDateUrgency(days);
+    breakdown.dateUrgency = scoreDateUrgency(days, windowDays);
     score += breakdown.dateUrgency;
-
-    if (
-      options?.userLatitude != null &&
-      options?.userLongitude != null &&
-      concert.venueLatitude != null &&
-      concert.venueLongitude != null
-    ) {
-      const km = haversineKm(
-        options.userLatitude,
-        options.userLongitude,
-        concert.venueLatitude,
-        concert.venueLongitude
-      );
-      breakdown.distance = scoreDistanceKm(km);
+    if (distanceKm != null) {
+      breakdown.distance = scoreDistanceKm(distanceKm);
       score += breakdown.distance;
     }
 
-    const confidence = assignConfidence({ artistMatch, listeningWeight });
-
+    const confidence = assignConfidence({ artistMatch });
     if (confidence === 'low') {
-      excludedLowQualityCount += 1;
+      incrementExcluded(excludedCountsByReason, 'low_confidence');
+      recordArtistExclusion(artistDebug, artistMatch.entry.normalizedName, 'low_confidence');
       continue;
     }
 
-    const reason = pickPrimaryReason({ artistMatch, listeningWeight });
-
+    const reason = pickPrimaryReason({ artistMatch });
     const rec: ScoredCandidate = {
-      listeningWeight,
+      combinedWeight: artistMatch.combinedWeight,
+      matchVia: artistMatch.via,
+      distanceKm,
       id: concert.id,
       artistId: concert.artistId,
       artistName: concert.artistName,
@@ -410,30 +433,48 @@ export function getSpotifyConcertRecommendations(
       spotifyScore: score,
       confidence,
       reasons: [reason],
-      matchedSpotifyArtists: artistMatch ? [artistMatch.matchedName] : [],
+      matchedSpotifyArtists: [artistMatch.matchedName],
       alreadySaved: false,
       alreadyGoing: false,
     };
 
-    if (options?.includeDebug) {
-      rec.scoreBreakdown = breakdown;
-    }
-
+    if (options?.includeDebug) rec.scoreBreakdown = breakdown;
     scored.push(rec);
+
+    const debug = artistDebug.get(artistMatch.entry.normalizedName);
+    if (debug) {
+      debug.finalRecommendationsForArtist = (debug.finalRecommendationsForArtist ?? 0) + 1;
+    }
   }
 
-  const recommendations = selectWithDiversity(scored, limit);
+  const sorted = sortRecommendations(scored);
+  const allRecommendations = sorted.map(({ combinedWeight, matchVia, distanceKm, ...rec }) => rec);
+  const recommendations = allRecommendations.slice(0, limit);
+  const totalAvailableRecommendationCount = allRecommendations.length;
+  const hiddenCandidatesCount = Math.max(0, totalAvailableRecommendationCount - recommendations.length);
+
+  if (options?.debugArtistNormalized && !poolByNorm.has(options.debugArtistNormalized)) {
+    artistDebug.set(options.debugArtistNormalized, {
+      spotifyArtistName: options.debugArtistNormalized,
+      normalizedName: options.debugArtistNormalized,
+      artistWeight: 0,
+      sourceSignals: {},
+      wasInTargetedSearchPool: false,
+      excludedReasons: ['not_in_spotify_taste_profile'],
+    });
+  }
 
   return {
     recommendations,
+    allRecommendations,
+    totalAvailableRecommendationCount,
+    hiddenCandidatesCount,
     debugStats: options?.includeDebug
       ? {
-          excludedAlreadyAttendedCount,
-          excludedSavedGoingCount,
-          excludedNoListeningCount,
-          excludedOutsideWindowCount,
-          excludedLowQualityCount,
-          scoredCount: scored.length,
+          candidateCountBeforeFilters: candidates.length,
+          candidateCountAfterFilters: scored.length,
+          excludedCountsByReason,
+          artistDebug,
         }
       : undefined,
   };
