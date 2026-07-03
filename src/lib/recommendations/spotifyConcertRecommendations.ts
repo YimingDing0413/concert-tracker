@@ -125,12 +125,18 @@ function scoreDistanceKm(distanceKm: number | null): number {
   return 0;
 }
 
-function combinedWeightForEntry(entry: SpotifyArtistPoolEntry): number {
-  return entry.combinedWeight;
+function compareArtistListeningPriority(a: SpotifyArtistPoolEntry, b: SpotifyArtistPoolEntry): number {
+  if (b.artistWeight !== a.artistWeight) return b.artistWeight - a.artistWeight;
+  if (b.recentlyPlayedWeight !== a.recentlyPlayedWeight) {
+    return b.recentlyPlayedWeight - a.recentlyPlayedWeight;
+  }
+  return 0;
 }
 
 type ScoredCandidate = SpotifyConcertRecommendation & {
-  combinedWeight: number;
+  artistWeight: number;
+  recentlyPlayedWeight: number;
+  matchedArtistKey: string;
   matchVia: SpotifyArtistMatchVia;
   distanceKm: number | null;
   scoreBreakdown?: SpotifyRecommendationScoreBreakdown;
@@ -140,7 +146,6 @@ interface ArtistMatchResult {
   entry: SpotifyArtistPoolEntry;
   matchedName: string;
   via: SpotifyArtistMatchVia;
-  combinedWeight: number;
 }
 
 function findBestListenedArtistMatch(
@@ -161,13 +166,12 @@ function findBestListenedArtistMatch(
       entry,
       matchedName: entry.spotifyArtistName,
       via: match.via,
-      combinedWeight: combinedWeightForEntry(entry),
     };
 
     if (
       !best ||
-      candidate.combinedWeight > best.combinedWeight ||
-      (candidate.combinedWeight === best.combinedWeight &&
+      compareArtistListeningPriority(candidate.entry, best.entry) > 0 ||
+      (compareArtistListeningPriority(candidate.entry, best.entry) === 0 &&
         rankMatchVia(candidate.via) > rankMatchVia(best.via))
     ) {
       best = candidate;
@@ -188,10 +192,12 @@ function assignConfidence(input: {
   artistMatch: ArtistMatchResult;
 }): 'high' | 'medium' | 'low' {
   const { artistMatch } = input;
-  if (artistMatch.combinedWeight <= 0) return 'low';
+  const { artistWeight, recentlyPlayedWeight } = artistMatch.entry;
+  if (artistWeight <= 0 && recentlyPlayedWeight <= 0) return 'low';
   if (
     artistMatch.entry.sourceSignals.shortTermTopArtist ||
-    artistMatch.combinedWeight >= 40 ||
+    artistWeight >= 40 ||
+    recentlyPlayedWeight >= 30 ||
     artistMatch.via === 'headliner'
   ) {
     return 'high';
@@ -203,10 +209,10 @@ function pickPrimaryReason(input: {
   artistMatch: ArtistMatchResult;
 }): string {
   const { artistMatch } = input;
-  if (artistMatch.combinedWeight >= 60) {
+  if (artistMatch.entry.artistWeight >= 60) {
     return `You've been listening to ${artistMatch.matchedName} a lot on Spotify`;
   }
-  if (artistMatch.entry.sourceSignals.recentlyPlayedArtist) {
+  if (artistMatch.entry.recentlyPlayedWeight >= 30) {
     return `You've been listening to ${artistMatch.matchedName} recently on Spotify`;
   }
   return `You've been listening to ${artistMatch.matchedName} on Spotify`;
@@ -235,12 +241,38 @@ function incrementExcluded(
 function sortRecommendations(scored: ScoredCandidate[]): ScoredCandidate[] {
   return [...scored].sort(
     (a, b) =>
-      b.combinedWeight - a.combinedWeight ||
+      b.artistWeight - a.artistWeight ||
+      b.recentlyPlayedWeight - a.recentlyPlayedWeight ||
       rankMatchVia(b.matchVia) - rankMatchVia(a.matchVia) ||
       b.spotifyScore - a.spotifyScore ||
       a.date.localeCompare(b.date) ||
       (a.distanceKm ?? 9999) - (b.distanceKm ?? 9999)
   );
+}
+
+/** Keep one upcoming show per matched Spotify artist — the soonest date. */
+function pickEarliestShowPerArtist(
+  scored: ScoredCandidate[],
+  excludedCountsByReason: Record<string, number>
+): ScoredCandidate[] {
+  const bestByArtist = new Map<string, ScoredCandidate>();
+
+  for (const rec of scored) {
+    const artistKey = rec.matchedArtistKey;
+    const existing = bestByArtist.get(artistKey);
+    if (!existing) {
+      bestByArtist.set(artistKey, rec);
+      continue;
+    }
+    if (rec.date < existing.date) {
+      incrementExcluded(excludedCountsByReason, 'duplicate_artist_later_date');
+      bestByArtist.set(artistKey, rec);
+    } else {
+      incrementExcluded(excludedCountsByReason, 'duplicate_artist_later_date');
+    }
+  }
+
+  return [...bestByArtist.values()];
 }
 
 export function getSpotifyConcertRecommendations(
@@ -304,7 +336,10 @@ export function getSpotifyConcertRecommendations(
     }
 
     const artistMatch = findBestListenedArtistMatch(concert, artistPool);
-    if (!artistMatch || artistMatch.combinedWeight <= 0) {
+    if (
+      !artistMatch ||
+      (artistMatch.entry.artistWeight <= 0 && artistMatch.entry.recentlyPlayedWeight <= 0)
+    ) {
       incrementExcluded(excludedCountsByReason, 'no_listening_match');
       continue;
     }
@@ -408,8 +443,11 @@ export function getSpotifyConcertRecommendations(
     }
 
     const reason = pickPrimaryReason({ artistMatch });
+    const matchedArtistKey = artistMatch.entry.normalizedName;
     const rec: ScoredCandidate = {
-      combinedWeight: artistMatch.combinedWeight,
+      artistWeight: artistMatch.entry.artistWeight,
+      recentlyPlayedWeight: artistMatch.entry.recentlyPlayedWeight,
+      matchedArtistKey,
       matchVia: artistMatch.via,
       distanceKm,
       id: concert.id,
@@ -447,8 +485,11 @@ export function getSpotifyConcertRecommendations(
     }
   }
 
-  const sorted = sortRecommendations(scored);
-  const allRecommendations = sorted.map(({ combinedWeight, matchVia, distanceKm, ...rec }) => rec);
+  const deduped = pickEarliestShowPerArtist(scored, excludedCountsByReason);
+  const sorted = sortRecommendations(deduped);
+  const allRecommendations = sorted.map(
+    ({ artistWeight, recentlyPlayedWeight, matchedArtistKey, matchVia, distanceKm, ...rec }) => rec
+  );
   const recommendations = allRecommendations.slice(0, limit);
   const totalAvailableRecommendationCount = allRecommendations.length;
   const hiddenCandidatesCount = Math.max(0, totalAvailableRecommendationCount - recommendations.length);
@@ -472,7 +513,7 @@ export function getSpotifyConcertRecommendations(
     debugStats: options?.includeDebug
       ? {
           candidateCountBeforeFilters: candidates.length,
-          candidateCountAfterFilters: scored.length,
+          candidateCountAfterFilters: deduped.length,
           excludedCountsByReason,
           artistDebug,
         }

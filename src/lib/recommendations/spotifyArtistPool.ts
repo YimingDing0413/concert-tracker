@@ -108,8 +108,9 @@ export function buildSpotifyArtistPool(taste: SpotifyTasteProfile): SpotifyArtis
 
   return entries.sort(
     (a, b) =>
+      b.artistWeight - a.artistWeight ||
+      b.recentlyPlayedWeight - a.recentlyPlayedWeight ||
       a.poolPriority - b.poolPriority ||
-      b.combinedWeight - a.combinedWeight ||
       a.spotifyArtistName.localeCompare(b.spotifyArtistName)
   );
 }
