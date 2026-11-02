@@ -1,3 +1,4 @@
+import { api } from '@/api';
 import { Button } from '@/components/ui/app-button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { TicketCard } from '@/components/ui/TicketCard';
@@ -5,8 +6,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/context/AuthContext';
 import { useProfileConcerts } from '@/hooks/useProfileConcerts';
 import { localDateISO } from '@/lib/logConcert';
+import { getYearEndStats, getYearEntries } from '@/lib/yearEndWrapUp';
 import { resolveConcertForUserConcert } from '@/utils/userConcert';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 function daysUntil(dateIso: string, today = localDateISO()): number | null {
@@ -20,7 +22,7 @@ function daysUntil(dateIso: string, today = localDateISO()): number | null {
 
 function daysLabel(n: number | null): string {
   if (n == null) return '';
-  if (n <= 0) return 'Today';
+  if (n === 0) return 'Today';
   if (n === 1) return 'Tomorrow';
   return `In ${n} days`;
 }
@@ -28,44 +30,58 @@ function daysLabel(n: number | null): string {
 export function HomePage() {
   const { user } = useAuth();
   const year = new Date().getFullYear();
-  const { userConcerts, concertMap, loading } = useProfileConcerts(user?.id);
+  const today = localDateISO();
+  const { userConcerts, concertMap, loading, reload } = useProfileConcerts(user?.id);
+  const [actionId, setActionId] = useState<string | null>(null);
 
-  const { attendedThisYear, uniqueArtists, uniqueVenues, going, recentAttended } = useMemo(() => {
-    const attended = userConcerts.filter((uc) => uc.status === 'attended');
-    const thisYear = attended
-      .map((uc) => {
-        const concert = resolveConcertForUserConcert(uc, concertMap[uc.concertId]);
-        const date = (concert.date ?? uc.createdAt).slice(0, 10);
-        return { uc, concert, date };
-      })
-      .filter((row) => row.date.startsWith(String(year)))
-      .sort((a, b) => b.date.localeCompare(a.date));
-
-    const artists = new Set(
-      thisYear.map((r) => (r.concert.artistName ?? '').trim().toLowerCase()).filter(Boolean)
-    );
-    const venues = new Set(
-      thisYear.map((r) => (r.concert.venueName ?? '').trim().toLowerCase()).filter(Boolean)
-    );
+  const { yearEntries, stats, upcomingGoing, pastGoing } = useMemo(() => {
+    // Same pipeline as Wrapped so totals stay in sync (incl. deduped duplicates).
+    const entries = getYearEntries(userConcerts, [], year, concertMap);
+    const yearStats = getYearEndStats(entries, year);
+    const recent = [...entries].sort((a, b) => b.date.localeCompare(a.date));
 
     const goingRows = userConcerts
       .filter((uc) => uc.status === 'going')
       .map((uc) => {
         const concert = resolveConcertForUserConcert(uc, concertMap[uc.concertId]);
         const date = (concert.date ?? '').slice(0, 10);
-        return { uc, concert, date, days: daysUntil(date) };
+        return { uc, concert, date, days: daysUntil(date, today) };
       })
       .filter((r) => r.date)
       .sort((a, b) => a.date.localeCompare(b.date));
 
     return {
-      attendedThisYear: thisYear,
-      uniqueArtists: artists.size,
-      uniqueVenues: venues.size,
-      going: goingRows,
-      recentAttended: thisYear.slice(0, 3),
+      yearEntries: recent,
+      stats: yearStats,
+      upcomingGoing: goingRows.filter((r) => r.date >= today),
+      pastGoing: goingRows.filter((r) => r.date < today),
     };
-  }, [userConcerts, concertMap, year]);
+  }, [userConcerts, concertMap, year, today]);
+
+  async function markAttended(concertId: string, snapshot: ReturnType<typeof resolveConcertForUserConcert>) {
+    if (!user) return;
+    setActionId(concertId);
+    try {
+      await api.setConcertStatus(user.id, concertId, 'attended', {
+        ...snapshot,
+        id: concertId,
+      });
+      await reload();
+    } finally {
+      setActionId(null);
+    }
+  }
+
+  async function dismissGoing(userConcertId: string) {
+    if (!user) return;
+    setActionId(userConcertId);
+    try {
+      await api.removeUserConcert(user.id, userConcertId);
+      await reload();
+    } finally {
+      setActionId(null);
+    }
+  }
 
   if (!user) {
     return (
@@ -103,6 +119,9 @@ export function HomePage() {
   }
 
   const initial = (user.displayName || user.email || 'U').trim().charAt(0).toUpperCase();
+  const showCount = stats.totalShows;
+  const recentAttended = yearEntries.slice(0, 3);
+  const comingEmpty = upcomingGoing.length === 0 && pastGoing.length === 0;
 
   return (
     <div className="space-y-8 pb-8">
@@ -129,11 +148,11 @@ export function HomePage() {
         ) : (
           <>
             <p className="font-display text-6xl font-black tabular-nums tracking-tight sm:text-7xl">
-              {attendedThisYear.length}
+              {showCount}
             </p>
             <p className="text-sm text-muted-foreground">
-              {uniqueArtists} {uniqueArtists === 1 ? 'artist' : 'artists'} · {uniqueVenues}{' '}
-              {uniqueVenues === 1 ? 'venue' : 'venues'}
+              {stats.uniqueArtists} {stats.uniqueArtists === 1 ? 'artist' : 'artists'} ·{' '}
+              {stats.uniqueVenues} {stats.uniqueVenues === 1 ? 'venue' : 'venues'}
             </p>
           </>
         )}
@@ -149,7 +168,43 @@ export function HomePage() {
             Discover →
           </Link>
         </div>
-        {going.length === 0 ? (
+
+        {pastGoing.length > 0 && (
+          <ul className="space-y-2">
+            {pastGoing.map(({ uc, concert, date }) => (
+              <li
+                key={uc.id}
+                className="rounded-2xl border border-border/50 bg-card/50 p-3"
+              >
+                <p className="text-sm font-semibold">
+                  Did you go? Log it — {concert.artistName ?? 'Show'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {[concert.venueName, concert.city, date].filter(Boolean).join(' · ')}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    disabled={actionId === uc.concertId || actionId === uc.id}
+                    onClick={() => void markAttended(uc.concertId, concert)}
+                  >
+                    I was there
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={actionId === uc.concertId || actionId === uc.id}
+                    onClick={() => void dismissGoing(uc.id)}
+                  >
+                    Didn&apos;t go
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {comingEmpty ? (
           <EmptyState
             title="Nothing on your list yet"
             description="Find a show to go to."
@@ -159,9 +214,9 @@ export function HomePage() {
               </Button>
             }
           />
-        ) : (
+        ) : upcomingGoing.length > 0 ? (
           <div className="carousel-scroll gap-3">
-            {going.map(({ uc, concert, date, days }) => (
+            {upcomingGoing.map(({ uc, concert, date, days }) => (
               <Link
                 key={uc.id}
                 to={`/concert/${encodeURIComponent(uc.concertId)}`}
@@ -183,7 +238,7 @@ export function HomePage() {
               </Link>
             ))}
           </div>
-        )}
+        ) : null}
       </section>
 
       <section className="space-y-3">
@@ -199,18 +254,27 @@ export function HomePage() {
           </p>
         ) : (
           <ul className="space-y-3">
-            {recentAttended.map(({ uc, concert, date }) => (
-              <li key={uc.id}>
+            {recentAttended.map((entry) => (
+              <li key={entry.concertId}>
                 <Link
-                  to={`/concert/${encodeURIComponent(uc.concertId)}`}
-                  state={{ backTo: '/', concertSnapshot: concert }}
+                  to={`/concert/${encodeURIComponent(entry.concertId)}`}
+                  state={{
+                    backTo: '/',
+                    concertSnapshot: {
+                      artistName: entry.artistName,
+                      venueName: entry.venueName,
+                      city: entry.city,
+                      date: entry.date,
+                      imageUrl: entry.imageUrl,
+                    },
+                  }}
                   className="block no-underline"
                 >
                   <TicketCard
-                    artist={concert.artistName ?? 'Show'}
-                    venue={concert.venueName}
-                    city={concert.city}
-                    date={date}
+                    artist={entry.artistName}
+                    venue={entry.venueName}
+                    city={entry.city}
+                    date={entry.date}
                     variant="paper"
                   />
                 </Link>
@@ -220,7 +284,7 @@ export function HomePage() {
         )}
       </section>
 
-      {attendedThisYear.length >= 1 && (
+      {showCount >= 1 && (
         <section>
           <Link
             to="/wrapped"
@@ -229,8 +293,7 @@ export function HomePage() {
             <div>
               <p className="text-sm font-semibold">Preview your {year} Wrapped</p>
               <p className="text-xs text-muted-foreground">
-                {attendedThisYear.length}{' '}
-                {attendedThisYear.length === 1 ? 'show' : 'shows'} so far →
+                {showCount} {showCount === 1 ? 'show' : 'shows'} so far →
               </p>
             </div>
             <span
@@ -240,7 +303,7 @@ export function HomePage() {
               }}
               aria-hidden
             >
-              {attendedThisYear.length}
+              {showCount}
             </span>
           </Link>
         </section>

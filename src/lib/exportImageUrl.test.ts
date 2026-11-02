@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { apiUrl } from '@/lib/apiBase';
 import { isAllowlistedImageHost, toExportImageUrl } from './exportImageUrl';
 
 describe('toExportImageUrl', () => {
@@ -7,12 +8,14 @@ describe('toExportImageUrl', () => {
     expect(toExportImageUrl(data)).toBe(data);
   });
 
-  it('proxies Ticketmaster and Spotify hosts', () => {
-    expect(toExportImageUrl('https://s1.ticketm.net/dam/a.jpg')).toBe(
-      `/api/image-proxy?url=${encodeURIComponent('https://s1.ticketm.net/dam/a.jpg')}`
+  it('proxies Ticketmaster and Spotify hosts via apiUrl', () => {
+    const tm = 'https://s1.ticketm.net/dam/a.jpg';
+    expect(toExportImageUrl(tm)).toBe(
+      apiUrl(`/api/image-proxy?url=${encodeURIComponent(tm)}`)
     );
-    expect(toExportImageUrl('https://i.scdn.co/image/ab123')).toBe(
-      `/api/image-proxy?url=${encodeURIComponent('https://i.scdn.co/image/ab123')}`
+    const sp = 'https://i.scdn.co/image/ab123';
+    expect(toExportImageUrl(sp)).toBe(
+      apiUrl(`/api/image-proxy?url=${encodeURIComponent(sp)}`)
     );
   });
 

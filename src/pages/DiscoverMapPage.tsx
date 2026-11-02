@@ -8,7 +8,13 @@ import { SolidBackButton } from '@/components/ui/SolidBackButton';
 import { Button } from '@/components/ui/button';
 import { FilterChip } from '@/components/ui/FilterChip';
 import { SearchBar } from '@/components/ui/SearchBar';
-import { DISCOVER_DEFAULT_CENTER, requestUserPosition } from '@/lib/geolocation';
+import { LocationChip } from '@/components/location/LocationChip';
+import { requestUserPosition } from '@/lib/geolocation';
+import {
+  getEffectiveLocation,
+  type StoredLocation,
+  writeStoredLocation,
+} from '@/lib/location';
 import { mapVenueToNearbyGroup } from '@/lib/mapVenueAdapters';
 import type { ApiMeta, MapEventsPayload, MapNearbyVenueGroup } from '@/types';
 import { Crosshair, MapPinned } from 'lucide-react';
@@ -27,14 +33,13 @@ function sortVenueGroups(groups: MapNearbyVenueGroup[]): MapNearbyVenueGroup[] {
 
 export function DiscoverMapPage() {
   const [mounted, setMounted] = useState(false);
-  const [center, setCenter] = useState<{ latitude: number; longitude: number }>(() => ({
-    ...DISCOVER_DEFAULT_CENTER,
-  }));
+  const [location, setLocation] = useState<StoredLocation>(() => getEffectiveLocation());
+  const center = { latitude: location.latitude, longitude: location.longitude };
   const [searchCenter, setSearchCenter] = useState<{
     latitude: number;
     longitude: number;
   } | null>(null);
-  const [locationHint, setLocationHint] = useState('Finding your location…');
+  const [locationHint, setLocationHint] = useState(() => `Near ${getEffectiveLocation().label}`);
 
   const [venueGroups, setVenueGroups] = useState<MapNearbyVenueGroup[]>([]);
   const [loading, setLoading] = useState(false);
@@ -67,19 +72,14 @@ export function DiscoverMapPage() {
 
   useEffect(() => {
     setMounted(true);
-    requestUserPosition()
-      .then((pos) => {
-        const nextCenter = {
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-        };
-        setCenter(nextCenter);
-        setLocationHint('Near you');
-      })
-      .catch(() => {
-        setLocationHint('Location access denied. Showing Toronto by default.');
-      });
   }, []);
+
+  function handleLocationChange(next: StoredLocation) {
+    setLocation(next);
+    setSearchQuery('');
+    setSearchCenter(null);
+    setLocationHint(`Near ${next.label}`);
+  }
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -127,16 +127,15 @@ export function DiscoverMapPage() {
   async function handleLocateAgain() {
     try {
       const pos = await requestUserPosition();
-      const nextCenter = {
+      const next: StoredLocation = {
+        label: 'Near you',
         latitude: pos.coords.latitude,
         longitude: pos.coords.longitude,
       };
-      setSearchQuery('');
-      setCenter(nextCenter);
-      setSearchCenter(null);
-      setLocationHint('Near you');
+      writeStoredLocation(next);
+      handleLocationChange(next);
     } catch {
-      setLocationHint('Location access denied. Showing Toronto by default.');
+      setLocationHint(`Near ${location.label} (GPS unavailable)`);
     }
   }
 
@@ -191,7 +190,7 @@ export function DiscoverMapPage() {
         )}
       </div>
 
-      <SolidBackButton to="/" label="Discover" className="discover-back-btn pointer-events-auto" />
+      <SolidBackButton to="/discover" label="Discover" className="discover-back-btn pointer-events-auto" />
 
       <header className="discover-topbar pointer-events-none">
         <div className="discover-topbar__stack pointer-events-auto">
@@ -211,6 +210,10 @@ export function DiscoverMapPage() {
                 'Discover venues'
               )}
             </span>
+          </div>
+
+          <div className="mt-2 flex justify-center px-1">
+            <LocationChip location={location} onChange={handleLocationChange} />
           </div>
 
           <div className="mt-2 flex flex-col gap-2 px-1 sm:flex-row sm:items-center sm:justify-center">

@@ -324,4 +324,64 @@ describe('getYearEndStats', () => {
     expect(stats.topArtists).toEqual([{ name: 'Drake', count: 3 }]);
     expect(stats.mostSeenArtist).toEqual({ name: 'Drake', count: 3 });
   });
+
+  it('on a spelling tie prefers the form with diacritics', () => {
+    const entries = getYearEntries(
+      [
+        uc({
+          id: '1',
+          concertId: 'e1',
+          status: 'attended',
+          concertSnapshot: { artistName: 'Beyonce', date: '2026-01-10' },
+        }),
+        uc({
+          id: '2',
+          concertId: 'e2',
+          status: 'attended',
+          concertSnapshot: { artistName: 'Beyoncé', date: '2026-03-10' },
+        }),
+      ],
+      [],
+      2026
+    );
+    const stats = getYearEndStats(entries, 2026);
+    expect(stats.uniqueArtists).toBe(1);
+    expect(stats.topArtists[0]).toEqual({ name: 'Beyoncé', count: 2 });
+  });
+
+  it('Home and Wrapped agree on totals when duplicate rows exist', () => {
+    const concerts = [
+      uc({
+        id: '1',
+        concertId: 'tm-1',
+        status: 'attended',
+        concertSnapshot: { artistName: 'The Weeknd', venueName: 'Dome', date: '2026-06-15' },
+      }),
+      uc({
+        id: '2',
+        concertId: 'manual-1',
+        status: 'attended',
+        isManual: true,
+        concertSnapshot: { artistName: 'the weeknd', venueName: 'Dome', date: '2026-06-15' },
+        manualConcert: { artistName: 'the weeknd', venueName: 'Dome', date: '2026-06-15' },
+      }),
+      uc({
+        id: '3',
+        concertId: 'e3',
+        status: 'attended',
+        concertSnapshot: { artistName: 'SZA', venueName: 'Hall', date: '2026-07-01' },
+      }),
+    ];
+    // Same source Home uses (getYearEntries + getYearEndStats).
+    const homeEntries = getYearEntries(concerts, [], 2026);
+    const homeStats = getYearEndStats(homeEntries, 2026);
+    const wrappedEntries = getYearEntries(concerts, [], 2026);
+    const wrappedStats = getYearEndStats(wrappedEntries, 2026);
+
+    expect(homeStats.totalShows).toBe(2);
+    expect(homeStats.uniqueArtists).toBe(2);
+    expect(homeStats.uniqueVenues).toBe(2);
+    expect(homeStats).toEqual(wrappedStats);
+    expect(homeEntries).toHaveLength(wrappedEntries.length);
+  });
 });

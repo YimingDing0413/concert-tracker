@@ -202,11 +202,20 @@ export function rankCountsNormalized(
     .sort((a, b) => b[1].count - a[1].count)
     .slice(0, limit)
     .map(([, bucket]) => {
-      const name = [...bucket.spellings.entries()].sort(
-        (a, b) => b[1] - a[1] || a[0].localeCompare(b[0])
-      )[0][0];
+      const name = [...bucket.spellings.entries()].sort((a, b) => {
+        if (b[1] !== a[1]) return b[1] - a[1];
+        // Tie on frequency: prefer the spelling that keeps diacritics.
+        const aDia = hasDiacritics(a[0]) ? 1 : 0;
+        const bDia = hasDiacritics(b[0]) ? 1 : 0;
+        if (aDia !== bDia) return bDia - aDia;
+        return a[0].localeCompare(b[0]);
+      })[0][0];
       return { name, count: bucket.count };
     });
+}
+
+function hasDiacritics(value: string): boolean {
+  return /\p{M}/u.test(value.normalize('NFD'));
 }
 
 function uniqueCount(values: string[]): number {

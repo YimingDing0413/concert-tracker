@@ -3,16 +3,17 @@ import { api } from '@/api';
 import { CompactConcertRow } from '@/components/cards/CompactConcertRow';
 import { ConcertPosterCard } from '@/components/cards/ConcertPosterCard';
 import { SpotifyForYouSection } from '@/components/spotify/SpotifyForYouSection';
+import { LocationChip } from '@/components/location/LocationChip';
 import { SearchAutocomplete } from '@/components/search/SearchAutocomplete';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ConcertCardSkeleton, ListRowSkeleton } from '@/components/ui/LoadingSkeleton';
 import { useAuth } from '@/context/AuthContext';
-import { DISCOVER_DEFAULT_CENTER, requestUserPosition } from '@/lib/geolocation';
 import {
   getAllConcertReviews,
   REVIEWS_SYNCED_EVENT,
   syncConcertReviewsFromServer,
 } from '@/lib/concertReviewsLocal';
+import { getEffectiveLocation, type StoredLocation } from '@/lib/location';
 import { mapVenueToNearbyGroup } from '@/lib/mapVenueAdapters';
 import { buildConcertHistory } from '@/lib/recommendations/buildHistory';
 import {
@@ -99,9 +100,7 @@ function FeaturedHero({
 export function DiscoverHomePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [center, setCenter] = useState<{ latitude: number; longitude: number }>(() => ({
-    ...DISCOVER_DEFAULT_CENTER,
-  }));
+  const [location, setLocation] = useState<StoredLocation>(() => getEffectiveLocation());
   const [nearbyConcerts, setNearbyConcerts] = useState<Concert[]>([]);
   const [loadingNearby, setLoadingNearby] = useState(true);
   const [userConcerts, setUserConcerts] = useState<UserConcert[]>([]);
@@ -110,23 +109,12 @@ export function DiscoverHomePage() {
   const [nearbySource, setNearbySource] = useState<'live' | 'mock' | null>(null);
 
   useEffect(() => {
-    requestUserPosition()
-      .then((pos) =>
-        setCenter({
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-        })
-      )
-      .catch(() => setCenter({ ...DISCOVER_DEFAULT_CENTER }));
-  }, []);
-
-  useEffect(() => {
     let cancelled = false;
     async function loadNearby() {
       setLoadingNearby(true);
       try {
         const res = await apiFetch<MapEventsPayload>(
-          `/api/map/events?lat=${center.latitude}&lng=${center.longitude}&radius=50`
+          `/api/map/events?lat=${location.latitude}&lng=${location.longitude}&radius=50`
         );
         if (!cancelled) {
           setNearbyConcerts(concertsFromMapPayload(res.data));
@@ -145,7 +133,7 @@ export function DiscoverHomePage() {
     return () => {
       cancelled = true;
     };
-  }, [center.latitude, center.longitude]);
+  }, [location.latitude, location.longitude]);
 
   useEffect(() => {
     if (!user) {
@@ -246,6 +234,7 @@ export function DiscoverHomePage() {
             <p className="mt-1 text-sm text-muted-foreground">Find your next night out</p>
           </div>
           <SearchAutocomplete placeholder="Search artists, venues, cities…" />
+          <LocationChip location={location} onChange={setLocation} />
           <div className="flex flex-wrap gap-2">
             <Link
               to="/log"
@@ -290,8 +279,8 @@ export function DiscoverHomePage() {
       {user && (
         <SpotifyForYouSection
           userId={user.id}
-          latitude={center.latitude}
-          longitude={center.longitude}
+          latitude={location.latitude}
+          longitude={location.longitude}
           nearbyFallback={[]}
           loadingNearby={loadingNearby}
           layout="carousel"

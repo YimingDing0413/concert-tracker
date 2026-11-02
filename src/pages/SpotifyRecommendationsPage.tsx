@@ -1,10 +1,11 @@
 import { SpotifyPickCard } from '@/components/cards/SpotifyPickCard';
+import { LocationChip } from '@/components/location/LocationChip';
 import { Button } from '@/components/ui/app-button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListRowSkeleton } from '@/components/ui/LoadingSkeleton';
 import { SolidBackButton } from '@/components/ui/SolidBackButton';
 import { useAuth } from '@/context/AuthContext';
-import { DISCOVER_DEFAULT_CENTER, requestUserPosition } from '@/lib/geolocation';
+import { getEffectiveLocation, type StoredLocation } from '@/lib/location';
 import {
   getSpotifyConcertRecommendations,
   getSpotifyStatus,
@@ -19,9 +20,7 @@ import { Link } from 'react-router-dom';
 
 export function SpotifyRecommendationsPage() {
   const { user } = useAuth();
-  const [center, setCenter] = useState<{ latitude: number; longitude: number }>(() => ({
-    ...DISCOVER_DEFAULT_CENTER,
-  }));
+  const [location, setLocation] = useState<StoredLocation>(() => getEffectiveLocation());
   const [recommendations, setRecommendations] = useState<SpotifyConcertRecommendation[]>([]);
   const [sparseRecommendations, setSparseRecommendations] = useState(false);
   const [debugMeta, setDebugMeta] = useState<SpotifyRecommendationsResponse['debug']>();
@@ -35,17 +34,6 @@ export function SpotifyRecommendationsPage() {
     typeof window !== 'undefined' &&
     new URLSearchParams(window.location.search).get('debug') === 'true';
 
-  useEffect(() => {
-    requestUserPosition()
-      .then((pos) =>
-        setCenter({
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-        })
-      )
-      .catch(() => setCenter({ ...DISCOVER_DEFAULT_CENTER }));
-  }, []);
-
   const load = useCallback(async () => {
     if (!user) return;
     setLoading(true);
@@ -56,8 +44,8 @@ export function SpotifyRecommendationsPage() {
       setSynced(status.hasTasteProfile);
       if (status.connected && status.hasTasteProfile) {
         const data = await getSpotifyConcertRecommendations({
-          lat: center.latitude,
-          lng: center.longitude,
+          lat: location.latitude,
+          lng: location.longitude,
           radius: 50,
           limit: 24,
           debug: debugMode,
@@ -75,7 +63,7 @@ export function SpotifyRecommendationsPage() {
     } finally {
       setLoading(false);
     }
-  }, [user, center.latitude, center.longitude, debugMode, debugArtist]);
+  }, [user, location.latitude, location.longitude, debugMode, debugArtist]);
 
   useEffect(() => {
     void load();
@@ -85,13 +73,16 @@ export function SpotifyRecommendationsPage() {
 
   return (
     <div className="space-y-6 pb-8">
-      <SolidBackButton to="/" label="Discover" />
+      <SolidBackButton to="/discover" label="Discover" />
 
-      <header>
-        <h1 className="text-display-lg text-foreground">Spotify picks</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Concerts near you based on what you listen to
-        </p>
+      <header className="space-y-3">
+        <div>
+          <h1 className="text-display-lg text-foreground">Spotify picks</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Concerts near you based on what you listen to
+          </p>
+        </div>
+        <LocationChip location={location} onChange={setLocation} />
       </header>
 
       {error && (
