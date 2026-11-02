@@ -1,4 +1,9 @@
-import type { ConcertReview, YearEndStats, YearEndTemplateId } from '@/types/concertReview';
+import type {
+  ConcertReview,
+  YearEndEntry,
+  YearEndStats,
+  YearEndTemplateId,
+} from '@/types/concertReview';
 import {
   YEAR_END_HEIGHT,
   YEAR_END_WIDTH,
@@ -10,6 +15,7 @@ interface YearEndWrapUpPreviewProps {
   stats: YearEndStats;
   reviews: ConcertReview[];
   photos: string[];
+  entries?: YearEndEntry[];
   /** On-screen scale; export uses full size via the off-screen canvas. */
   previewScale?: number;
 }
@@ -19,6 +25,7 @@ export function YearEndWrapUpPreview({
   stats,
   reviews,
   photos,
+  entries,
   previewScale = 0.32,
 }: YearEndWrapUpPreviewProps) {
   const scaledW = YEAR_END_WIDTH * previewScale;
@@ -42,6 +49,7 @@ export function YearEndWrapUpPreview({
           stats={stats}
           reviews={reviews}
           photos={photos}
+          entries={entries}
         />
       </div>
     </div>
@@ -54,12 +62,14 @@ export function YearEndExportCanvas({
   stats,
   reviews,
   photos,
+  entries,
   exportRef,
 }: {
   template: YearEndTemplateId;
   stats: YearEndStats;
   reviews: ConcertReview[];
   photos: string[];
+  entries?: YearEndEntry[];
   exportRef: React.RefObject<HTMLDivElement | null>;
 }) {
   return (
@@ -70,6 +80,7 @@ export function YearEndExportCanvas({
           stats={stats}
           reviews={reviews}
           photos={photos}
+          entries={entries}
         />
       </div>
     </div>

@@ -32,15 +32,37 @@ export type WrapUpTemplateId = 'poster' | 'stats' | 'collage';
 
 export type YearEndTemplateId = 'collage' | 'stats' | 'scrapbook';
 
+/** One attended (or legacy-reviewed) show in a Wrapped year. */
+export type YearEndEntry = {
+  concertId: string;
+  artistName: string;
+  venueName?: string;
+  city?: string;
+  date: string;
+  imageUrl?: string;
+  review?: ConcertReview;
+};
+
 export type YearEndStats = {
   year: number;
+  /** Prefer this; mirrors totalConcerts for older UI. */
+  totalShows: number;
+  /** @deprecated alias of totalShows — kept so existing templates keep compiling */
   totalConcerts: number;
-  averageRating?: number;
+  uniqueArtists: number;
+  uniqueVenues: number;
+  uniqueCities: number;
   topArtists: { name: string; count: number }[];
   topVenues: { name: string; count: number }[];
+  firstShow?: YearEndEntry;
+  lastShow?: YearEndEntry;
+  mostSeenArtist?: { name: string; count: number };
+  busiestMonth?: { month: number; label: string; count: number };
+  averageRating?: number;
   topTags: { tag: string; count: number }[];
   favoriteSongs: string[];
   totalPhotos: number;
+  photos: string[];
 };
 
 export const REVIEW_MOOD_TAGS = [

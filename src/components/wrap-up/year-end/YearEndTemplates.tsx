@@ -1,4 +1,9 @@
-import type { ConcertReview, YearEndStats, YearEndTemplateId } from '@/types/concertReview';
+import type {
+  ConcertReview,
+  YearEndEntry,
+  YearEndStats,
+  YearEndTemplateId,
+} from '@/types/concertReview';
 import { formatDate } from '@/utils/format';
 
 export const YEAR_END_WIDTH = 1080;
@@ -8,6 +13,7 @@ export interface YearEndTemplateProps {
   stats: YearEndStats;
   reviews: ConcertReview[];
   photos: string[];
+  entries?: YearEndEntry[];
 }
 
 function EncoreWordmark({ className = '' }: { className?: string }) {
@@ -18,8 +24,25 @@ function EncoreWordmark({ className = '' }: { className?: string }) {
   );
 }
 
-function firstPhoto(review: ConcertReview): string | undefined {
-  return review.photoDataUrls?.[0];
+function PosterTile({ artistName }: { artistName: string }) {
+  const initial = (artistName.trim()[0] || '?').toUpperCase();
+  return (
+    <div
+      className="flex size-full items-center justify-center"
+      style={{
+        background: 'linear-gradient(145deg, #FF5A1F 0%, #F2C14E 55%, #2A2723 100%)',
+      }}
+    >
+      <span className="text-[120px] font-black text-white/95 drop-shadow-md">{initial}</span>
+    </div>
+  );
+}
+
+function visualForEntry(entry: YearEndEntry): { kind: 'photo' | 'image' | 'poster'; src?: string } {
+  const photo = entry.review?.photoDataUrls?.[0];
+  if (photo) return { kind: 'photo', src: photo };
+  if (entry.imageUrl) return { kind: 'image', src: entry.imageUrl };
+  return { kind: 'poster' };
 }
 
 /* ------------------------------------------------------------------ */
@@ -38,10 +61,11 @@ function collageLayout(count: number): { cols: number; firstSpan: number } {
   return { cols, firstSpan: blanks + 1 };
 }
 
-export function YearEndPhotoCollageTemplate({ stats, photos }: YearEndTemplateProps) {
+export function YearEndPhotoCollageTemplate({ stats, photos, entries = [] }: YearEndTemplateProps) {
   const cells = photos.slice(0, 12);
   const artistNames = stats.topArtists.map((a) => a.name).slice(0, 4);
-  const { cols, firstSpan } = collageLayout(cells.length);
+  const { cols, firstSpan } = collageLayout(cells.length || Math.min(entries.length, 6) || 1);
+  const tileEntries = cells.length === 0 ? entries.slice(0, 6) : [];
 
   return (
     <div
@@ -72,8 +96,34 @@ export function YearEndPhotoCollageTemplate({ stats, photos }: YearEndTemplatePr
               />
             ))}
           </div>
+        ) : tileEntries.length > 0 ? (
+          <div
+            className="h-full gap-2 p-2"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${cols}, 1fr)`,
+              gridAutoRows: '1fr',
+            }}
+          >
+            {tileEntries.map((entry, i) => {
+              const visual = visualForEntry(entry);
+              return (
+                <div
+                  key={entry.concertId}
+                  className="overflow-hidden rounded-2xl"
+                  style={i === 0 && firstSpan > 1 ? { gridColumn: `span ${firstSpan}` } : undefined}
+                >
+                  {visual.src ? (
+                    <img src={visual.src} alt="" className="size-full object-cover" />
+                  ) : (
+                    <PosterTile artistName={entry.artistName} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-violet-800/40 via-purple-900/30 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-br from-orange-700/35 via-amber-900/25 to-transparent" />
         )}
       </div>
 
@@ -82,16 +132,16 @@ export function YearEndPhotoCollageTemplate({ stats, photos }: YearEndTemplatePr
       <div className="relative z-10 flex h-full flex-col p-14">
         <EncoreWordmark />
         <div className="mt-auto">
-          <p className="text-[34px] font-semibold uppercase tracking-[0.3em] text-violet-300">
+          <p className="text-[34px] font-semibold uppercase tracking-[0.3em] text-orange-200/90">
             My {stats.year}
           </p>
           <h1 className="mt-1 text-[150px] font-black leading-[0.9] tracking-tight">Concerts</h1>
           <div className="mt-8 flex items-end gap-4">
             <span className="text-[120px] font-black leading-none tabular-nums text-white">
-              {stats.totalConcerts}
+              {stats.totalShows}
             </span>
             <span className="pb-5 text-[40px] font-semibold text-white/70">
-              {stats.totalConcerts === 1 ? 'show' : 'shows'}
+              {stats.totalShows === 1 ? 'show' : 'shows'}
             </span>
           </div>
           {artistNames.length > 0 && (
@@ -99,6 +149,7 @@ export function YearEndPhotoCollageTemplate({ stats, photos }: YearEndTemplatePr
               {artistNames.join('  ·  ')}
             </p>
           )}
+          <p className="mt-10 text-[22px] uppercase tracking-[0.35em] text-white/45">Encore</p>
         </div>
       </div>
     </div>
@@ -122,8 +173,9 @@ function StatRow({ label, value }: { label: string; value: string }) {
 
 export function YearEndStatsTemplate({ stats, photos }: YearEndTemplateProps) {
   const strip = photos.slice(0, 4);
-  const topArtist = stats.topArtists[0]?.name ?? '—';
+  const topArtist = stats.mostSeenArtist?.name ?? stats.topArtists[0]?.name ?? '—';
   const topVenue = stats.topVenues[0]?.name ?? '—';
+  const sparse = stats.totalShows <= 2;
 
   return (
     <div
@@ -143,12 +195,12 @@ export function YearEndStatsTemplate({ stats, photos }: YearEndTemplateProps) {
 
       <div className="mt-16">
         <div className="flex items-end gap-5">
-          <span className="text-[200px] font-black leading-[0.8] tabular-nums text-violet-400">
-            {stats.totalConcerts}
+          <span className="text-[200px] font-black leading-[0.8] tabular-nums text-orange-400">
+            {stats.totalShows}
           </span>
         </div>
         <p className="mt-2 text-[52px] font-black tracking-tight">
-          {stats.totalConcerts === 1 ? 'concert' : 'concerts'} this year
+          {stats.totalShows === 1 ? 'concert' : 'concerts'} this year
         </p>
       </div>
 
@@ -156,19 +208,26 @@ export function YearEndStatsTemplate({ stats, photos }: YearEndTemplateProps) {
         {stats.averageRating != null && (
           <StatRow label="Average rating" value={`${stats.averageRating} / 10`} />
         )}
-        <StatRow label="Top artist" value={topArtist} />
-        <StatRow label="Top venue" value={topVenue} />
+        {!sparse && <StatRow label="Top artist" value={topArtist} />}
+        {!sparse && <StatRow label="Top venue" value={topVenue} />}
+        {stats.uniqueArtists > 0 && (
+          <StatRow label="Artists" value={String(stats.uniqueArtists)} />
+        )}
+        {stats.uniqueCities > 0 && <StatRow label="Cities" value={String(stats.uniqueCities)} />}
+        {stats.busiestMonth && !sparse && (
+          <StatRow label="Busiest month" value={stats.busiestMonth.label} />
+        )}
         <StatRow label="Photos captured" value={String(stats.totalPhotos)} />
       </div>
 
-      {stats.topTags.length > 0 && (
+      {!sparse && stats.topTags.length > 0 && (
         <div className="mt-12">
           <p className="mb-4 text-[26px] uppercase tracking-widest text-white/40">Your vibe</p>
           <div className="flex flex-wrap gap-3">
             {stats.topTags.slice(0, 5).map(({ tag }) => (
               <span
                 key={tag}
-                className="rounded-full border border-violet-400/40 bg-violet-500/15 px-6 py-2.5 text-[26px] font-semibold capitalize text-violet-100"
+                className="rounded-full border border-orange-400/40 bg-orange-500/15 px-6 py-2.5 text-[26px] font-semibold capitalize text-orange-50"
               >
                 {tag}
               </span>
@@ -190,6 +249,9 @@ export function YearEndStatsTemplate({ stats, photos }: YearEndTemplateProps) {
             ))}
           </div>
         )}
+        <p className="mt-8 text-center text-[22px] uppercase tracking-[0.35em] text-white/40">
+          Encore
+        </p>
       </div>
     </div>
   );
@@ -201,8 +263,18 @@ export function YearEndStatsTemplate({ stats, photos }: YearEndTemplateProps) {
 
 const POLAROID_ROTATIONS = ['-6deg', '4deg', '-3deg', '7deg', '-5deg', '3deg'];
 
-export function YearEndScrapbookTemplate({ stats, reviews }: YearEndTemplateProps) {
-  const cards = reviews.slice(0, 6);
+export function YearEndScrapbookTemplate({ stats, reviews, entries = [] }: YearEndTemplateProps) {
+  const cards: YearEndEntry[] =
+    entries.length > 0
+      ? entries.slice(0, 6)
+      : reviews.slice(0, 6).map((review) => ({
+          concertId: review.eventId,
+          artistName: review.artistName,
+          venueName: review.venueName,
+          date: (review.eventDate ?? review.createdAt).slice(0, 10),
+          imageUrl: review.photoDataUrls?.[0],
+          review,
+        }));
 
   return (
     <div
@@ -217,35 +289,33 @@ export function YearEndScrapbookTemplate({ stats, reviews }: YearEndTemplateProp
         <p className="font-serif text-[40px] italic text-amber-200/90">Encore Year-End</p>
         <h1 className="mt-1 text-[108px] font-black leading-none tracking-tight">{stats.year}</h1>
         <p className="mt-3 text-[30px] font-medium text-white/60">
-          {stats.totalConcerts} {stats.totalConcerts === 1 ? 'memory' : 'memories'} this year
+          {stats.totalShows} {stats.totalShows === 1 ? 'memory' : 'memories'} this year
         </p>
       </div>
 
       <div className="mt-12 flex flex-1 flex-wrap content-start items-start justify-center gap-x-6 gap-y-10">
         {cards.length > 0 ? (
-          cards.map((review, i) => {
-            const photo = firstPhoto(review);
+          cards.map((entry, i) => {
+            const visual = visualForEntry(entry);
             return (
               <div
-                key={review.id}
+                key={entry.concertId}
                 className="w-[300px] bg-[#f7f3ea] p-4 pb-6 shadow-2xl"
                 style={{ transform: `rotate(${POLAROID_ROTATIONS[i % POLAROID_ROTATIONS.length]})` }}
               >
-                {photo ? (
-                  <img src={photo} alt="" className="h-[300px] w-full object-cover" />
+                {visual.src ? (
+                  <img src={visual.src} alt="" className="h-[300px] w-full object-cover" />
                 ) : (
-                  <div className="flex h-[300px] w-full items-center justify-center bg-gradient-to-br from-violet-300 to-purple-400">
-                    <span className="px-3 text-center text-[40px] font-black text-white/90">
-                      {review.artistName}
-                    </span>
+                  <div className="h-[300px] w-full overflow-hidden">
+                    <PosterTile artistName={entry.artistName} />
                   </div>
                 )}
                 <p className="mt-3 truncate text-center font-serif text-[34px] italic text-neutral-800">
-                  {review.artistName}
+                  {entry.artistName}
                 </p>
-                {review.eventDate && (
+                {entry.date && (
                   <p className="text-center font-serif text-[22px] text-neutral-500">
-                    {formatDate(review.eventDate)}
+                    {formatDate(entry.date)}
                   </p>
                 )}
               </div>
@@ -270,13 +340,30 @@ export function YearEndTemplateContent({
   stats,
   reviews,
   photos,
+  entries,
 }: { template: YearEndTemplateId } & YearEndTemplateProps) {
   switch (template) {
     case 'collage':
-      return <YearEndPhotoCollageTemplate stats={stats} reviews={reviews} photos={photos} />;
+      return (
+        <YearEndPhotoCollageTemplate
+          stats={stats}
+          reviews={reviews}
+          photos={photos}
+          entries={entries}
+        />
+      );
     case 'stats':
-      return <YearEndStatsTemplate stats={stats} reviews={reviews} photos={photos} />;
+      return (
+        <YearEndStatsTemplate stats={stats} reviews={reviews} photos={photos} entries={entries} />
+      );
     case 'scrapbook':
-      return <YearEndScrapbookTemplate stats={stats} reviews={reviews} photos={photos} />;
+      return (
+        <YearEndScrapbookTemplate
+          stats={stats}
+          reviews={reviews}
+          photos={photos}
+          entries={entries}
+        />
+      );
   }
 }

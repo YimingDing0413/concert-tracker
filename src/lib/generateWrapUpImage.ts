@@ -1,7 +1,16 @@
 import { toPng } from 'html-to-image';
 
 export async function generateWrapUpImage(element: HTMLElement): Promise<string> {
+  try {
+    await document.fonts.ready;
+  } catch {
+    /* fonts API unavailable — continue */
+  }
+
+  // Capture at the element's laid-out 1080×1920; pixelRatio keeps edges crisp.
   return toPng(element, {
+    width: element.offsetWidth || 1080,
+    height: element.offsetHeight || 1920,
     pixelRatio: 2,
     cacheBust: true,
     skipFonts: false,
