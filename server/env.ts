@@ -10,9 +10,13 @@ if (existsSync(resolve(root, '.env.local'))) {
 }
 dotenv.config({ path: resolve(root, '.env') });
 
-/** Trim whitespace and optional surrounding quotes from env values (common on Vercel). */
+/** Trim whitespace, quotes, newlines, and invisible chars from env values (common on Vercel). */
 export function envValue(key: string, fallback = ''): string {
-  let v = (process.env[key] ?? fallback).trim();
+  let v = (process.env[key] ?? fallback)
+    .replace(/^\uFEFF/, '')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/\r?\n/g, '')
+    .trim();
   if (
     (v.startsWith('"') && v.endsWith('"')) ||
     (v.startsWith("'") && v.endsWith("'"))

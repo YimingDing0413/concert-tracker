@@ -33,7 +33,7 @@ export function ProfileTabBar({
 }: ProfileTabBarProps) {
   const tabs: ProfileContentTab[] =
     mode === 'full'
-      ? ['concerts', 'going', 'want', 'reviews', 'posts', 'wrapped']
+      ? ['concerts', 'going', 'want', 'reviews', 'wrapped']
       : ['concerts', 'going'];
 
   function countFor(t: ProfileContentTab): number | undefined {

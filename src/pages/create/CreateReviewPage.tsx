@@ -3,7 +3,6 @@ import {
   type SelectedConcertEvent,
 } from '@/components/feed/ConcertEventPicker';
 import { Button } from '@/components/ui/app-button';
-import { SolidBackButton } from '@/components/ui/SolidBackButton';
 import { useAuth } from '@/context/AuthContext';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -20,8 +19,8 @@ export function CreateReviewPage() {
     navigate(`/concert/${selected.eventId}/review`, {
       state: {
         backTo: '/create/review',
-        afterSaveRedirect: '/feed',
-        createFeedPost: true,
+        afterSaveRedirect: '/profile',
+        createFeedPost: false,
         concertSnapshot: {
           city: selected.city,
           imageUrl: selected.imageUrl,
@@ -32,8 +31,6 @@ export function CreateReviewPage() {
 
   return (
     <div className="space-y-6 pb-8">
-      <SolidBackButton to="/create" label="Back" />
-
       <header>
         <h1 className="text-2xl font-bold">Review a concert</h1>
         <p className="mt-1 text-sm text-muted-foreground">

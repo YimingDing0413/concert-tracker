@@ -1,11 +1,10 @@
 import { cn } from '@/lib/utils';
-import { Compass, Plus, UserRound } from 'lucide-react';
+import { Compass, Star, UserRound } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
-/** P2: Feed and Messages hidden until social features ship. */
 const tabs = [
   { to: '/', label: 'Discover', icon: Compass, end: true },
-  { to: '/create', label: 'Create', icon: Plus, end: false, highlight: true },
+  { to: '/create/review', label: 'Review', icon: Star, end: false, highlight: true },
   { to: '/profile', label: 'Profile', icon: UserRound, end: false },
 ] as const;
 
@@ -18,7 +17,7 @@ export function BottomNav() {
       <div className="mx-auto flex h-[4.25rem] max-w-lg items-stretch px-1 pb-[env(safe-area-inset-bottom)]">
         {tabs.map((tab) => {
           const Icon = tab.icon;
-          const isCreate = 'highlight' in tab && tab.highlight;
+          const isReview = 'highlight' in tab && tab.highlight;
           return (
             <NavLink
               key={tab.to}
@@ -36,13 +35,13 @@ export function BottomNav() {
                   <span
                     className={cn(
                       'flex size-8 items-center justify-center rounded-full transition-colors',
-                      isCreate && 'bg-primary text-primary-foreground shadow-md shadow-primary/30',
-                      !isCreate && isActive && 'bg-primary/15',
-                      isCreate && isActive && 'ring-2 ring-primary/40'
+                      isReview && 'bg-primary text-primary-foreground shadow-md shadow-primary/30',
+                      !isReview && isActive && 'bg-primary/15',
+                      isReview && isActive && 'ring-2 ring-primary/40'
                     )}
                   >
                     <Icon
-                      className={cn('size-4', isActive && !isCreate && 'stroke-[2.5]')}
+                      className={cn('size-4', isActive && !isReview && 'stroke-[2.5]')}
                       aria-hidden
                     />
                   </span>

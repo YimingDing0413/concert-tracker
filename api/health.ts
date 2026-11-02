@@ -35,6 +35,7 @@ export default async function handler(
     dynamodbRegion: dynamo.region,
     dynamodbTable: dynamo.tableName,
     dynamodbError: dynamo.ok ? undefined : dynamo.error,
+    dynamodbHint: dynamo.ok ? undefined : dynamo.hint,
   });
   res.statusCode = 200;
   res.setHeader('Content-Type', 'application/json');

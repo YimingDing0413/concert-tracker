@@ -1,11 +1,10 @@
 import { cn } from '@/lib/utils';
-import { Compass, Plus, UserRound } from 'lucide-react';
+import { Compass, Star, UserRound } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
-/** P2: Feed and Messages hidden until social features ship. */
 const tabs = [
   { to: '/', label: 'Discover', icon: Compass, end: true },
-  { to: '/create', label: 'Create', icon: Plus, end: false },
+  { to: '/create/review', label: 'Review', icon: Star, end: false },
   { to: '/profile', label: 'Profile', icon: UserRound, end: false },
 ] as const;
 

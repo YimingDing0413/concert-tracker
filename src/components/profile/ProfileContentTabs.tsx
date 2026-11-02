@@ -215,7 +215,7 @@ export function ProfileContentTabs({
           emptyTitle="No posts yet"
           emptyDescription="Share a concert memory, review, or ticket request from Create."
           emptyAction={
-            <Link to="/create" className="text-sm font-medium text-primary">
+            <Link to="/create/review" className="text-sm font-medium text-primary">
               Create a post →
             </Link>
           }

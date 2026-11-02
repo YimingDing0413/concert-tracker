@@ -39,11 +39,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 function parseProfileTab(value: string | null): ProfileContentTab {
+  if (value === 'posts') return 'concerts';
   if (
     value === 'going' ||
     value === 'want' ||
     value === 'reviews' ||
-    value === 'posts' ||
     value === 'wrapped' ||
     value === 'concerts'
   ) {

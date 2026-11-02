@@ -123,7 +123,8 @@ Browser → your-app.vercel.app
 
 | Issue | Fix |
 |-------|-----|
-| `dynamodbConfigured: true` but `dynamodb: false` | Check `dynamodbError` in `/api/health` — usually IAM or wrong table name/region |
+| `dynamodbConfigured: true` but `dynamodb: false` | Check `dynamodbError` / `dynamodbHint` in `/api/health` — usually IAM or wrong table name/region |
+| `UnrecognizedClientException` / “security token … is invalid” | IAM access key is wrong or deleted. In AWS IAM create a new access key, update `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY` in Vercel (Production), redeploy. Do not paste quotes or line breaks. Prefer long-lived `AKIA…` keys (not temporary `ASIA…` unless you also set `AWS_SESSION_TOKEN`). |
 | Cannot log in after sign up | Wrong password, or table name mismatch (`ConcertTracker` vs `concert_tracker`) |
 | My Shows empty on Vercel | Confirm DynamoDB env vars and redeploy |
 | Sign up works locally but not on Vercel | Add all four AWS env vars on Vercel and redeploy |

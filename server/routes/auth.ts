@@ -1,4 +1,8 @@
 import { Router } from 'express';
+import {
+  dynamoCredentialUserMessage,
+  isAwsCredentialError,
+} from '../lib/dynamoHealth.js';
 import * as authService from '../services/authService.js';
 
 export const authRouter = Router();
@@ -13,6 +17,10 @@ authRouter.post('/login', async (req, res, next) => {
     const session = await authService.login(String(email), String(password ?? ''));
     res.json({ data: session });
   } catch (err) {
+    if (isAwsCredentialError(err)) {
+      res.status(503).json({ error: dynamoCredentialUserMessage(), code: 'DYNAMODB_CREDENTIALS' });
+      return;
+    }
     if (err instanceof Error && err.message.includes('Invalid')) {
       res.status(401).json({ error: err.message });
       return;
@@ -26,6 +34,10 @@ authRouter.post('/signup', async (req, res) => {
     const session = await authService.signUp(req.body);
     res.json({ data: session });
   } catch (err) {
+    if (isAwsCredentialError(err)) {
+      res.status(503).json({ error: dynamoCredentialUserMessage(), code: 'DYNAMODB_CREDENTIALS' });
+      return;
+    }
     res.status(400).json({ error: err instanceof Error ? err.message : 'Sign up failed' });
   }
 });

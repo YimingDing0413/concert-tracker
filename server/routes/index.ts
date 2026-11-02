@@ -66,5 +66,6 @@ apiRouter.get('/health', async (_req, res) => {
     dynamodbRegion: dynamo.region,
     dynamodbTable: dynamo.tableName,
     dynamodbError: dynamo.ok ? undefined : dynamo.error,
+    dynamodbHint: dynamo.ok ? undefined : dynamo.hint,
   });
 });
