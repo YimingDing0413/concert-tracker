@@ -61,16 +61,18 @@ export function ConcertActions({
       >
         {attended ? '✓ I was there' : 'I was there'}
       </Button>
-      <Link
-        to={`/concert/${concertId}/review`}
-        className={cn(
-          buttonVariants({ variant: 'secondary', size: 'default' }),
-          'min-h-11 min-w-[7rem] flex-1 gap-1.5'
-        )}
-      >
-        <Star className="size-4" aria-hidden />
-        {attended ? 'Add review' : 'Review'}
-      </Link>
+      {attended && (
+        <Link
+          to={`/concert/${concertId}/review`}
+          className={cn(
+            buttonVariants({ variant: 'secondary', size: 'default' }),
+            'min-h-11 min-w-[7rem] flex-1 gap-1.5'
+          )}
+        >
+          <Star className="size-4" aria-hidden />
+          Add review
+        </Link>
+      )}
     </div>
   );
 }

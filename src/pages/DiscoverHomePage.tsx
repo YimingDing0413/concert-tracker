@@ -28,6 +28,8 @@ import { MapPin, Sparkles, TrendingUp } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
+const BACK_TO = '/discover';
+
 function concertsFromMapPayload(data: MapEventsPayload): Concert[] {
   const list: Concert[] = [];
   for (const venue of data.venues) {
@@ -37,21 +39,30 @@ function concertsFromMapPayload(data: MapEventsPayload): Concert[] {
   return list.sort((a, b) => a.date.localeCompare(b.date));
 }
 
+function takeUnseen<T extends { id: string }>(items: T[], shown: Set<string>, limit?: number): T[] {
+  const out: T[] = [];
+  for (const item of items) {
+    if (shown.has(item.id)) continue;
+    out.push(item);
+    shown.add(item.id);
+    if (limit != null && out.length >= limit) break;
+  }
+  return out;
+}
+
 function FeaturedHero({
   concert,
   label,
-  backTo = '/',
 }: {
   concert: RecommendedConcert | Concert;
   label: string;
-  backTo?: string;
 }) {
   const location = formatLocation(concert.city, concert.state, concert.country);
 
   return (
     <Link
       to={`/concert/${concert.id}`}
-      state={{ backTo, concertSnapshot: concert }}
+      state={{ backTo: BACK_TO, concertSnapshot: concert }}
       className="group relative block overflow-hidden rounded-3xl no-underline"
     >
       <div className="relative aspect-[16/11] sm:aspect-[21/9]">
@@ -130,7 +141,7 @@ export function DiscoverHomePage() {
         if (!cancelled) setLoadingNearby(false);
       }
     }
-    loadNearby();
+    void loadNearby();
     return () => {
       cancelled = true;
     };
@@ -181,19 +192,6 @@ export function DiscoverHomePage() {
     return () => window.removeEventListener(REVIEWS_SYNCED_EVENT, onSynced);
   }, [user]);
 
-  const trendingArtists = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const c of nearbyConcerts) {
-      const name = c.artistName?.trim();
-      if (!name) continue;
-      counts.set(name, (counts.get(name) ?? 0) + 1);
-    }
-    return [...counts.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 8)
-      .map(([name]) => name);
-  }, [nearbyConcerts]);
-
   const concertHistory = useMemo(
     () => buildConcertHistory(userConcerts, reviews),
     [userConcerts, reviews]
@@ -209,21 +207,43 @@ export function DiscoverHomePage() {
     return getRecommendedConcerts(nearbyConcerts, concertHistory, 8);
   }, [historyReady, hasTasteProfile, loadingNearby, nearbyConcerts, concertHistory]);
 
-  const featured = forYou[0] ?? nearbyConcerts[0] ?? null;
-  const featuredLabel = forYou[0] ? 'Picked for you' : 'Featured near you';
-  const upcoming = nearbyConcerts.slice(0, 8);
+  const sections = useMemo(() => {
+    const shown = new Set<string>();
+    // Hero only when personalized pick is real (not a nearby fallback).
+    const featured = forYou[0] ?? null;
+    if (featured) shown.add(featured.id);
+
+    const forYouRest = hasTasteProfile
+      ? takeUnseen(forYou.slice(featured ? 1 : 0), shown, 6)
+      : [];
+
+    const upcoming = takeUnseen(nearbyConcerts, shown, 8);
+
+    return { featured, forYouRest, upcoming };
+  }, [forYou, hasTasteProfile, nearbyConcerts]);
+
+  const trendingArtists = useMemo(() => {
+    if (nearbySource === 'mock') return [];
+    const counts = new Map<string, number>();
+    for (const c of nearbyConcerts) {
+      const name = c.artistName?.trim();
+      if (!name) continue;
+      counts.set(name, (counts.get(name) ?? 0) + 1);
+    }
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([name]) => name);
+  }, [nearbyConcerts, nearbySource]);
 
   return (
     <div className="space-y-10 pb-6">
-      {/* Search hero */}
       <section className="relative -mx-4 overflow-hidden rounded-b-3xl bg-surface-2 px-4 pb-6 pt-2 sm:-mx-0 sm:rounded-3xl sm:px-6">
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/5" />
         <div className="relative space-y-4">
           <div>
             <h1 className="text-display-md text-foreground">Discover</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Find your next night out
-            </p>
+            <p className="mt-1 text-sm text-muted-foreground">Find your next night out</p>
           </div>
           <SearchAutocomplete placeholder="Search artists, venues, cities…" />
           <div className="flex flex-wrap gap-2">
@@ -240,120 +260,95 @@ export function DiscoverHomePage() {
               <MapPin className="size-3.5" aria-hidden />
               Explore near me
             </Link>
-            <Link
-              to="/search?mode=members"
-              className="inline-flex min-h-11 items-center rounded-full bg-surface-3 px-3.5 py-1.5 text-xs font-semibold text-muted-foreground no-underline transition-colors hover:text-foreground"
-            >
-              Find members
-            </Link>
           </div>
         </div>
       </section>
 
       {nearbySource === 'mock' && (
         <p className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/90">
-          Live concert data is temporarily unavailable — showing sample listings. Check{' '}
-          <a href="/api/health" className="font-medium text-amber-50 underline">
-            /api/health
-          </a>{' '}
-          for Ticketmaster status.
+          Showing sample listings right now. Live shows will be back shortly.
+          {import.meta.env.DEV && (
+            <>
+              {' '}
+              <a href="/api/health" className="font-medium text-amber-50 underline">
+                /api/health
+              </a>
+            </>
+          )}
         </p>
       )}
 
-      {/* Featured pick */}
-      {!loadingNearby && featured && (
+      {!loadingNearby && sections.featured && (
         <section>
-          <FeaturedHero concert={featured} label={featuredLabel} />
+          <FeaturedHero concert={sections.featured} label="Picked for you" />
         </section>
       )}
       {loadingNearby && (
         <ConcertCardSkeleton className="aspect-[16/11] rounded-3xl sm:aspect-[21/9]" />
       )}
 
-      {/* Spotify carousel */}
       {user && (
         <SpotifyForYouSection
           userId={user.id}
           latitude={center.latitude}
           longitude={center.longitude}
-          nearbyFallback={nearbyConcerts.slice(0, 4)}
+          nearbyFallback={[]}
           loadingNearby={loadingNearby}
           layout="carousel"
+          backTo={BACK_TO}
+          hideWhenDisconnected
+          excludeIds={
+            sections.featured
+              ? new Set([sections.featured.id, ...sections.forYouRest.map((c) => c.id)])
+              : new Set(sections.forYouRest.map((c) => c.id))
+          }
         />
       )}
 
-      {/* Personalized For You */}
-      <section className="space-y-3">
-        <div className="flex items-end justify-between gap-3">
-          <div>
-            <h2 className="text-display-md text-foreground">For you</h2>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              {hasTasteProfile
-                ? 'Based on shows you’ve been to'
-                : 'Upcoming around you'}
-            </p>
+      {hasTasteProfile && (
+        <section className="space-y-3">
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <h2 className="text-display-md text-foreground">For you</h2>
+              <p className="mt-0.5 text-sm text-muted-foreground">Based on shows you’ve been to</p>
+            </div>
+            <Link to="/map" className="shrink-0 text-xs font-semibold text-primary no-underline">
+              Map →
+            </Link>
           </div>
-          <Link to="/map" className="shrink-0 text-xs font-semibold text-primary no-underline">
-            Map →
-          </Link>
-        </div>
 
-        {!historyReady || loadingNearby ? (
-          <div className="carousel-scroll">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <ConcertCardSkeleton key={`for-you-${i}`} />
-            ))}
-          </div>
-        ) : hasTasteProfile && forYou.length > 0 ? (
-          <div className="carousel-scroll">
-            {forYou.slice(featured ? 1 : 0).map((c) => (
-              <ConcertPosterCard
-                key={c.id}
-                concert={c}
-                backTo="/"
-                width="carousel"
-                badge="nearby"
-              />
-            ))}
-          </div>
-        ) : hasTasteProfile && forYou.length === 0 ? (
-          <EmptyState
-            title="No strong matches yet"
-            description="Try the map or browse upcoming shows below."
-            action={
-              <Link to="/map" className="text-sm font-medium text-primary">
-                Explore map →
-              </Link>
-            }
-          />
-        ) : upcoming.length === 0 ? (
-          <EmptyState title="No nearby shows yet" description="Search another city or try the map." />
-        ) : (
-          <>
-            {!hasTasteProfile && (
-              <p className="text-sm text-muted-foreground">
-                Rate a few shows to unlock personalized picks.{' '}
-                <Link to="/profile" className="font-medium text-primary">
-                  Your profile →
-                </Link>
-              </p>
-            )}
+          {!historyReady || loadingNearby ? (
             <div className="carousel-scroll">
-              {upcoming.slice(0, 6).map((c) => (
-                <ConcertPosterCard
-                key={c.id}
-                concert={c}
-                backTo="/"
-                width="carousel"
-                badge="nearby"
-              />
+              {Array.from({ length: 3 }).map((_, i) => (
+                <ConcertCardSkeleton key={`for-you-${i}`} />
               ))}
             </div>
-          </>
-        )}
-      </section>
+          ) : sections.forYouRest.length > 0 ? (
+            <div className="carousel-scroll">
+              {sections.forYouRest.map((c) => (
+                <ConcertPosterCard
+                  key={c.id}
+                  concert={c}
+                  backTo={BACK_TO}
+                  width="carousel"
+                  badge="nearby"
+                />
+              ))}
+            </div>
+          ) : !sections.featured ? (
+            <EmptyState
+              title="No strong matches yet"
+              description="Try the map or browse upcoming shows below."
+              action={
+                <Link to="/map" className="text-sm font-medium text-primary">
+                  Explore map →
+                </Link>
+              }
+            />
+          ) : null}
+        </section>
+      )}
 
-      {/* Trending chips */}
       {trendingArtists.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-display-md text-foreground">Trending artists</h2>
@@ -362,7 +357,7 @@ export function DiscoverHomePage() {
               <button
                 key={name}
                 type="button"
-                className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-3"
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-surface-2 px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 onClick={() => navigate(`/search?q=${encodeURIComponent(name)}`)}
               >
                 <TrendingUp className="size-3.5 text-accent" aria-hidden />
@@ -373,7 +368,6 @@ export function DiscoverHomePage() {
         </section>
       )}
 
-      {/* Upcoming compact list */}
       <section className="space-y-3">
         <div className="flex items-end justify-between gap-3">
           <h2 className="text-display-md text-foreground">Upcoming near you</h2>
@@ -383,12 +377,15 @@ export function DiscoverHomePage() {
         </div>
         {loadingNearby ? (
           <ListRowSkeleton count={4} />
-        ) : upcoming.length === 0 ? (
-          <EmptyState title="Nothing on the calendar nearby" description="Search a city or widen your map radius." />
+        ) : sections.upcoming.length === 0 ? (
+          <EmptyState
+            title="Nothing on the calendar nearby"
+            description="Search a city or widen your map radius."
+          />
         ) : (
           <div className="space-y-2">
-            {upcoming.map((c) => (
-              <CompactConcertRow key={c.id} concert={c} backTo="/" badge="nearby" />
+            {sections.upcoming.map((c) => (
+              <CompactConcertRow key={c.id} concert={c} backTo={BACK_TO} badge="nearby" />
             ))}
           </div>
         )}

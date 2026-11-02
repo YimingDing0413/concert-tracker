@@ -19,7 +19,7 @@ import { getConcertNavState } from '@/utils/concertNav';
 import { TicketCtaLink } from '@/components/ui/TicketCtaLink';
 import { Calendar, MapPin } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 function mergeConcertDetail(
   apiConcert: ConcertDetail | null,
@@ -52,6 +52,7 @@ export function ConcertDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const navState = getConcertNavState(location.state);
   const [concert, setConcert] = useState<ConcertDetail | null>(null);
   const [userConcert, setUserConcert] = useState<UserConcert | null>(null);
@@ -136,7 +137,20 @@ export function ConcertDetailPage() {
 
   const displaySetlist =
     concert.status === 'past' ? concert.setlist : concert.predictedSetlist ?? concert.setlist;
-  const backTo = navState.backTo ?? '/';
+  const backTo = navState.backTo;
+
+  function handleBack() {
+    if (backTo) {
+      navigate(backTo);
+      return;
+    }
+    const idx = (window.history.state as { idx?: number } | null)?.idx;
+    if (typeof idx === 'number' && idx > 0) {
+      navigate(-1);
+      return;
+    }
+    navigate('/discover');
+  }
 
   return (
     <div className="min-h-dvh bg-background pb-10">
@@ -154,7 +168,11 @@ export function ConcertDetailPage() {
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-background via-black/60 to-black/20" />
           <div className="absolute inset-x-0 top-0 p-4">
-            <SolidBackButton to={backTo} className="bg-black/40 backdrop-blur-sm" />
+            {backTo ? (
+              <SolidBackButton to={backTo} className="bg-black/40 backdrop-blur-sm" />
+            ) : (
+              <SolidBackButton onClick={handleBack} className="bg-black/40 backdrop-blur-sm" />
+            )}
           </div>
           <div className="absolute inset-x-0 bottom-0 space-y-2 p-5 sm:p-8">
             <ApiNotice source={concert.source} />

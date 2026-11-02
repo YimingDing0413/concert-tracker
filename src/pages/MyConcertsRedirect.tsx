@@ -1,8 +1,8 @@
 import type { ProfileContentTab } from '@/components/profile/ProfileContentTabs';
 import { Navigate, useSearchParams } from 'react-router-dom';
 
-/** Legacy /my-concerts URLs → profile tabs */
-function mapLegacyTab(tab: string | null): ProfileContentTab | null {
+/** Legacy /my-concerts URLs → profile tabs (or /wrapped). */
+function mapLegacyTab(tab: string | null): ProfileContentTab | 'wrapped-route' | null {
   switch (tab) {
     case 'attended':
       return 'concerts';
@@ -14,7 +14,7 @@ function mapLegacyTab(tab: string | null): ProfileContentTab | null {
     case 'reviewed':
       return 'reviews';
     case 'wrapped':
-      return 'wrapped';
+      return 'wrapped-route';
     default:
       return null;
   }
@@ -23,6 +23,7 @@ function mapLegacyTab(tab: string | null): ProfileContentTab | null {
 export function MyConcertsRedirect() {
   const [searchParams] = useSearchParams();
   const mapped = mapLegacyTab(searchParams.get('tab'));
+  if (mapped === 'wrapped-route') return <Navigate to="/wrapped" replace />;
   const target = mapped ? `/profile?tab=${mapped}` : '/profile';
   return <Navigate to={target} replace />;
 }

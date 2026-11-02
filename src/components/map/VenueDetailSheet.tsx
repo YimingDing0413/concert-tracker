@@ -73,7 +73,7 @@ export function VenueDetailSheet({ venue, onClose }: VenueDetailSheetProps) {
                 <li key={show.id}>
                   <Link
                     to={`/concert/${encodeURIComponent(show.id)}`}
-                    state={{ concertSnapshot: show, backTo: '/' }}
+                    state={{ concertSnapshot: show, backTo: '/discover' }}
                     className="discover-show-row"
                   >
                     {show.imageUrl ? (

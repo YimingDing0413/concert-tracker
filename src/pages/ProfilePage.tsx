@@ -237,11 +237,11 @@ export function ProfilePage() {
             <Button
               variant="primary"
               size="default"
-              onClick={() => selectContentTab('wrapped')}
+              render={<Link to="/wrapped" />}
               className="h-10 gap-2 rounded-full px-5 text-sm font-medium"
             >
               <Sparkles className="size-4" aria-hidden />
-              Create Year Wrap-Up
+              View Wrapped
             </Button>
             <Button
               variant="ghost"

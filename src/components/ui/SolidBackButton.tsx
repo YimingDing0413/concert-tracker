@@ -4,23 +4,30 @@ import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface SolidBackButtonProps {
-  to: string;
+  to?: string;
+  onClick?: () => void;
   className?: string;
   label?: string;
 }
 
 /** Solid back control — readable on top of photos and gradients. */
-export function SolidBackButton({ to, className, label = 'Back' }: SolidBackButtonProps) {
+export function SolidBackButton({ to, onClick, className, label = 'Back' }: SolidBackButtonProps) {
+  const classNames = cn(
+    'gap-1.5 border border-border/80 bg-card/95 text-foreground shadow-md backdrop-blur-md hover:bg-card',
+    className
+  );
+
+  if (to) {
+    return (
+      <Button variant="secondary" size="sm" render={<Link to={to} />} className={classNames}>
+        <ArrowLeft className="size-4" aria-hidden />
+        {label}
+      </Button>
+    );
+  }
+
   return (
-    <Button
-      variant="secondary"
-      size="sm"
-      render={<Link to={to} />}
-      className={cn(
-        'gap-1.5 border border-border/80 bg-card/95 text-foreground shadow-md backdrop-blur-md hover:bg-card',
-        className
-      )}
-    >
+    <Button type="button" variant="secondary" size="sm" onClick={onClick} className={classNames}>
       <ArrowLeft className="size-4" aria-hidden />
       {label}
     </Button>

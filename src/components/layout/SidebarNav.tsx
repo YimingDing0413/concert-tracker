@@ -1,19 +1,28 @@
+import { Button } from '@/components/ui/app-button';
+import { NAV_ITEMS } from '@/components/layout/navItems';
 import { cn } from '@/lib/utils';
-import { Compass, Plus, UserRound } from 'lucide-react';
-import { NavLink } from 'react-router-dom';
-
-const tabs = [
-  { to: '/', label: 'Discover', icon: Compass, end: true },
-  { to: '/log', label: 'Log', icon: Plus, end: false },
-  { to: '/profile', label: 'Profile', icon: UserRound, end: false },
-] as const;
+import { Plus } from 'lucide-react';
+import { Link, NavLink } from 'react-router-dom';
 
 export function SidebarNav() {
+  const sideItems = NAV_ITEMS.filter((item) => !item.highlight);
+
   return (
     <aside className="hidden w-56 shrink-0 flex-col border-r border-border/60 bg-card/30 px-3 py-6 md:flex lg:w-64">
-      <span className="logo mb-8 px-3 text-2xl">Encore</span>
+      <Link to="/" className="logo mb-6 px-3 text-2xl no-underline">
+        Encore
+      </Link>
+      <Button
+        render={<Link to="/log" />}
+        fullWidth
+        className="mb-4 min-h-11 gap-2"
+        aria-label="Log a show"
+      >
+        <Plus className="size-4" aria-hidden />
+        Log a show
+      </Button>
       <nav className="flex flex-1 flex-col gap-1" aria-label="Main navigation">
-        {tabs.map((tab) => {
+        {sideItems.map((tab) => {
           const Icon = tab.icon;
           return (
             <NavLink

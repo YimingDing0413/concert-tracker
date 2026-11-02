@@ -2,7 +2,6 @@ import { ConcertCard } from '@/components/concert/ConcertCard';
 import { FeedPostCard } from '@/components/feed/FeedPostCard';
 import { StartMessageModal } from '@/components/messages/StartMessageModal';
 import { ProfileReviewListItem } from '@/components/review/ProfileReviewListItem';
-import { YearEndWrapUp } from '@/components/wrap-up/year-end/YearEndWrapUp';
 import { Button } from '@/components/ui/app-button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { getConcertReview } from '@/lib/concertReviewsLocal';
@@ -261,7 +260,6 @@ export function ProfileContentTabs({
         </TabBody>
       )}
 
-      {mode === 'full' && tab === 'wrapped' && <YearEndWrapUp userId={userId} />}
     </section>
   );
 }

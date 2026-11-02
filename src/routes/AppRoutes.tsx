@@ -8,6 +8,7 @@ import { ArtistUpcomingPage } from '@/pages/artist/ArtistUpcomingPage';
 import { ConcertDetailPage } from '@/pages/ConcertDetailPage';
 import { DiscoverHomePage } from '@/pages/DiscoverHomePage';
 import { DiscoverMapPage } from '@/pages/DiscoverMapPage';
+import { HomePage } from '@/pages/HomePage';
 import { SpotifyRecommendationsPage } from '@/pages/SpotifyRecommendationsPage';
 import { LogConcertPage } from '@/pages/LogConcertPage';
 import { LoginPage } from '@/pages/LoginPage';
@@ -21,7 +22,16 @@ import { VenueDetailPage } from '@/pages/VenueDetailPage';
 import { WrapUpPage } from '@/pages/WrapUpPage';
 import { YearEndWrapUpPage } from '@/pages/YearEndWrapUpPage';
 import type { ReactNode } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useSearchParams } from 'react-router-dom';
+
+/** `/profile?tab=wrapped` → `/wrapped` */
+function ProfileWrappedRedirect({ children }: { children: ReactNode }) {
+  const [params] = useSearchParams();
+  if (params.get('tab') === 'wrapped') {
+    return <Navigate to="/wrapped" replace />;
+  }
+  return <>{children}</>;
+}
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -62,7 +72,8 @@ export function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<DiscoverHomePage />} />
+        <Route index element={<HomePage />} />
+        <Route path="discover" element={<DiscoverHomePage />} />
         <Route path="map" element={<DiscoverMapPage />} />
         <Route path="discover/spotify" element={<SpotifyRecommendationsPage />} />
         {/* Social/feed create flows paused — Log is the primary create path */}
@@ -76,9 +87,17 @@ export function AppRoutes() {
         <Route path="create/review" element={<Navigate to="/log" replace />} />
         <Route path="search" element={<SearchPage />} />
         <Route path="my-concerts" element={<MyConcertsRedirect />} />
-        <Route path="wrap-up" element={<YearEndWrapUpPage />} />
+        <Route path="wrapped" element={<YearEndWrapUpPage />} />
+        <Route path="wrap-up" element={<Navigate to="/wrapped" replace />} />
         <Route path="add" element={<Navigate to="/log?manual=1" replace />} />
-        <Route path="profile" element={<ProfilePage />} />
+        <Route
+          path="profile"
+          element={
+            <ProfileWrappedRedirect>
+              <ProfilePage />
+            </ProfileWrappedRedirect>
+          }
+        />
         <Route path="member/:userId" element={<MemberProfilePage />} />
       </Route>
       <Route
