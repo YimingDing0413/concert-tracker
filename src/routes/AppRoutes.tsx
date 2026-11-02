@@ -1,16 +1,15 @@
 import { AppShell } from '@/components/layout/AppShell';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useAuth } from '@/context/AuthContext';
-import { AddConcertPage } from '@/pages/AddConcertPage';
 import { ArtistLayout } from '@/components/artist/ArtistLayout';
 import { ArtistPastPage } from '@/pages/artist/ArtistPastPage';
 import { ArtistSetlistsPage } from '@/pages/artist/ArtistSetlistsPage';
 import { ArtistUpcomingPage } from '@/pages/artist/ArtistUpcomingPage';
 import { ConcertDetailPage } from '@/pages/ConcertDetailPage';
-import { CreateReviewPage } from '@/pages/create/CreateReviewPage';
 import { DiscoverHomePage } from '@/pages/DiscoverHomePage';
 import { DiscoverMapPage } from '@/pages/DiscoverMapPage';
 import { SpotifyRecommendationsPage } from '@/pages/SpotifyRecommendationsPage';
+import { LogConcertPage } from '@/pages/LogConcertPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { MemberProfilePage } from '@/pages/MemberProfilePage';
 import { MyConcertsRedirect } from '@/pages/MyConcertsRedirect';
@@ -66,18 +65,19 @@ export function AppRoutes() {
         <Route index element={<DiscoverHomePage />} />
         <Route path="map" element={<DiscoverMapPage />} />
         <Route path="discover/spotify" element={<SpotifyRecommendationsPage />} />
-        {/* Social/feed create flows paused — keep lean: Discover, Review, Profile */}
+        {/* Social/feed create flows paused — Log is the primary create path */}
         <Route path="feed" element={<Navigate to="/" replace />} />
         <Route path="messages" element={<Navigate to="/" replace />} />
         <Route path="messages/:threadId" element={<Navigate to="/" replace />} />
-        <Route path="create" element={<Navigate to="/create/review" replace />} />
-        <Route path="create/want" element={<Navigate to="/create/review" replace />} />
-        <Route path="create/post" element={<Navigate to="/create/review" replace />} />
-        <Route path="create/review" element={<CreateReviewPage />} />
+        <Route path="log" element={<LogConcertPage />} />
+        <Route path="create" element={<Navigate to="/log" replace />} />
+        <Route path="create/want" element={<Navigate to="/log" replace />} />
+        <Route path="create/post" element={<Navigate to="/log" replace />} />
+        <Route path="create/review" element={<Navigate to="/log" replace />} />
         <Route path="search" element={<SearchPage />} />
         <Route path="my-concerts" element={<MyConcertsRedirect />} />
         <Route path="wrap-up" element={<YearEndWrapUpPage />} />
-        <Route path="add" element={<AddConcertPage />} />
+        <Route path="add" element={<Navigate to="/log?manual=1" replace />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="member/:userId" element={<MemberProfilePage />} />
       </Route>

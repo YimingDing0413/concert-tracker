@@ -26,15 +26,17 @@ export function ProfileReviewListItem({ review }: ProfileReviewListItemProps) {
             className="size-20 shrink-0 rounded-xl object-cover"
           />
         ) : (
-          <div className="flex size-20 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600/40 to-fuchsia-900/30 text-2xl font-black text-white/90">
-            {review.overallRating}
+          <div className="flex size-20 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600/40 to-fuchsia-900/30 text-sm font-bold text-white/90">
+            {review.overallRating > 0 ? review.overallRating : '—'}
           </div>
         )}
         <div className="min-w-0 flex-1">
           <h3 className="truncate font-semibold text-foreground">{review.artistName}</h3>
           {subtitle && <p className="truncate text-sm text-muted-foreground">{subtitle}</p>}
           <p className="mt-1 text-xs font-medium text-primary">
-            {OVERALL_VIBE_LABELS[review.overallRating]} · {review.overallRating}/10
+            {review.overallRating > 0
+              ? `${OVERALL_VIBE_LABELS[review.overallRating]} · ${review.overallRating}/10`
+              : 'Not rated'}
           </p>
           {review.tags && review.tags.length > 0 && (
             <p className="mt-1 truncate text-xs capitalize text-muted-foreground">
@@ -44,7 +46,7 @@ export function ProfileReviewListItem({ review }: ProfileReviewListItemProps) {
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
           <span className="text-2xl font-black tabular-nums text-foreground">
-            {review.overallRating}
+            {review.overallRating > 0 ? review.overallRating : '—'}
           </span>
           <ChevronRight className="size-4 text-muted-foreground" />
         </div>

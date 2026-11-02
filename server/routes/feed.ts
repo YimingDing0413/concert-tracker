@@ -50,7 +50,8 @@ feedRouter.get('/', requireDynamo, async (req, res, next) => {
 feedRouter.post('/', requireDynamo, requireAuth, async (req, res) => {
   try {
     const body = req.body ?? {};
-    const { userId: _clientUserId, ...rest } = body;
+    const { userId: clientUserId, ...rest } = body;
+    void clientUserId;
     const data = await createFeedPost({ ...rest, userId: req.authUser!.userId });
     res.json({ data });
   } catch (err) {

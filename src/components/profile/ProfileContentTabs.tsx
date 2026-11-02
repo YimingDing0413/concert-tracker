@@ -58,10 +58,10 @@ export function ProfileContentTabs({
       {tab === 'concerts' && (
         <TabBody
           emptyTitle="No concerts yet"
-          emptyDescription="Shows you've been to appear here after you mark them attended."
+          emptyDescription="Shows you've been to appear here after you log them."
           emptyAction={
-            <Link to="/" className="text-sm font-medium text-primary">
-              Discover concerts →
+            <Link to="/log" className="text-sm font-medium text-primary">
+              Log a show →
             </Link>
           }
           isEmpty={attendedSorted.length === 0}

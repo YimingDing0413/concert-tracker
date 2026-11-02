@@ -399,8 +399,10 @@ export interface SignUpInput extends AuthCredentials {
 
 export interface ManualConcertInput {
   artistName: string;
-  venueName: string;
-  city: string;
+  /** Optional — users can log with just artist + date. */
+  venueName?: string;
+  /** Optional — users can log with just artist + date. */
+  city?: string;
   state?: string;
   country?: string;
   date: string;

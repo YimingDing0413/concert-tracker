@@ -1,10 +1,10 @@
 import { cn } from '@/lib/utils';
-import { Compass, Star, UserRound } from 'lucide-react';
+import { Compass, Plus, UserRound } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
 const tabs = [
   { to: '/', label: 'Discover', icon: Compass, end: true },
-  { to: '/create/review', label: 'Review', icon: Star, end: false },
+  { to: '/log', label: 'Log', icon: Plus, end: false },
   { to: '/profile', label: 'Profile', icon: UserRound, end: false },
 ] as const;
 
@@ -22,7 +22,7 @@ export function SidebarNav() {
               end={tab.end}
               className={({ isActive }) =>
                 cn(
-                  'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
+                  'flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   isActive
                     ? 'bg-primary/15 text-primary'
                     : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
@@ -35,7 +35,7 @@ export function SidebarNav() {
           );
         })}
       </nav>
-      <p className="px-3 text-xs text-muted-foreground">Track shows. Rate nights. Find your next gig.</p>
+      <p className="px-3 text-xs text-muted-foreground">Log shows. Rate nights. Share your year.</p>
     </aside>
   );
 }

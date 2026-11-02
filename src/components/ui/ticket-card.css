@@ -1,0 +1,26 @@
+.ticket-card {
+  --notch: 10px;
+  --stub: 84px;
+  position: relative;
+  border-radius: 14px;
+  -webkit-mask:
+    radial-gradient(circle var(--notch) at calc(100% - var(--stub)) 0, #0000 98%, #000) top / 100%
+      51% no-repeat,
+    radial-gradient(circle var(--notch) at calc(100% - var(--stub)) 100%, #0000 98%, #000) bottom /
+      100% 51% no-repeat;
+  mask:
+    radial-gradient(circle var(--notch) at calc(100% - var(--stub)) 0, #0000 98%, #000) top / 100%
+      51% no-repeat,
+    radial-gradient(circle var(--notch) at calc(100% - var(--stub)) 100%, #0000 98%, #000) bottom /
+      100% 51% no-repeat;
+}
+
+.ticket-card::after {
+  content: '';
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  right: var(--stub);
+  border-left: 2px dashed color-mix(in srgb, currentColor 25%, transparent);
+  pointer-events: none;
+}

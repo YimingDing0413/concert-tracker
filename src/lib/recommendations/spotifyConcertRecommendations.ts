@@ -487,9 +487,22 @@ export function getSpotifyConcertRecommendations(
 
   const deduped = pickEarliestShowPerArtist(scored, excludedCountsByReason);
   const sorted = sortRecommendations(deduped);
-  const allRecommendations = sorted.map(
-    ({ artistWeight, recentlyPlayedWeight, matchedArtistKey, matchVia, distanceKm, ...rec }) => rec
-  );
+  const allRecommendations = sorted.map((row) => {
+    const {
+      artistWeight: _artistWeight,
+      recentlyPlayedWeight: _recentlyPlayedWeight,
+      matchedArtistKey: _matchedArtistKey,
+      matchVia: _matchVia,
+      distanceKm: _distanceKm,
+      ...rec
+    } = row;
+    void _artistWeight;
+    void _recentlyPlayedWeight;
+    void _matchedArtistKey;
+    void _matchVia;
+    void _distanceKm;
+    return rec;
+  });
   const recommendations = allRecommendations.slice(0, limit);
   const totalAvailableRecommendationCount = allRecommendations.length;
   const hiddenCandidatesCount = Math.max(0, totalAvailableRecommendationCount - recommendations.length);

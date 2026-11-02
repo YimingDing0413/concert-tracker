@@ -7,7 +7,6 @@ import {
   getSpotifyConcertRecommendations,
 } from '../../src/lib/recommendations/spotifyConcertRecommendations.js';
 import type {
-  ArtistRecommendationDebug,
   SpotifyConcertRecommendation,
   SpotifyRecommendationsDebugMeta,
 } from '../../shared/types/spotify.js';

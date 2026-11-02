@@ -69,7 +69,10 @@ export async function getSpotifyTasteProfile(userId: string): Promise<SpotifyTas
     })
   );
   if (!res.Item) return null;
-  const { pk: _pk, sk: _sk, entityType: _et, ...profile } = res.Item;
+  const { pk, sk, entityType, ...profile } = res.Item;
+  void pk;
+  void sk;
+  void entityType;
   return profile as SpotifyTasteProfile;
 }
 

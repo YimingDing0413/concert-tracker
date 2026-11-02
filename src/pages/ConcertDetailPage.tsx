@@ -6,6 +6,7 @@ import { SolidBackButton } from '@/components/ui/SolidBackButton';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { ApiNotice } from '@/components/ui/ApiNotice';
 import { useAuth } from '@/context/AuthContext';
+import { concertDetailFromUserConcert } from '@/lib/logConcert';
 import type {
   AggregatedShowTiming,
   Concert,
@@ -79,8 +80,10 @@ export function ConcertDetailPage() {
       timingPromise,
     ]);
     const snapshot = navState.concertSnapshot;
-    setConcert(mergeConcertDetail(c, snapshot));
-    setUserConcert(ucs.find((uc) => uc.concertId === id) ?? null);
+    const uc = ucs.find((row) => row.concertId === id) ?? null;
+    const fromUser = uc ? concertDetailFromUserConcert(uc) : null;
+    setConcert(mergeConcertDetail(c ?? fromUser, snapshot));
+    setUserConcert(uc);
     setShowTiming(timing.aggregated);
     setShowReportCount(timing.reports.length);
   }, [id, user, navState.concertSnapshot]);
@@ -187,7 +190,7 @@ export function ConcertDetailPage() {
             />
             {concert.status === 'past' && (
               <p className="text-xs text-muted-foreground">
-                Been to this show? Mark attended, then leave a review.
+                Were you there? Tap &quot;I was there&quot;, then add a review if you like.
               </p>
             )}
           </section>

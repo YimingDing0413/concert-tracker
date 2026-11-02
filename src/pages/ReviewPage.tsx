@@ -5,6 +5,7 @@ import {
   saveConcertReview,
   syncConcertReviewsFromServer,
 } from '@/lib/concertReviewsLocal';
+import { concertDetailFromUserConcert } from '@/lib/logConcert';
 import { createReviewFeedPost } from '@/lib/social/feedApi';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useAuth } from '@/context/AuthContext';
@@ -24,16 +25,38 @@ export function ReviewPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!id) return;
+    if (!id || !user) return;
     setLoading(true);
     Promise.all([
-      api.getConcert(id).then(setConcert),
-      user ? syncConcertReviewsFromServer(user.id) : Promise.resolve(),
-      user ? getConcertReviewWithPhotos(user.id, id) : Promise.resolve(null),
+      api.getConcert(id),
+      api.getUserConcerts(user.id),
+      syncConcertReviewsFromServer(user.id),
+      getConcertReviewWithPhotos(user.id, id),
     ])
-      .then(([, , review]) => setExistingReview(review ?? null))
+      .then(([catalog, ucs, , review]) => {
+        const uc = ucs.find((row) => row.concertId === id);
+        const fromUser = uc ? concertDetailFromUserConcert(uc) : null;
+        const snap = (location.state as { concertSnapshot?: Partial<ConcertDetail> } | null)
+          ?.concertSnapshot;
+        setConcert(
+          catalog ??
+            fromUser ??
+            (snap
+              ? concertDetailFromUserConcert({
+                  id: `uc-temp`,
+                  userId: user.id,
+                  concertId: id,
+                  status: 'attended',
+                  concertSnapshot: snap,
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString(),
+                })
+              : null)
+        );
+        setExistingReview(review ?? null);
+      })
       .finally(() => setLoading(false));
-  }, [id, user]);
+  }, [id, user, location.state]);
 
   if (!id) return <Navigate to="/" replace />;
   if (!user) return <Navigate to="/login" replace />;
@@ -52,33 +75,56 @@ export function ReviewPage() {
     );
   }
 
+  async function persistReview(
+    review: Parameters<typeof saveConcertReview>[0]
+  ): Promise<void> {
+    await saveConcertReview(review);
+    try {
+      await api.setConcertStatus(user!.id, review.eventId, 'attended', {
+        id: concert!.id,
+        artistName: concert!.artistName,
+        venueName: concert!.venueName,
+        city: concert!.city,
+        state: concert!.state,
+        country: concert!.country,
+        date: concert!.date,
+        imageUrl: concert!.imageUrl,
+        status: 'past',
+        artistId: concert!.artistId,
+        venueId: concert!.venueId,
+      });
+    } catch {
+      /* review saved; status best-effort */
+    }
+
+    const state = location.state as {
+      createFeedPost?: boolean;
+      concertSnapshot?: { city?: string; imageUrl?: string };
+    } | null;
+    if (state?.createFeedPost) {
+      try {
+        await createReviewFeedPost(review, {
+          city: state.concertSnapshot?.city ?? concert!.city,
+          imageUrl: state.concertSnapshot?.imageUrl ?? concert!.imageUrl,
+        });
+      } catch {
+        /* feed post best-effort */
+      }
+    }
+  }
+
   return (
     <ConcertReviewFlow
       concert={concert}
       userId={user.id}
       existingReview={existingReview}
       onSave={async (review) => {
-        await saveConcertReview(review);
-        const state = location.state as {
-          createFeedPost?: boolean;
-          afterSaveRedirect?: string;
-          concertSnapshot?: { city?: string; imageUrl?: string };
-        } | null;
-        if (state?.createFeedPost) {
-          try {
-            await createReviewFeedPost(review, {
-              city: state.concertSnapshot?.city ?? concert.city,
-              imageUrl: state.concertSnapshot?.imageUrl ?? concert.imageUrl,
-            });
-          } catch {
-            // Review saved; feed post is best-effort for MVP.
-          }
-        }
-        const redirect = state?.afterSaveRedirect;
-        navigate(redirect ?? `/concert/${id}`, { state: location.state });
+        await persistReview(review);
+        const state = location.state as { afterSaveRedirect?: string } | null;
+        navigate(state?.afterSaveRedirect ?? `/concert/${id}`, { state: location.state });
       }}
       onCreateWrapUp={async (review) => {
-        await saveConcertReview(review);
+        await persistReview(review);
         navigate(`/concert/${id}/wrap-up`, { state: location.state });
       }}
       onCancel={() => navigate(`/concert/${id}`, { state: location.state })}

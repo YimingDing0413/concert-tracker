@@ -194,8 +194,8 @@ export async function addManualConcert(userId: string, input: ManualConcertInput
   const manualConcert: Partial<Concert> = {
     id: manualId,
     artistName: input.artistName,
-    venueName: input.venueName,
-    city: input.city,
+    venueName: input.venueName ?? '',
+    city: input.city ?? '',
     state: input.state,
     country: input.country ?? 'USA',
     date: input.date,

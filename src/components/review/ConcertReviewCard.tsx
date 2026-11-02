@@ -32,15 +32,25 @@ export function ConcertReviewCard({ review, compact }: ConcertReviewCardProps) {
             )}
           </div>
           <div className="flex flex-col items-end">
-            <span className="text-3xl font-black tabular-nums text-foreground">
-              {review.overallRating}
-            </span>
-            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">/ 10</span>
+            {review.overallRating > 0 ? (
+              <>
+                <span className="text-3xl font-black tabular-nums text-foreground">
+                  {review.overallRating}
+                </span>
+                <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  / 10
+                </span>
+              </>
+            ) : (
+              <span className="text-sm font-semibold text-muted-foreground">Not rated</span>
+            )}
           </div>
         </div>
-        <p className="mt-2 text-sm font-medium text-primary">
-          {OVERALL_VIBE_LABELS[review.overallRating]}
-        </p>
+        {review.overallRating > 0 && (
+          <p className="mt-2 text-sm font-medium text-primary">
+            {OVERALL_VIBE_LABELS[review.overallRating]}
+          </p>
+        )}
       </div>
 
       <div className="space-y-4 p-5">

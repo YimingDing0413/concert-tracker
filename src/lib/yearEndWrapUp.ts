@@ -52,7 +52,9 @@ function rankCounts(values: string[], limit: number): { name: string; count: num
 }
 
 export function getYearEndStats(reviews: ConcertReview[], year: number): YearEndStats {
-  const ratings = reviews.map((r) => r.overallRating).filter((n) => typeof n === 'number');
+  const ratings = reviews
+    .map((r) => r.overallRating)
+    .filter((n): n is number => typeof n === 'number' && n > 0);
   const averageRating =
     ratings.length > 0
       ? Math.round((ratings.reduce((sum, n) => sum + n, 0) / ratings.length) * 10) / 10

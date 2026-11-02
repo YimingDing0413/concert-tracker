@@ -9,7 +9,6 @@ import {
 } from '../../src/lib/recommendations/spotifyArtistPool.js';
 import {
   ARTIST_SEARCH_CONCURRENCY,
-  getRecommendationWindowDays,
   getTargetedArtistSearchLimit,
   MAX_CANDIDATE_POOL,
 } from '../../src/lib/recommendations/config.js';

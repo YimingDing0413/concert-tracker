@@ -29,9 +29,11 @@ export function formatTime(time?: string): string {
   return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 }
 
-export function formatLocation(city: string, state?: string, country?: string): string {
-  if (state) return `${city}, ${state}`;
-  return `${city}, ${country ?? ''}`;
+export function formatLocation(city?: string, state?: string, country?: string): string {
+  if (!city && !state && !country) return '';
+  if (city && state) return `${city}, ${state}`;
+  if (city) return country ? `${city}, ${country}` : city;
+  return [state, country].filter(Boolean).join(', ');
 }
 
 export function averageRating(values: number[]): number | null {
@@ -45,7 +47,7 @@ export function averageOverallRating(values: number[]): number | null {
   return averageRating(values);
 }
 
-export function formatOverallRating(avg: number | null): string {
-  if (avg == null) return '—';
+export function formatOverallRating(avg: number | null | undefined): string {
+  if (avg == null || avg <= 0) return 'Not rated';
   return `${avg}/10`;
 }

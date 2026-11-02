@@ -34,15 +34,15 @@ export function ConcertActions({
           variant={going ? 'primary' : 'secondary'}
           onClick={onGoing}
           disabled={loading}
-          className="flex-1 min-w-[7rem]"
+          className="min-h-11 min-w-[7rem] flex-1"
         >
-          {going ? '✓ Going' : 'Going'}
+          {going ? "✓ I'm going" : "I'm going"}
         </Button>
         <Button
           variant={want ? 'primary' : 'secondary'}
           onClick={onWant}
           disabled={loading}
-          className="flex-1 min-w-[7rem]"
+          className="min-h-11 min-w-[7rem] flex-1"
         >
           {want ? '✓ Want tickets' : 'Want tickets'}
         </Button>
@@ -57,17 +57,33 @@ export function ConcertActions({
         variant={attended ? 'primary' : 'secondary'}
         onClick={onAttended}
         disabled={loading}
-        className="flex-1 min-w-[7rem]"
+        className="min-h-11 min-w-[7rem] flex-1"
       >
-        {attended ? '✓ Attended' : 'Attended'}
+        {attended ? '✓ I was there' : 'I was there'}
       </Button>
-      <Link
-        to={`/concert/${concertId}/review`}
-        className={cn(buttonVariants({ variant: 'secondary', size: 'default' }), 'flex-1 min-w-[7rem] gap-1.5')}
-      >
-        <Star className="size-4" aria-hidden />
-        Review
-      </Link>
+      {attended ? (
+        <Link
+          to={`/concert/${concertId}/review`}
+          className={cn(
+            buttonVariants({ variant: 'secondary', size: 'default' }),
+            'min-h-11 min-w-[7rem] flex-1 gap-1.5'
+          )}
+        >
+          <Star className="size-4" aria-hidden />
+          Add review
+        </Link>
+      ) : (
+        <Link
+          to={`/concert/${concertId}/review`}
+          className={cn(
+            buttonVariants({ variant: 'secondary', size: 'default' }),
+            'min-h-11 min-w-[7rem] flex-1 gap-1.5'
+          )}
+        >
+          <Star className="size-4" aria-hidden />
+          Review
+        </Link>
+      )}
     </div>
   );
 }

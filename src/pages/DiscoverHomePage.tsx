@@ -228,15 +228,21 @@ export function DiscoverHomePage() {
           <SearchAutocomplete placeholder="Search artists, venues, cities…" />
           <div className="flex flex-wrap gap-2">
             <Link
+              to="/log"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground no-underline transition-colors hover:bg-primary/90"
+            >
+              Log a show
+            </Link>
+            <Link
               to="/map"
-              className="inline-flex items-center gap-1.5 rounded-full bg-surface-3 px-3.5 py-1.5 text-xs font-semibold text-foreground no-underline transition-colors hover:bg-primary/15 hover:text-primary"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-surface-3 px-3.5 py-1.5 text-xs font-semibold text-foreground no-underline transition-colors hover:bg-primary/15 hover:text-primary"
             >
               <MapPin className="size-3.5" aria-hidden />
               Explore near me
             </Link>
             <Link
               to="/search?mode=members"
-              className="rounded-full bg-surface-3 px-3.5 py-1.5 text-xs font-semibold text-muted-foreground no-underline transition-colors hover:text-foreground"
+              className="inline-flex min-h-11 items-center rounded-full bg-surface-3 px-3.5 py-1.5 text-xs font-semibold text-muted-foreground no-underline transition-colors hover:text-foreground"
             >
               Find members
             </Link>

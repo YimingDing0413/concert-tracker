@@ -15,7 +15,7 @@ export const friendsRouter = Router();
 // NOTE: currentUserId comes from the client's MVP local user. Replace with the
 // authenticated user id once real auth exists.
 
-friendsRouter.post('/follow', requireDynamo, async (req, res, next) => {
+friendsRouter.post('/follow', requireDynamo, async (req, res) => {
   try {
     const body = req.body ?? {};
     const currentUserId = resolveUserId(undefined, body.currentUserId);
@@ -31,7 +31,7 @@ friendsRouter.post('/follow', requireDynamo, async (req, res, next) => {
   }
 });
 
-friendsRouter.post('/unfollow', requireDynamo, async (req, res, next) => {
+friendsRouter.post('/unfollow', requireDynamo, async (req, res) => {
   try {
     const body = req.body ?? {};
     const currentUserId = resolveUserId(undefined, body.currentUserId);

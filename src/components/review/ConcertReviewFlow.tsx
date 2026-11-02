@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
-const STEPS = ['Vibe', 'Breakdown', 'Highlights', 'Photos', 'Preview'] as const;
+const STEPS = ['Rating', 'Highlights', 'Photos'] as const;
 
 function emptyDraft(): ConcertReviewDraft {
   return {
@@ -41,6 +41,7 @@ export function ConcertReviewFlow({
   const [stepIndex, setStepIndex] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [draft, setDraft] = useState<ConcertReviewDraft>(() =>
     existingReview
       ? { ...existingReview }
@@ -53,7 +54,7 @@ export function ConcertReviewFlow({
 
   const step = STEPS[stepIndex];
 
-  const previewReview = useMemo((): ConcertReview => {
+  const review = useMemo((): ConcertReview => {
     const now = new Date().toISOString();
     return {
       id: existingReview?.id ?? generateReviewId(),
@@ -84,17 +85,12 @@ export function ConcertReviewFlow({
     setDraft((prev) => ({ ...prev, ...partial }));
   }
 
-  function canAdvance(): boolean {
-    if (step === 'Vibe') return draft.overallRating > 0;
-    return true;
-  }
-
   async function handleSave() {
-    if (previewReview.overallRating <= 0 || saving) return;
+    if (saving) return;
     setSaveError('');
     setSaving(true);
     try {
-      await onSave(previewReview);
+      await onSave(review);
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : 'Could not save review. Try again.');
       setSaving(false);
@@ -102,26 +98,29 @@ export function ConcertReviewFlow({
   }
 
   async function handleSaveAndWrapUp() {
-    if (previewReview.overallRating <= 0 || saving) return;
+    if (saving) return;
     setSaveError('');
     setSaving(true);
     try {
-      await onSave(previewReview);
-      await onCreateWrapUp(previewReview);
+      await onCreateWrapUp(review);
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : 'Could not save review. Try again.');
       setSaving(false);
     }
   }
 
+  function goNext() {
+    setStepIndex((i) => Math.min(i + 1, STEPS.length - 1));
+  }
+
   return (
-    <div className="min-h-dvh bg-gradient-to-b from-background via-background to-primary/5 pb-28">
+    <div className="min-h-dvh bg-gradient-to-b from-background via-background to-primary/5 pb-36">
       <header className="sticky top-0 z-20 border-b border-border/40 bg-background/90 px-4 py-4 backdrop-blur-md">
         <div className="mx-auto flex max-w-lg items-center justify-between md:max-w-xl">
           <button
             type="button"
             onClick={stepIndex === 0 ? onCancel : () => setStepIndex((i) => i - 1)}
-            className="flex size-10 items-center justify-center rounded-full border border-border/60 bg-card/80"
+            className="flex size-11 items-center justify-center rounded-full border border-border/60 bg-card/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="Back"
           >
             <ChevronLeft className="size-5" />
@@ -132,7 +131,7 @@ export function ConcertReviewFlow({
             </p>
             <p className="text-sm font-bold">{step}</p>
           </div>
-          <div className="size-10" />
+          <div className="size-11" />
         </div>
         <div className="mx-auto mt-3 flex max-w-lg gap-1 md:max-w-xl">
           {STEPS.map((s, i) => (
@@ -147,14 +146,15 @@ export function ConcertReviewFlow({
         </div>
       </header>
 
-      <div className="mx-auto max-w-lg px-4 py-6 md:max-w-xl">
-        {step === 'Vibe' && (
+      <div className="mx-auto max-w-lg space-y-6 px-4 py-6 md:max-w-xl">
+        {step === 'Rating' && (
           <div className="space-y-8">
             <div className="text-center">
               <h1 className="text-3xl font-black tracking-tight">How was the show?</h1>
               <p className="mt-2 text-muted-foreground">
                 {concert.artistName} · {concert.venueName}
               </p>
+              <p className="mt-1 text-xs text-muted-foreground">Rating is optional — skip anytime.</p>
             </div>
             <RatingSelector
               value={draft.overallRating}
@@ -164,21 +164,6 @@ export function ConcertReviewFlow({
               <p className="mb-3 text-sm font-semibold">Mood tags</p>
               <TagSelector selected={draft.tags ?? []} onChange={(tags) => patch({ tags })} />
             </div>
-          </div>
-        )}
-
-        {step === 'Breakdown' && (
-          <div className="space-y-4">
-            <div>
-              <h1 className="text-2xl font-black tracking-tight">Rate the details</h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Tap scores — skip anything you don&apos;t care about.
-              </p>
-            </div>
-            <RatingBreakdown
-              values={draft}
-              onChange={(key, value) => patch({ [key]: value })}
-            />
           </div>
         )}
 
@@ -194,7 +179,7 @@ export function ConcertReviewFlow({
                 value={draft.favoriteSong ?? ''}
                 onChange={(e) => patch({ favoriteSong: e.target.value })}
                 placeholder="e.g. Anti-Hero"
-                className="w-full rounded-2xl border border-border/60 bg-card/80 px-4 py-3 text-sm outline-none focus:border-primary/50"
+                className="min-h-11 w-full rounded-2xl border border-border/60 bg-card/80 px-4 py-3 text-sm outline-none focus:border-primary/50 focus-visible:ring-2 focus-visible:ring-ring"
               />
             </label>
             <label className="block space-y-2">
@@ -203,7 +188,7 @@ export function ConcertReviewFlow({
                 value={draft.bestMoment ?? ''}
                 onChange={(e) => patch({ bestMoment: e.target.value })}
                 placeholder="e.g. Surprise encore"
-                className="w-full rounded-2xl border border-border/60 bg-card/80 px-4 py-3 text-sm outline-none focus:border-primary/50"
+                className="min-h-11 w-full rounded-2xl border border-border/60 bg-card/80 px-4 py-3 text-sm outline-none focus:border-primary/50 focus-visible:ring-2 focus-visible:ring-ring"
               />
             </label>
             <div className="space-y-2">
@@ -213,19 +198,19 @@ export function ConcertReviewFlow({
                   type="button"
                   onClick={() => patch({ wouldSeeAgain: true })}
                   className={cn(
-                    'rounded-2xl border py-4 text-sm font-bold transition-all',
+                    'min-h-11 rounded-2xl border py-4 text-sm font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                     draft.wouldSeeAgain === true
                       ? 'border-primary bg-primary/20 text-primary'
                       : 'border-border/60 bg-card/60'
                   )}
                 >
-                  Yes 🔁
+                  Yes
                 </button>
                 <button
                   type="button"
                   onClick={() => patch({ wouldSeeAgain: false })}
                   className={cn(
-                    'rounded-2xl border py-4 text-sm font-bold transition-all',
+                    'min-h-11 rounded-2xl border py-4 text-sm font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                     draft.wouldSeeAgain === false
                       ? 'border-destructive/50 bg-destructive/10 text-destructive'
                       : 'border-border/60 bg-card/60'
@@ -242,14 +227,34 @@ export function ConcertReviewFlow({
                 onChange={(e) => patch({ reviewText: e.target.value })}
                 rows={4}
                 placeholder="Tell your friends how it felt…"
-                className="w-full resize-none rounded-2xl border border-border/60 bg-card/80 px-4 py-3 text-sm outline-none focus:border-primary/50"
+                className="w-full resize-none rounded-2xl border border-border/60 bg-card/80 px-4 py-3 text-sm outline-none focus:border-primary/50 focus-visible:ring-2 focus-visible:ring-ring"
               />
             </label>
+
+            <div className="rounded-2xl border border-border/50 bg-card/40">
+              <button
+                type="button"
+                onClick={() => setDetailsOpen((o) => !o)}
+                className="flex min-h-11 w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-expanded={detailsOpen}
+              >
+                Rate the details
+                <span className="text-muted-foreground">{detailsOpen ? 'Hide' : 'Show'}</span>
+              </button>
+              {detailsOpen && (
+                <div className="border-t border-border/40 px-4 py-4">
+                  <RatingBreakdown
+                    values={draft}
+                    onChange={(key, value) => patch({ [key]: value })}
+                  />
+                </div>
+              )}
+            </div>
           </div>
         )}
 
         {step === 'Photos' && (
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div>
               <h1 className="text-2xl font-black tracking-tight">Concert photos</h1>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -260,49 +265,62 @@ export function ConcertReviewFlow({
               photos={draft.photoDataUrls ?? []}
               onChange={(photoDataUrls) => patch({ photoDataUrls })}
             />
-          </div>
-        )}
-
-        {step === 'Preview' && (
-          <div className="space-y-5">
-            <div>
-              <h1 className="text-2xl font-black tracking-tight">Looking good</h1>
-              <p className="mt-1 text-sm text-muted-foreground">Save or create your story wrap-up.</p>
-            </div>
-            <ConcertReviewCard review={previewReview} />
+            <ConcertReviewCard review={review} compact />
           </div>
         )}
       </div>
 
       <footer className="fixed inset-x-0 bottom-0 z-20 border-t border-border/40 bg-background/95 px-4 py-4 backdrop-blur-md">
         <div className="mx-auto flex max-w-lg flex-col gap-2 md:max-w-xl">
-          {step === 'Preview' ? (
-            <>
-              {saveError && (
-                <p className="text-center text-sm text-destructive" role="alert">
-                  {saveError}
-                </p>
-              )}
-              <Button fullWidth onClick={() => void handleSave()} disabled={saving}>
-                {saving ? 'Saving…' : 'Save review'}
-              </Button>
+          {saveError && (
+            <p className="text-center text-sm text-destructive" role="alert">
+              {saveError}
+            </p>
+          )}
+          {stepIndex < STEPS.length - 1 ? (
+            <div className="flex gap-2">
               <Button
                 fullWidth
                 variant="secondary"
                 disabled={saving}
-                onClick={() => void handleSaveAndWrapUp()}
+                onClick={goNext}
+                className="min-h-11"
               >
-                Save & create wrap-up
+                Skip
               </Button>
+              <Button fullWidth disabled={saving} onClick={goNext} className="min-h-11">
+                Continue
+                <ChevronRight className="ml-1 inline size-4" />
+              </Button>
+            </div>
+          ) : null}
+          {stepIndex >= 1 && (
+            <>
+              <Button fullWidth onClick={() => void handleSave()} disabled={saving} className="min-h-11">
+                {saving ? 'Saving…' : 'Save review'}
+              </Button>
+              {stepIndex === STEPS.length - 1 && (
+                <Button
+                  fullWidth
+                  variant="secondary"
+                  disabled={saving}
+                  onClick={() => void handleSaveAndWrapUp()}
+                  className="min-h-11"
+                >
+                  Save & create wrap-up
+                </Button>
+              )}
             </>
-          ) : (
+          )}
+          {stepIndex === 0 && (
             <Button
               fullWidth
-              disabled={!canAdvance()}
-              onClick={() => setStepIndex((i) => Math.min(i + 1, STEPS.length - 1))}
+              variant="ghost"
+              disabled={saving}
+              onClick={() => void handleSave()}
+              className="min-h-11"
             >
-              Continue
-              <ChevronRight className="ml-1 inline size-4" />
+              {saving ? 'Saving…' : 'Save without rating'}
             </Button>
           )}
         </div>

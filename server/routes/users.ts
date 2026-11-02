@@ -28,7 +28,7 @@ usersRouter.get('/me', async (req, res, next) => {
   }
 });
 
-usersRouter.post('/me', requireDynamo, async (req, res, next) => {
+usersRouter.post('/me', requireDynamo, async (req, res) => {
   try {
     const body = req.body ?? {};
     const userId = resolveUserId(req.query.userId, body.userId);
@@ -55,7 +55,7 @@ usersRouter.get('/:userId/feed', requireDynamo, async (req, res, next) => {
   }
 });
 
-usersRouter.patch('/me/username', requireDynamo, async (req, res, next) => {
+usersRouter.patch('/me/username', requireDynamo, async (req, res) => {
   try {
     const body = req.body ?? {};
     const userId = resolveUserId(req.query.userId, body.userId);

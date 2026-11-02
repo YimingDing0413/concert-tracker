@@ -82,10 +82,10 @@ export function YearEndWrapUp({ userId }: YearEndWrapUpProps) {
       {!hasReviews ? (
         <EmptyState
           title={`No concerts reviewed for ${year} yet.`}
-          description="Rate the shows you've been to and they'll show up in your wrap-up."
+          description="Log shows you've been to, then add a review if you like."
           action={
-            <Button render={<Link to="/profile?tab=concerts" />} size="sm">
-              Review a concert
+            <Button render={<Link to="/log" />} size="sm">
+              Log a show
             </Button>
           }
         />
