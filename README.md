@@ -1,6 +1,16 @@
 # Encore — Concert Tracker
 
-Mobile-first concert discovery and tracking. The **React frontend** talks only to the **internal Express API**; the server calls Ticketmaster, Bandsintown, and Setlist.fm. API keys never reach the browser.
+Mobile-first concert journal. Log shows in a few taps, optionally rate them, and share a year-end Wrapped. The **React frontend** talks only to the **internal Express API**; the server calls Ticketmaster, Bandsintown, and Setlist.fm. API keys never reach the browser.
+
+## Core loop
+
+1. **Discover** nearby or search for a show  
+2. **Log** it (catalog pick or manual artist + date)  
+3. Optionally **rate & add photos**  
+4. See it on **Home** / **Profile** as a ticket stub  
+5. Export **Wrapped** at year end (9:16 share image)
+
+Optional surfaces (Spotify recommendations, social feed, DMs) are gated by `src/config/features.ts`.
 
 ## Phone app (iOS & Android)
 
@@ -68,6 +78,26 @@ npm run dev
 
 Without API keys, the server returns **mock fallback data** and logs which provider is missing.
 
+## App routes (UI)
+
+| Route | Access | Description |
+|-------|--------|-------------|
+| `/` | Public | Home — year count + your tickets |
+| `/discover` | Public | Search, location, nearby posters |
+| `/map` | Public | Nearby map |
+| `/search` | Public | Artist / venue / event search |
+| `/log` | Auth | Log a show (center nav FAB) |
+| `/wrapped` | Auth | Year-end Wrapped |
+| `/profile` | Auth | Been / Going / Wishlist + Settings |
+| `/concert/:id` | Public | Concert detail |
+| `/concert/:id/review` | Auth | Optional rating & photos |
+| `/concert/:id/wrap-up` | Auth | Single-show wrap-up share |
+| `/artist/:id/*` | Public | Artist upcoming / past / setlists |
+| `/venue/:id` | Public | Venue detail |
+| `/login`, `/signup` | Public | Auth (`?next=` resumes intent) |
+
+Legacy URLs redirect: `/add` → `/log?manual=1`, `/create*` → `/log`, `/feed` & `/messages*` → `/`, `/concert/:id/rate` → review, `/wrap-up` → `/wrapped`.
+
 ## Internal API routes
 
 | Route | Description |
@@ -101,6 +131,7 @@ server/
   routes/           # Express route handlers
   mock/             # Fallback data when keys missing
 src/                # React frontend (calls /api only)
+src/config/features.ts  # social / messages / spotify flags
 ```
 
 ## Scripts
@@ -109,3 +140,5 @@ src/                # React frontend (calls /api only)
 - `npm run dev:server` — API only  
 - `npm run dev:client` — Frontend only  
 - `npm run build` — Production frontend build  
+- `npm run lint` — ESLint  
+- `npm test` — Vitest unit tests (`vitest run`)

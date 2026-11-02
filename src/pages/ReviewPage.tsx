@@ -8,6 +8,7 @@ import {
 import { concertDetailFromUserConcert, localDateISO } from '@/lib/logConcert';
 import { createReviewFeedPost } from '@/lib/social/feedApi';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { FEATURES } from '@/config/features';
 import { useAuth } from '@/context/AuthContext';
 import type { ConcertReview } from '@/types/concertReview';
 import type { ConcertDetail, User } from '@/types';
@@ -47,7 +48,7 @@ async function persistReview(
     }
   }
 
-  if (options?.createFeedPost) {
+  if (FEATURES.social && options?.createFeedPost) {
     try {
       await createReviewFeedPost(review, {
         city: options.concertSnapshot?.city ?? concert.city,

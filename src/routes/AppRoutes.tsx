@@ -21,6 +21,7 @@ import { SignUpPage } from '@/pages/SignUpPage';
 import { VenueDetailPage } from '@/pages/VenueDetailPage';
 import { WrapUpPage } from '@/pages/WrapUpPage';
 import { YearEndWrapUpPage } from '@/pages/YearEndWrapUpPage';
+import { FEATURES } from '@/config/features';
 import { loginPathWithNext, sanitizeNextPath } from '@/lib/auth/nextPath';
 import type { ReactNode } from 'react';
 import {
@@ -105,7 +106,16 @@ export function AppRoutes() {
           <Route path="create/review" element={<Navigate to="/log" replace />} />
           <Route path="add" element={<Navigate to="/log?manual=1" replace />} />
           <Route path="wrapped" element={<YearEndWrapUpPage />} />
-          <Route path="discover/spotify" element={<SpotifyRecommendationsPage />} />
+          <Route
+            path="discover/spotify"
+            element={
+              FEATURES.spotify ? (
+                <SpotifyRecommendationsPage />
+              ) : (
+                <Navigate to="/discover" replace />
+              )
+            }
+          />
           <Route
             path="profile"
             element={
@@ -114,7 +124,12 @@ export function AppRoutes() {
               </ProfileWrappedRedirect>
             }
           />
-          <Route path="member/:userId" element={<MemberProfilePage />} />
+          <Route
+            path="member/:userId"
+            element={
+              FEATURES.social ? <MemberProfilePage /> : <Navigate to="/profile" replace />
+            }
+          />
         </Route>
       </Route>
 

@@ -9,6 +9,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ApiNotice } from '@/components/ui/ApiNotice';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { FEATURES } from '@/config/features';
 import { useAuth } from '@/context/AuthContext';
 import { useDebounce } from '@/hooks/useDebounce';
 import { cn } from '@/lib/utils';
@@ -29,7 +30,8 @@ export function SearchPage() {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const initialQ = searchParams.get('q') ?? '';
-  const initialMode: SearchMode = searchParams.get('mode') === 'members' ? 'members' : 'concerts';
+  const initialMode: SearchMode =
+    FEATURES.social && searchParams.get('mode') === 'members' ? 'members' : 'concerts';
   const [mode, setMode] = useState<SearchMode>(initialMode);
   const [query, setQuery] = useState(initialQ);
   const debounced = useDebounce(query);
@@ -48,7 +50,9 @@ export function SearchPage() {
   }, [searchParams]);
 
   useEffect(() => {
-    setMode(searchParams.get('mode') === 'members' ? 'members' : 'concerts');
+    setMode(
+      FEATURES.social && searchParams.get('mode') === 'members' ? 'members' : 'concerts'
+    );
   }, [searchParams]);
 
   useEffect(() => {
@@ -102,24 +106,26 @@ export function SearchPage() {
         </p>
       </header>
 
-      <div className="inline-flex rounded-full border border-border/60 bg-card/50 p-1">
-        {(['concerts', 'members'] as const).map((m) => (
-          <button
-            key={m}
-            type="button"
-            onClick={() => setMode(m)}
-            className={cn(
-              'rounded-full px-5 py-1.5 text-sm font-semibold capitalize transition-colors',
-              mode === m
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-            aria-pressed={mode === m}
-          >
-            {m}
-          </button>
-        ))}
-      </div>
+      {FEATURES.social ? (
+        <div className="inline-flex rounded-full border border-border/60 bg-card/50 p-1">
+          {(['concerts', 'members'] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setMode(m)}
+              className={cn(
+                'rounded-full px-5 py-1.5 text-sm font-semibold capitalize transition-colors',
+                mode === m
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+              aria-pressed={mode === m}
+            >
+              {m}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       {mode === 'concerts' && (
         <>
@@ -168,7 +174,7 @@ export function SearchPage() {
         </>
       )}
 
-      {mode === 'members' && (
+      {FEATURES.social && mode === 'members' && (
         <MemberSearch
           currentUserId={currentUserId}
           hasUsername={hasUsername}

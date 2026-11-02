@@ -7,6 +7,7 @@ import { LocationChip } from '@/components/location/LocationChip';
 import { SearchAutocomplete } from '@/components/search/SearchAutocomplete';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ConcertCardSkeleton, ListRowSkeleton } from '@/components/ui/LoadingSkeleton';
+import { FEATURES } from '@/config/features';
 import { useAuth } from '@/context/AuthContext';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
 import {
@@ -279,7 +280,7 @@ export function DiscoverHomePage() {
         <ConcertCardSkeleton className="aspect-[16/11] rounded-3xl sm:aspect-[21/9]" />
       )}
 
-      {user && (
+      {FEATURES.spotify && user && (
         <SpotifyForYouSection
           userId={user.id}
           latitude={location.latitude}

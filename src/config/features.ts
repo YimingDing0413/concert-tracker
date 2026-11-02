@@ -1,4 +1,4 @@
-/** Feature flags for optional product surfaces. Social/messages stay off until Phase 6 cleanup lands. */
+/** Feature flags for optional product surfaces. Keep social/messages off for a lean core loop. */
 export const FEATURES = {
   social: false,
   messages: false,
