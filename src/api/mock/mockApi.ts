@@ -213,25 +213,32 @@ export const mockApi: ConcertApiClient = {
     return getUserConcerts().filter((uc) => uc.userId === userId);
   },
 
-  async setConcertStatus(userId, concertId, status, _eventSnapshot?) {
-    void _eventSnapshot;
+  async setConcertStatus(userId, concertId, status, eventSnapshot?) {
     await delay();
     const existing = getUserConcerts().find(
       (uc) => uc.userId === userId && uc.concertId === concertId
     );
     const now = new Date().toISOString();
     const uc: UserConcert = existing
-      ? { ...existing, status, updatedAt: now }
+      ? {
+          ...existing,
+          status,
+          concertSnapshot: eventSnapshot ?? existing.concertSnapshot,
+          updatedAt: now,
+          pendingSync: false,
+        }
       : {
           id: generateId('uc'),
           userId,
           concertId,
           status,
+          concertSnapshot: eventSnapshot,
           createdAt: now,
           updatedAt: now,
+          pendingSync: false,
         };
     upsertUserConcert(uc);
-    return uc;
+    return { userConcert: uc, synced: true };
   },
 
   async removeUserConcert(_userId, userConcertId) {
@@ -249,6 +256,7 @@ export const mockApi: ConcertApiClient = {
       concertId: manualId,
       status: input.status,
       isManual: true,
+      pendingSync: false,
       manualConcert: {
         id: manualId,
         artistName: input.artistName,
@@ -266,7 +274,7 @@ export const mockApi: ConcertApiClient = {
       updatedAt: now,
     };
     upsertUserConcert(uc);
-    return uc;
+    return { userConcert: uc, synced: true };
   },
 
   async updateUserConcertNotes(userId, userConcertId, notes) {

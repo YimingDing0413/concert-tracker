@@ -1,15 +1,41 @@
 import type { Concert, ConcertDetail, UserConcert, UserConcertStatus } from '@/types';
 
+/** Local calendar YYYY-MM-DD (no UTC shift). */
+export function formatLocalDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** Today (or offset) in local calendar parts. */
+export function localDateISO(offsetDays = 0, now = new Date()): string {
+  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offsetDays);
+  return formatLocalDate(d);
+}
+
+/**
+ * Most recent Saturday relative to today (returns today when today is Saturday).
+ */
+export function lastWeekendISO(now = new Date()): string {
+  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const day = d.getDay(); // 0 Sun .. 6 Sat
+  if (day === 6) return formatLocalDate(d);
+  const daysSinceSaturday = (day + 1) % 7; // Sun=1 … Fri=6
+  d.setDate(d.getDate() - daysSinceSaturday);
+  return formatLocalDate(d);
+}
+
 /** Derive log status from show date (YYYY-MM-DD or ISO). Past → attended, else going. */
 export function statusFromDate(dateIso: string, now = new Date()): UserConcertStatus {
   const day = dateIso.slice(0, 10);
-  const today = now.toISOString().slice(0, 10);
+  const today = formatLocalDate(now);
   if (!day) return 'attended';
   return day < today ? 'attended' : 'going';
 }
 
-export function concertStatusFromDate(dateIso: string): 'upcoming' | 'past' {
-  return statusFromDate(dateIso) === 'attended' ? 'past' : 'upcoming';
+export function concertStatusFromDate(dateIso: string, now = new Date()): 'upcoming' | 'past' {
+  return statusFromDate(dateIso, now) === 'attended' ? 'past' : 'upcoming';
 }
 
 export function buildEventSnapshot(partial: {
@@ -19,11 +45,11 @@ export function buildEventSnapshot(partial: {
   city?: string;
   state?: string;
   country?: string;
-  date?: string;
+  date: string;
   startTime?: string;
   imageUrl?: string;
 }): Partial<Concert> {
-  const date = partial.date ?? new Date().toISOString().slice(0, 10);
+  const date = partial.date.slice(0, 10);
   return {
     id: partial.id,
     artistName: partial.artistName,
@@ -43,7 +69,7 @@ export function buildEventSnapshot(partial: {
 /** Build a ConcertDetail from a saved UserConcert when the catalog has no event. */
 export function concertDetailFromUserConcert(uc: UserConcert): ConcertDetail {
   const snap = uc.manualConcert ?? uc.concertSnapshot ?? {};
-  const date = snap.date ?? uc.createdAt.slice(0, 10);
+  const date = (snap.date ?? uc.createdAt).slice(0, 10);
   return {
     id: uc.concertId,
     artistId: snap.artistId ?? '',
@@ -62,19 +88,24 @@ export function concertDetailFromUserConcert(uc: UserConcert): ConcertDetail {
   };
 }
 
-export function localDateISO(offsetDays = 0): string {
-  const d = new Date();
-  d.setHours(12, 0, 0, 0);
-  d.setDate(d.getDate() + offsetDays);
-  return d.toISOString().slice(0, 10);
+export function userConcertArtistName(uc: UserConcert): string {
+  return (uc.concertSnapshot?.artistName ?? uc.manualConcert?.artistName ?? '').trim();
 }
 
-/** Most recent Saturday relative to today (0 if today is Saturday). */
-export function lastWeekendISO(): string {
-  const d = new Date();
-  d.setHours(12, 0, 0, 0);
-  const day = d.getDay(); // 0 Sun .. 6 Sat
-  const daysSinceSaturday = (day + 1) % 7;
-  d.setDate(d.getDate() - (daysSinceSaturday === 0 ? 7 : daysSinceSaturday));
-  return d.toISOString().slice(0, 10);
+export function userConcertDate(uc: UserConcert): string {
+  return (uc.concertSnapshot?.date ?? uc.manualConcert?.date ?? '').slice(0, 10);
+}
+
+/** Match artist (case-insensitive) + calendar date. */
+export function findDuplicateUserConcert(
+  list: UserConcert[],
+  artistName: string,
+  date: string
+): UserConcert | undefined {
+  const artist = artistName.trim().toLowerCase();
+  const day = date.slice(0, 10);
+  if (!artist || !day) return undefined;
+  return list.find((uc) => {
+    return userConcertArtistName(uc).toLowerCase() === artist && userConcertDate(uc) === day;
+  });
 }

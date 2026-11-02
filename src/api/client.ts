@@ -9,6 +9,7 @@ import type {
   Concert,
   ConcertDetail,
   ConcertRating,
+  ConcertSaveResult,
   ManualConcertInput,
   RatingInput,
   SearchResult,
@@ -47,9 +48,9 @@ export interface ConcertApiClient {
     concertId: string,
     status: UserConcertStatus,
     eventSnapshot?: Partial<Concert>
-  ): Promise<UserConcert>;
+  ): Promise<ConcertSaveResult>;
   removeUserConcert(userId: string, userConcertId: string): Promise<void>;
-  addManualConcert(userId: string, input: ManualConcertInput): Promise<UserConcert>;
+  addManualConcert(userId: string, input: ManualConcertInput): Promise<ConcertSaveResult>;
   updateUserConcertNotes(
     userId: string,
     userConcertId: string,

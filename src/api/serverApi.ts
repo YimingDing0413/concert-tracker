@@ -15,6 +15,8 @@ import type {
   ConcertDetail,
   ConcertEvent,
   ConcertRating,
+  ConcertSaveResult,
+  ManualConcertInput,
   SearchResult,
   ShowTimingResponse,
   AuthSession,
@@ -31,6 +33,168 @@ function persistSession(session: AuthSession): User {
 function eventSnapshotBody(eventSnapshot?: Partial<Concert>) {
   if (!eventSnapshot) return {};
   return { event: { ...eventSnapshot, id: eventSnapshot.id } };
+}
+
+async function persistConcertStatus(
+  userId: string,
+  concertId: string,
+  status: UserConcert['status'],
+  eventSnapshot?: Partial<Concert>
+): Promise<ConcertSaveResult> {
+  const now = new Date().toISOString();
+  const existing = readLocalUserConcerts(userId).find(
+    (uc) => uc.userId === userId && uc.concertId === concertId
+  );
+  const optimistic: UserConcert = existing
+    ? {
+        ...existing,
+        status,
+        concertSnapshot: eventSnapshot ?? existing.concertSnapshot,
+        updatedAt: now,
+        pendingSync: true,
+      }
+    : {
+        id: `uc-local-${crypto.randomUUID().slice(0, 8)}`,
+        userId,
+        concertId,
+        status,
+        concertSnapshot: eventSnapshot,
+        createdAt: now,
+        updatedAt: now,
+        pendingSync: true,
+      };
+  upsertLocalUserConcert(optimistic);
+
+  const snapshotPayload = eventSnapshotBody(eventSnapshot);
+  const body = {
+    userId,
+    eventId: concertId,
+    status,
+    ...snapshotPayload,
+  };
+
+  try {
+    if (status === 'attended') {
+      const saved = await apiFetchData<UserConcert>('/api/user/concerts/attended', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      });
+      const synced = { ...saved, pendingSync: false };
+      upsertLocalUserConcert(synced);
+      return { userConcert: synced, synced: true };
+    }
+
+    const saved = await apiFetchData<UserConcert>('/api/user/concerts/save', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+    const synced = { ...saved, pendingSync: false };
+    upsertLocalUserConcert(synced);
+    return { userConcert: synced, synced: true };
+  } catch {
+    try {
+      const saved = await apiFetchData<UserConcert>('/api/user/concerts/status', {
+        method: 'POST',
+        body: JSON.stringify({ userId, concertId, status, event: body.event }),
+      });
+      const synced = { ...saved, pendingSync: false };
+      upsertLocalUserConcert(synced);
+      return { userConcert: synced, synced: true };
+    } catch {
+      return { userConcert: optimistic, synced: false };
+    }
+  }
+}
+
+async function persistManualConcert(
+  userId: string,
+  input: ManualConcertInput
+): Promise<ConcertSaveResult> {
+  try {
+    const saved = await apiFetchData<UserConcert>('/api/user/concerts/manual', {
+      method: 'POST',
+      body: JSON.stringify({ userId, ...input }),
+    });
+    const synced = { ...saved, pendingSync: false };
+    upsertLocalUserConcert(synced);
+    return { userConcert: synced, synced: true };
+  } catch {
+    const now = new Date().toISOString();
+    const manualId = `manual-${crypto.randomUUID().slice(0, 8)}`;
+    const uc: UserConcert = {
+      id: `uc-local-${crypto.randomUUID().slice(0, 8)}`,
+      userId,
+      concertId: manualId,
+      status: input.status,
+      isManual: true,
+      pendingSync: true,
+      manualConcert: {
+        artistName: input.artistName,
+        venueName: input.venueName,
+        city: input.city,
+        state: input.state,
+        country: input.country ?? 'USA',
+        date: input.date,
+        startTime: input.startTime,
+        openers: input.openers ? [input.openers] : undefined,
+      },
+      concertSnapshot: {
+        artistName: input.artistName,
+        venueName: input.venueName,
+        city: input.city,
+        state: input.state,
+        country: input.country ?? 'USA',
+        date: input.date,
+      },
+      notes: input.notes,
+      createdAt: now,
+      updatedAt: now,
+    };
+    upsertLocalUserConcert(uc);
+    return { userConcert: uc, synced: false };
+  }
+}
+
+async function flushPendingConcertSyncs(userId: string): Promise<void> {
+  const pending = readLocalUserConcerts(userId).filter((uc) => uc.pendingSync);
+  for (const uc of pending) {
+    try {
+      if (uc.isManual) {
+        const snap = uc.manualConcert ?? uc.concertSnapshot;
+        if (!snap?.artistName || !snap.date) continue;
+        const saved = await apiFetchData<UserConcert>('/api/user/concerts/manual', {
+          method: 'POST',
+          body: JSON.stringify({
+            userId,
+            artistName: snap.artistName,
+            venueName: snap.venueName,
+            city: snap.city,
+            state: snap.state,
+            country: snap.country,
+            date: snap.date,
+            startTime: snap.startTime,
+            openers: Array.isArray(snap.openers) ? snap.openers.join(', ') : undefined,
+            notes: uc.notes,
+            status: uc.status,
+          }),
+        });
+        removeLocalUserConcert(userId, uc.id);
+        upsertLocalUserConcert({ ...saved, pendingSync: false });
+      } else {
+        const result = await persistConcertStatus(
+          userId,
+          uc.concertId,
+          uc.status,
+          uc.concertSnapshot
+        );
+        if (!result.synced) {
+          /* still offline — leave pendingSync */
+        }
+      }
+    } catch {
+      /* keep pending for a later pass */
+    }
+  }
 }
 
 /** Frontend client — calls internal backend only (never third-party APIs) */
@@ -93,6 +257,7 @@ export const serverApi: ConcertApiClient = {
   },
 
   async getUserConcerts(userId) {
+    await flushPendingConcertSyncs(userId);
     const local = readLocalUserConcerts(userId);
     let server: UserConcert[] = [];
     try {
@@ -108,64 +273,7 @@ export const serverApi: ConcertApiClient = {
   },
 
   async setConcertStatus(userId, concertId, status, eventSnapshot) {
-    const now = new Date().toISOString();
-    const existing = readLocalUserConcerts(userId).find(
-      (uc) => uc.userId === userId && uc.concertId === concertId
-    );
-    const optimistic: UserConcert = existing
-      ? {
-          ...existing,
-          status,
-          concertSnapshot: eventSnapshot ?? existing.concertSnapshot,
-          updatedAt: now,
-        }
-      : {
-          id: `uc-local-${crypto.randomUUID().slice(0, 8)}`,
-          userId,
-          concertId,
-          status,
-          concertSnapshot: eventSnapshot,
-          createdAt: now,
-          updatedAt: now,
-        };
-    upsertLocalUserConcert(optimistic);
-
-    const snapshotPayload = eventSnapshotBody(eventSnapshot);
-    const body = {
-      userId,
-      eventId: concertId,
-      status,
-      ...snapshotPayload,
-    };
-
-    try {
-      if (status === 'attended') {
-        const saved = await apiFetchData<UserConcert>('/api/user/concerts/attended', {
-          method: 'POST',
-          body: JSON.stringify(body),
-        });
-        upsertLocalUserConcert(saved);
-        return saved;
-      }
-
-      const saved = await apiFetchData<UserConcert>('/api/user/concerts/save', {
-        method: 'POST',
-        body: JSON.stringify(body),
-      });
-      upsertLocalUserConcert(saved);
-      return saved;
-    } catch {
-      try {
-        const saved = await apiFetchData<UserConcert>('/api/user/concerts/status', {
-          method: 'POST',
-          body: JSON.stringify({ userId, concertId, status, event: body.event }),
-        });
-        upsertLocalUserConcert(saved);
-        return saved;
-      } catch {
-        return optimistic;
-      }
-    }
+    return persistConcertStatus(userId, concertId, status, eventSnapshot);
   },
 
   async removeUserConcert(userId, userConcertId) {
@@ -181,47 +289,7 @@ export const serverApi: ConcertApiClient = {
   },
 
   async addManualConcert(userId, input) {
-    try {
-      const saved = await apiFetchData<UserConcert>('/api/user/concerts/manual', {
-        method: 'POST',
-        body: JSON.stringify({ userId, ...input }),
-      });
-      upsertLocalUserConcert(saved);
-      return saved;
-    } catch {
-      const now = new Date().toISOString();
-      const manualId = `manual-${crypto.randomUUID().slice(0, 8)}`;
-      const uc: UserConcert = {
-        id: `uc-local-${crypto.randomUUID().slice(0, 8)}`,
-        userId,
-        concertId: manualId,
-        status: input.status,
-        isManual: true,
-        manualConcert: {
-          artistName: input.artistName,
-          venueName: input.venueName,
-          city: input.city,
-          state: input.state,
-          country: input.country ?? 'USA',
-          date: input.date,
-          startTime: input.startTime,
-          openers: input.openers ? [input.openers] : undefined,
-        },
-        concertSnapshot: {
-          artistName: input.artistName,
-          venueName: input.venueName,
-          city: input.city,
-          state: input.state,
-          country: input.country ?? 'USA',
-          date: input.date,
-        },
-        notes: input.notes,
-        createdAt: now,
-        updatedAt: now,
-      };
-      upsertLocalUserConcert(uc);
-      return uc;
-    }
+    return persistManualConcert(userId, input);
   },
 
   async updateUserConcertNotes() {

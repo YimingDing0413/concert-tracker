@@ -11,6 +11,7 @@
     "vercel-build": "npm run build",
     "preview": "vite preview",
     "lint": "eslint .",
+    "test": "vitest run",
     "cap:sync": "npm run build && npx cap sync",
     "cap:android": "npx cap open android",
     "cap:ios": "npx cap open ios",
@@ -70,6 +71,7 @@
     "tsx": "^4.19.4",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.33.1",
-    "vite": "^6.3.5"
+    "vite": "^6.3.5",
+    "vitest": "^3.2.4"
   }
 }

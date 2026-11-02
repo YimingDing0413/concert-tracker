@@ -5,13 +5,59 @@ import {
   saveConcertReview,
   syncConcertReviewsFromServer,
 } from '@/lib/concertReviewsLocal';
-import { concertDetailFromUserConcert } from '@/lib/logConcert';
+import { concertDetailFromUserConcert, localDateISO } from '@/lib/logConcert';
 import { createReviewFeedPost } from '@/lib/social/feedApi';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useAuth } from '@/context/AuthContext';
-import type { ConcertDetail } from '@/types';
+import type { ConcertReview } from '@/types/concertReview';
+import type { ConcertDetail, User } from '@/types';
 import { useEffect, useState } from 'react';
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
+
+async function persistReview(
+  review: ConcertReview,
+  user: User,
+  concert: ConcertDetail,
+  options?: {
+    createFeedPost?: boolean;
+    concertSnapshot?: { city?: string; imageUrl?: string };
+  }
+): Promise<void> {
+  await saveConcertReview(review);
+
+  const today = localDateISO();
+  const showDate = concert.date.slice(0, 10);
+  if (showDate && showDate <= today) {
+    try {
+      await api.setConcertStatus(user.id, review.eventId, 'attended', {
+        id: concert.id,
+        artistName: concert.artistName,
+        venueName: concert.venueName,
+        city: concert.city,
+        state: concert.state,
+        country: concert.country,
+        date: concert.date,
+        imageUrl: concert.imageUrl,
+        status: 'past',
+        artistId: concert.artistId,
+        venueId: concert.venueId,
+      });
+    } catch {
+      /* review saved; status best-effort */
+    }
+  }
+
+  if (options?.createFeedPost) {
+    try {
+      await createReviewFeedPost(review, {
+        city: options.concertSnapshot?.city ?? concert.city,
+        imageUrl: options.concertSnapshot?.imageUrl ?? concert.imageUrl,
+      });
+    } catch {
+      /* feed post best-effort */
+    }
+  }
+}
 
 export function ReviewPage() {
   const { id } = useParams<{ id: string }>();
@@ -75,43 +121,11 @@ export function ReviewPage() {
     );
   }
 
-  async function persistReview(
-    review: Parameters<typeof saveConcertReview>[0]
-  ): Promise<void> {
-    await saveConcertReview(review);
-    try {
-      await api.setConcertStatus(user!.id, review.eventId, 'attended', {
-        id: concert!.id,
-        artistName: concert!.artistName,
-        venueName: concert!.venueName,
-        city: concert!.city,
-        state: concert!.state,
-        country: concert!.country,
-        date: concert!.date,
-        imageUrl: concert!.imageUrl,
-        status: 'past',
-        artistId: concert!.artistId,
-        venueId: concert!.venueId,
-      });
-    } catch {
-      /* review saved; status best-effort */
-    }
-
-    const state = location.state as {
-      createFeedPost?: boolean;
-      concertSnapshot?: { city?: string; imageUrl?: string };
-    } | null;
-    if (state?.createFeedPost) {
-      try {
-        await createReviewFeedPost(review, {
-          city: state.concertSnapshot?.city ?? concert!.city,
-          imageUrl: state.concertSnapshot?.imageUrl ?? concert!.imageUrl,
-        });
-      } catch {
-        /* feed post best-effort */
-      }
-    }
-  }
+  const navState = location.state as {
+    createFeedPost?: boolean;
+    afterSaveRedirect?: string;
+    concertSnapshot?: { city?: string; imageUrl?: string };
+  } | null;
 
   return (
     <ConcertReviewFlow
@@ -119,12 +133,17 @@ export function ReviewPage() {
       userId={user.id}
       existingReview={existingReview}
       onSave={async (review) => {
-        await persistReview(review);
-        const state = location.state as { afterSaveRedirect?: string } | null;
-        navigate(state?.afterSaveRedirect ?? `/concert/${id}`, { state: location.state });
+        await persistReview(review, user, concert, {
+          createFeedPost: navState?.createFeedPost,
+          concertSnapshot: navState?.concertSnapshot,
+        });
+        navigate(navState?.afterSaveRedirect ?? `/concert/${id}`, { state: location.state });
       }}
       onCreateWrapUp={async (review) => {
-        await persistReview(review);
+        await persistReview(review, user, concert, {
+          createFeedPost: navState?.createFeedPost,
+          concertSnapshot: navState?.concertSnapshot,
+        });
         navigate(`/concert/${id}/wrap-up`, { state: location.state });
       }}
       onCancel={() => navigate(`/concert/${id}`, { state: location.state })}

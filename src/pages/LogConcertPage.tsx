@@ -8,6 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useDebounce } from '@/hooks/useDebounce';
 import {
   buildEventSnapshot,
+  findDuplicateUserConcert,
   lastWeekendISO,
   localDateISO,
   statusFromDate,
@@ -48,12 +49,15 @@ export function LogConcertPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState<UserConcert | null>(null);
+  const [synced, setSynced] = useState(true);
+  const [editingDate, setEditingDate] = useState(false);
+  const [duplicateId, setDuplicateId] = useState<string | null>(null);
+  const [manualForce, setManualForce] = useState(false);
 
   const [artistName, setArtistName] = useState('');
   const [artistShows, setArtistShows] = useState<Concert[]>([]);
   const [artistLoading, setArtistLoading] = useState(false);
 
-  // Manual form
   const [mArtist, setMArtist] = useState('');
   const [mVenue, setMVenue] = useState('');
   const [mCity, setMCity] = useState('');
@@ -96,11 +100,14 @@ export function LogConcertPage() {
   }, [debounced, step]);
 
   const manualStatus = useMemo(() => statusFromDate(mDate), [mDate]);
+  const needsDate = Boolean(picked && !picked.date.trim());
 
   function openManual() {
     setParams({ manual: '1' }, { replace: true });
     setStep('manual');
     setError('');
+    setDuplicateId(null);
+    setManualForce(false);
   }
 
   function backToSearch() {
@@ -108,6 +115,19 @@ export function LogConcertPage() {
     setStep('search');
     setPicked(null);
     setError('');
+    setEditingDate(false);
+    setDuplicateId(null);
+    setManualForce(false);
+  }
+
+  function goToConfirm(show: PickedShow) {
+    setPicked(show);
+    setEditingDate(!show.date.trim());
+    setDuplicateId(null);
+    if (show.date.trim()) {
+      setStatus(statusFromDate(show.date));
+    }
+    setStep('confirm');
   }
 
   async function pickEventResult(result: SearchResult) {
@@ -115,31 +135,25 @@ export function LogConcertPage() {
     setSearchLoading(true);
     try {
       const detail = await api.getConcert(result.id);
-      const date = detail?.date ?? '';
-      const show: PickedShow = {
+      const date = (detail?.date ?? '').slice(0, 10);
+      goToConfirm({
         eventId: detail?.id ?? result.id,
         artistName: detail?.artistName ?? result.title,
         venueName: detail?.venueName ?? result.subtitle,
         city: detail?.city,
-        date: date || localDateISO(),
+        date,
         imageUrl: detail?.imageUrl ?? result.imageUrl,
         fromCatalog: true,
-      };
-      setPicked(show);
-      setStatus(statusFromDate(show.date));
-      setStep('confirm');
+      });
     } catch {
-      const show: PickedShow = {
+      goToConfirm({
         eventId: result.id,
         artistName: result.title,
         venueName: result.subtitle,
-        date: localDateISO(),
+        date: '',
         imageUrl: result.imageUrl,
         fromCatalog: true,
-      };
-      setPicked(show);
-      setStatus(statusFromDate(show.date));
-      setStep('confirm');
+      });
     } finally {
       setSearchLoading(false);
     }
@@ -156,7 +170,6 @@ export function LogConcertPage() {
       const upcoming = detail?.upcomingConcerts ?? [];
       setArtistShows([...past, ...upcoming]);
       if (!detail) {
-        // Fallback: setlists-derived past via name lookup
         try {
           const byName = await api.getArtist(result.title);
           setArtistShows([
@@ -176,25 +189,41 @@ export function LogConcertPage() {
   }
 
   function pickArtistShow(concert: Concert) {
-    const show: PickedShow = {
+    goToConfirm({
       eventId: concert.id,
       artistName: concert.artistName || artistName,
       venueName: concert.venueName,
       city: concert.city,
-      date: concert.date,
+      date: (concert.date ?? '').slice(0, 10),
       imageUrl: concert.imageUrl,
       fromCatalog: true,
-    };
-    setPicked(show);
-    setStatus(statusFromDate(show.date));
-    setStep('confirm');
+    });
+  }
+
+  function updatePickedDate(date: string) {
+    const day = date.slice(0, 10);
+    setPicked((prev) => (prev ? { ...prev, date: day } : prev));
+    if (day) setStatus(statusFromDate(day));
+    setDuplicateId(null);
   }
 
   async function confirmLog() {
     if (!user || !picked) return;
+    if (!picked.date.trim()) {
+      setError('Date is required.');
+      setEditingDate(true);
+      return;
+    }
     setSaving(true);
     setError('');
     try {
+      const existing = await api.getUserConcerts(user.id);
+      const dup = findDuplicateUserConcert(existing, picked.artistName, picked.date);
+      if (dup) {
+        setDuplicateId(dup.concertId);
+        setError('Already logged');
+        return;
+      }
       const snapshot = buildEventSnapshot({
         id: picked.eventId,
         artistName: picked.artistName,
@@ -203,8 +232,9 @@ export function LogConcertPage() {
         date: picked.date,
         imageUrl: picked.imageUrl,
       });
-      const uc = await api.setConcertStatus(user.id, picked.eventId, status, snapshot);
-      setSaved(uc);
+      const result = await api.setConcertStatus(user.id, picked.eventId, status, snapshot);
+      setSaved(result.userConcert);
+      setSynced(result.synced);
       setStep('success');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not log show.');
@@ -213,17 +243,27 @@ export function LogConcertPage() {
     }
   }
 
-  async function submitManual(e: React.FormEvent) {
-    e.preventDefault();
+  async function submitManual(e?: React.FormEvent, forceDuplicate = false) {
+    e?.preventDefault();
     if (!user) return;
     if (!mArtist.trim() || !mDate) {
       setError('Artist and date are required.');
       return;
     }
+    const allowDuplicate = forceDuplicate || manualForce;
     setSaving(true);
     setError('');
     try {
-      const uc = await api.addManualConcert(user.id, {
+      if (!allowDuplicate) {
+        const existing = await api.getUserConcerts(user.id);
+        const dup = findDuplicateUserConcert(existing, mArtist, mDate);
+        if (dup) {
+          setDuplicateId(dup.concertId);
+          setError('Already logged');
+          return;
+        }
+      }
+      const result = await api.addManualConcert(user.id, {
         artistName: mArtist.trim(),
         venueName: mVenue.trim() || undefined,
         city: mCity.trim() || undefined,
@@ -234,7 +274,7 @@ export function LogConcertPage() {
         status: manualStatus,
       });
       setPicked({
-        eventId: uc.concertId,
+        eventId: result.userConcert.concertId,
         artistName: mArtist.trim(),
         venueName: mVenue.trim() || undefined,
         city: mCity.trim() || undefined,
@@ -242,7 +282,9 @@ export function LogConcertPage() {
         fromCatalog: false,
       });
       setStatus(manualStatus);
-      setSaved(uc);
+      setSaved(result.userConcert);
+      setSynced(result.synced);
+      setManualForce(false);
       setStep('success');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save concert.');
@@ -254,6 +296,7 @@ export function LogConcertPage() {
   function logAnother() {
     setPicked(null);
     setSaved(null);
+    setSynced(true);
     setQuery('');
     setResults([]);
     setArtistShows([]);
@@ -265,6 +308,9 @@ export function LogConcertPage() {
     setMOpeners('');
     setMNotes('');
     setError('');
+    setEditingDate(false);
+    setDuplicateId(null);
+    setManualForce(false);
     backToSearch();
   }
 
@@ -277,7 +323,7 @@ export function LogConcertPage() {
   const successCity =
     picked?.city ?? saved?.concertSnapshot?.city ?? saved?.manualConcert?.city;
   const successDate =
-    picked?.date ?? saved?.concertSnapshot?.date ?? saved?.manualConcert?.date ?? localDateISO();
+    picked?.date ?? saved?.concertSnapshot?.date ?? saved?.manualConcert?.date ?? '';
   const successId = saved?.concertId ?? picked?.eventId;
 
   return (
@@ -290,9 +336,38 @@ export function LogConcertPage() {
       </header>
 
       {error && (
-        <p className="rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
-          {error}
-        </p>
+        <div
+          className="space-y-2 rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          role="alert"
+        >
+          <p>{error}</p>
+          {step === 'manual' && duplicateId && !manualForce && (
+            <Button
+              type="button"
+              variant="secondary"
+              className="min-h-11"
+              disabled={saving}
+              onClick={() => {
+                setManualForce(true);
+                setError('');
+                setDuplicateId(null);
+                void submitManual(undefined, true);
+              }}
+            >
+              Log anyway?
+            </Button>
+          )}
+          {step === 'confirm' && duplicateId && (
+            <Button
+              type="button"
+              variant="ghost"
+              className="min-h-11"
+              onClick={() => navigate(`/concert/${encodeURIComponent(duplicateId)}`)}
+            >
+              View logged show
+            </Button>
+          )}
+        </div>
       )}
 
       {step === 'search' && (
@@ -411,10 +486,37 @@ export function LogConcertPage() {
                 {[picked.venueName, picked.city].filter(Boolean).join(' · ')}
               </p>
             )}
-            <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
-              <Calendar className="size-3.5 shrink-0" aria-hidden />
-              {picked.date}
-            </p>
+            <div className="mt-2 space-y-2">
+              {editingDate || needsDate ? (
+                <label className="block space-y-1.5">
+                  <span className="text-sm font-semibold">
+                    Date {needsDate && <span className="text-destructive">*</span>}
+                  </span>
+                  <Input
+                    type="date"
+                    value={picked.date}
+                    onChange={(e) => updatePickedDate(e.target.value)}
+                    required={needsDate}
+                    className="min-h-11"
+                    autoFocus={needsDate}
+                  />
+                </label>
+              ) : (
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="flex items-center gap-1 text-sm text-muted-foreground">
+                    <Calendar className="size-3.5 shrink-0" aria-hidden />
+                    {picked.date}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setEditingDate(true)}
+                    className="min-h-11 text-sm font-medium text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    Edit date
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
           <div className="space-y-2">
             <p className="text-sm font-semibold">Status</p>
@@ -441,7 +543,11 @@ export function LogConcertPage() {
               ))}
             </div>
           </div>
-          <Button fullWidth disabled={saving} onClick={() => void confirmLog()}>
+          <Button
+            fullWidth
+            disabled={saving || Boolean(duplicateId) || needsDate}
+            onClick={() => void confirmLog()}
+          >
             {saving ? 'Saving…' : status === 'attended' ? 'Log — I was there' : "Log — I'm going"}
           </Button>
           <ManualLink onClick={openManual} />
@@ -463,7 +569,11 @@ export function LogConcertPage() {
             </span>
             <Input
               value={mArtist}
-              onChange={(e) => setMArtist(e.target.value)}
+              onChange={(e) => {
+                setMArtist(e.target.value);
+                setDuplicateId(null);
+                setManualForce(false);
+              }}
               required
               className="min-h-11"
               autoFocus
@@ -476,7 +586,11 @@ export function LogConcertPage() {
             <Input
               type="date"
               value={mDate}
-              onChange={(e) => setMDate(e.target.value)}
+              onChange={(e) => {
+                setMDate(e.target.value);
+                setDuplicateId(null);
+                setManualForce(false);
+              }}
               required
               className="min-h-11"
             />
@@ -489,7 +603,11 @@ export function LogConcertPage() {
                 <button
                   key={chip.label}
                   type="button"
-                  onClick={() => setMDate(chip.value)}
+                  onClick={() => {
+                    setMDate(chip.value);
+                    setDuplicateId(null);
+                    setManualForce(false);
+                  }}
                   className={cn(
                     'min-h-11 rounded-full border px-3 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                     mDate === chip.value
@@ -542,7 +660,11 @@ export function LogConcertPage() {
             />
           </label>
           <Button type="submit" fullWidth disabled={saving}>
-            {saving ? 'Saving…' : 'Save concert'}
+            {saving
+              ? 'Saving…'
+              : manualForce
+                ? 'Log anyway'
+                : 'Save concert'}
           </Button>
         </form>
       )}
@@ -553,11 +675,16 @@ export function LogConcertPage() {
             <p className="text-sm font-semibold uppercase tracking-widest text-primary">Logged</p>
             <h2 className="text-xl font-black tracking-tight">You&apos;re on the list</h2>
           </div>
+          {!synced && (
+            <p className="rounded-xl border border-border/60 bg-card/60 px-3 py-2 text-center text-sm text-muted-foreground">
+              Saved on this device only — we&apos;ll sync it when you&apos;re back online
+            </p>
+          )}
           <TicketCard
             artist={successArtist}
             venue={successVenue}
             city={successCity}
-            date={successDate}
+            date={successDate || localDateISO()}
             variant={status === 'attended' ? 'paper' : 'outline'}
           />
           <div className="flex flex-col gap-2">

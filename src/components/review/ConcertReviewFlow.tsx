@@ -277,23 +277,12 @@ export function ConcertReviewFlow({
               {saveError}
             </p>
           )}
-          {stepIndex < STEPS.length - 1 ? (
-            <div className="flex gap-2">
-              <Button
-                fullWidth
-                variant="secondary"
-                disabled={saving}
-                onClick={goNext}
-                className="min-h-11"
-              >
-                Skip
-              </Button>
-              <Button fullWidth disabled={saving} onClick={goNext} className="min-h-11">
-                Continue
-                <ChevronRight className="ml-1 inline size-4" />
-              </Button>
-            </div>
-          ) : null}
+          {stepIndex < STEPS.length - 1 && (
+            <Button fullWidth disabled={saving} onClick={goNext} className="min-h-11">
+              Continue
+              <ChevronRight className="ml-1 inline size-4" />
+            </Button>
+          )}
           {stepIndex >= 1 && (
             <>
               <Button fullWidth onClick={() => void handleSave()} disabled={saving} className="min-h-11">
@@ -320,7 +309,11 @@ export function ConcertReviewFlow({
               onClick={() => void handleSave()}
               className="min-h-11"
             >
-              {saving ? 'Saving…' : 'Save without rating'}
+              {saving
+                ? 'Saving…'
+                : draft.overallRating > 0
+                  ? 'Save'
+                  : 'Save without rating'}
             </Button>
           )}
         </div>

@@ -39,13 +39,18 @@ export function removeLocalUserConcert(userId: string, userConcertId: string): v
 export function mergeUserConcerts(server: UserConcert[], local: UserConcert[]): UserConcert[] {
   const map = new Map<string, UserConcert>();
   for (const uc of server) {
-    map.set(`${uc.userId}:${uc.concertId}`, uc);
+    map.set(`${uc.userId}:${uc.concertId}`, { ...uc, pendingSync: false });
   }
   for (const uc of local) {
     const key = `${uc.userId}:${uc.concertId}`;
     const existing = map.get(key);
-    if (!existing || uc.updatedAt >= existing.updatedAt) {
+    if (!existing) {
       map.set(key, uc);
+      continue;
+    }
+    // Server has it — prefer newer, but never keep pendingSync once synced
+    if (uc.updatedAt > existing.updatedAt) {
+      map.set(key, { ...uc, pendingSync: false });
     }
   }
   return [...map.values()];

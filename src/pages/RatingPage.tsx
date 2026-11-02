@@ -58,7 +58,12 @@ export function RatingPage() {
     if (!user || !id) return;
     let uc = userConcert;
     if (!uc) {
-      uc = await api.setConcertStatus(user.id, id, 'attended', concert ?? undefined);
+      ({ userConcert: uc } = await api.setConcertStatus(
+        user.id,
+        id,
+        'attended',
+        concert ?? undefined
+      ));
     }
     setSaving(true);
     try {

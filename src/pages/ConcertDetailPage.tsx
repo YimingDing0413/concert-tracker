@@ -111,7 +111,7 @@ export function ConcertDetailPage() {
     if (!user || !id || !concert) return;
     setActionLoading(true);
     try {
-      const uc = await api.setConcertStatus(user.id, id, status, concert);
+      const { userConcert: uc } = await api.setConcertStatus(user.id, id, status, concert);
       setUserConcert(uc);
     } finally {
       setActionLoading(false);

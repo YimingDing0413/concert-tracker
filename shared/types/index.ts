@@ -210,6 +210,15 @@ export interface UserConcert {
   ratingId?: string;
   createdAt: string;
   updatedAt: string;
+  /** Client-only: saved locally but not yet confirmed by the server */
+  pendingSync?: boolean;
+}
+
+/** Result of setConcertStatus / addManualConcert */
+export interface ConcertSaveResult {
+  userConcert: UserConcert;
+  /** false when only the device local store was updated */
+  synced: boolean;
 }
 
 export interface RatingReview {

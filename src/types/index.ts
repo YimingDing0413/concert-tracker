@@ -12,6 +12,7 @@ export type {
   ConcertEvent,
   UserConcertStatus,
   UserConcert,
+  ConcertSaveResult,
   ConcertRating,
   RatingReview,
   RatingInput,
