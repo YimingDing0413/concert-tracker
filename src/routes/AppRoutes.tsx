@@ -21,8 +21,16 @@ import { SignUpPage } from '@/pages/SignUpPage';
 import { VenueDetailPage } from '@/pages/VenueDetailPage';
 import { WrapUpPage } from '@/pages/WrapUpPage';
 import { YearEndWrapUpPage } from '@/pages/YearEndWrapUpPage';
+import { loginPathWithNext, sanitizeNextPath } from '@/lib/auth/nextPath';
 import type { ReactNode } from 'react';
-import { Navigate, Route, Routes, useSearchParams } from 'react-router-dom';
+import {
+  Navigate,
+  Outlet,
+  Route,
+  Routes,
+  useLocation,
+  useSearchParams,
+} from 'react-router-dom';
 
 /** `/profile?tab=wrapped` → `/wrapped` */
 function ProfileWrappedRedirect({ children }: { children: ReactNode }) {
@@ -33,16 +41,26 @@ function ProfileWrappedRedirect({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-function ProtectedRoute({ children }: { children: ReactNode }) {
+/** Auth required — preserves intended destination in `?next=`. */
+function ProtectedRoute() {
   const { user, loading } = useAuth();
+  const location = useLocation();
   if (loading) return <LoadingSpinner />;
-  if (!user) return <Navigate to="/login" replace />;
-  return <>{children}</>;
+  if (!user) {
+    const next = `${location.pathname}${location.search}`;
+    return <Navigate to={loginPathWithNext(next)} replace />;
+  }
+  return <Outlet />;
 }
 
 function PublicOnlyRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
-  if (!loading && user) return <Navigate to="/" replace />;
+  const [params] = useSearchParams();
+  if (loading) return <LoadingSpinner />;
+  if (user) {
+    const next = sanitizeNextPath(params.get('next'), '/');
+    return <Navigate to={next} replace />;
+  }
   return <>{children}</>;
 }
 
@@ -65,90 +83,58 @@ export function AppRoutes() {
           </PublicOnlyRoute>
         }
       />
-      <Route
-        element={
-          <ProtectedRoute>
-            <AppShell />
-          </ProtectedRoute>
-        }
-      >
+
+      {/* Public shell: browse without an account */}
+      <Route element={<AppShell />}>
         <Route index element={<HomePage />} />
         <Route path="discover" element={<DiscoverHomePage />} />
         <Route path="map" element={<DiscoverMapPage />} />
-        <Route path="discover/spotify" element={<SpotifyRecommendationsPage />} />
-        {/* Social/feed create flows paused — Log is the primary create path */}
+        <Route path="search" element={<SearchPage />} />
         <Route path="feed" element={<Navigate to="/" replace />} />
         <Route path="messages" element={<Navigate to="/" replace />} />
         <Route path="messages/:threadId" element={<Navigate to="/" replace />} />
-        <Route path="log" element={<LogConcertPage />} />
-        <Route path="create" element={<Navigate to="/log" replace />} />
-        <Route path="create/want" element={<Navigate to="/log" replace />} />
-        <Route path="create/post" element={<Navigate to="/log" replace />} />
-        <Route path="create/review" element={<Navigate to="/log" replace />} />
-        <Route path="search" element={<SearchPage />} />
-        <Route path="my-concerts" element={<MyConcertsRedirect />} />
-        <Route path="wrapped" element={<YearEndWrapUpPage />} />
         <Route path="wrap-up" element={<Navigate to="/wrapped" replace />} />
-        <Route path="add" element={<Navigate to="/log?manual=1" replace />} />
-        <Route
-          path="profile"
-          element={
-            <ProfileWrappedRedirect>
-              <ProfilePage />
-            </ProfileWrappedRedirect>
-          }
-        />
-        <Route path="member/:userId" element={<MemberProfilePage />} />
+        <Route path="my-concerts" element={<MyConcertsRedirect />} />
+
+        {/* Auth-only shell routes */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="log" element={<LogConcertPage />} />
+          <Route path="create" element={<Navigate to="/log" replace />} />
+          <Route path="create/want" element={<Navigate to="/log" replace />} />
+          <Route path="create/post" element={<Navigate to="/log" replace />} />
+          <Route path="create/review" element={<Navigate to="/log" replace />} />
+          <Route path="add" element={<Navigate to="/log?manual=1" replace />} />
+          <Route path="wrapped" element={<YearEndWrapUpPage />} />
+          <Route path="discover/spotify" element={<SpotifyRecommendationsPage />} />
+          <Route
+            path="profile"
+            element={
+              <ProfileWrappedRedirect>
+                <ProfilePage />
+              </ProfileWrappedRedirect>
+            }
+          />
+          <Route path="member/:userId" element={<MemberProfilePage />} />
+        </Route>
       </Route>
-      <Route
-        path="/artist/:id"
-        element={
-          <ProtectedRoute>
-            <ArtistLayout />
-          </ProtectedRoute>
-        }
-      >
+
+      {/* Public detail pages (full-bleed, no shell chrome) */}
+      <Route path="/artist/:id" element={<ArtistLayout />}>
         <Route index element={<Navigate to="upcoming" replace />} />
         <Route path="upcoming" element={<ArtistUpcomingPage />} />
         <Route path="past" element={<ArtistPastPage />} />
         <Route path="setlists" element={<ArtistSetlistsPage />} />
       </Route>
-      <Route
-        path="/venue/:id"
-        element={
-          <ProtectedRoute>
-            <VenueDetailPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/concert/:id"
-        element={
-          <ProtectedRoute>
-            <ConcertDetailPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/concert/:id/review"
-        element={
-          <ProtectedRoute>
-            <ReviewPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/concert/:id/wrap-up"
-        element={
-          <ProtectedRoute>
-            <WrapUpPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/concert/:id/rate"
-        element={<Navigate to="review" replace relative="path" />}
-      />
+      <Route path="/venue/:id" element={<VenueDetailPage />} />
+      <Route path="/concert/:id" element={<ConcertDetailPage />} />
+
+      {/* Auth-only concert flows */}
+      <Route element={<ProtectedRoute />}>
+        <Route path="/concert/:id/review" element={<ReviewPage />} />
+        <Route path="/concert/:id/wrap-up" element={<WrapUpPage />} />
+      </Route>
+      <Route path="/concert/:id/rate" element={<Navigate to="review" replace relative="path" />} />
+
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

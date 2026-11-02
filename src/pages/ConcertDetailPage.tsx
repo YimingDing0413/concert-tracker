@@ -6,6 +6,7 @@ import { SolidBackButton } from '@/components/ui/SolidBackButton';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { ApiNotice } from '@/components/ui/ApiNotice';
 import { useAuth } from '@/context/AuthContext';
+import { useRequireAuth } from '@/hooks/useRequireAuth';
 import { concertDetailFromUserConcert } from '@/lib/logConcert';
 import type {
   AggregatedShowTiming,
@@ -51,6 +52,7 @@ function mergeConcertDetail(
 export function ConcertDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const requireAuth = useRequireAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const navState = getConcertNavState(location.state);
@@ -117,6 +119,13 @@ export function ConcertDetailPage() {
     } finally {
       setActionLoading(false);
     }
+  }
+
+  function gatedStatus(status: 'going' | 'attended' | 'saved') {
+    const next = `${location.pathname}${location.search}`;
+    requireAuth(() => {
+      void setStatus(status);
+    }, { next });
   }
 
   if (loading) {
@@ -195,24 +204,22 @@ export function ConcertDetailPage() {
       <div className="mx-auto max-w-lg space-y-8 px-4 py-6 md:max-w-3xl">
         {concert.ticketUrl && <TicketCtaLink href={concert.ticketUrl} />}
 
-        {user && (
-          <section className="space-y-3">
-            <ConcertActions
-              concertId={id!}
-              concertStatus={concert.status}
-              userStatus={userConcert?.status}
-              loading={actionLoading}
-              onGoing={() => setStatus('going')}
-              onWant={() => setStatus('saved')}
-              onAttended={() => setStatus('attended')}
-            />
-            {concert.status === 'past' && (
-              <p className="text-xs text-muted-foreground">
-                Were you there? Tap &quot;I was there&quot;, then add a review if you like.
-              </p>
-            )}
-          </section>
-        )}
+        <section className="space-y-3">
+          <ConcertActions
+            concertId={id!}
+            concertStatus={concert.status}
+            userStatus={userConcert?.status}
+            loading={actionLoading}
+            onGoing={() => gatedStatus('going')}
+            onWant={() => gatedStatus('saved')}
+            onAttended={() => gatedStatus('attended')}
+          />
+          {concert.status === 'past' && (
+            <p className="text-xs text-muted-foreground">
+              Were you there? Tap &quot;I was there&quot;, then add a review if you like.
+            </p>
+          )}
+        </section>
 
         <section className="space-y-3 rounded-2xl bg-surface-2 p-4">
           <h2 className="font-display text-base font-semibold">Event info</h2>

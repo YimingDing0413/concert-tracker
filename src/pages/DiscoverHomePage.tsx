@@ -8,6 +8,7 @@ import { SearchAutocomplete } from '@/components/search/SearchAutocomplete';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ConcertCardSkeleton, ListRowSkeleton } from '@/components/ui/LoadingSkeleton';
 import { useAuth } from '@/context/AuthContext';
+import { useRequireAuth } from '@/hooks/useRequireAuth';
 import {
   getAllConcertReviews,
   REVIEWS_SYNCED_EVENT,
@@ -100,6 +101,7 @@ function FeaturedHero({
 export function DiscoverHomePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const requireAuth = useRequireAuth();
   const [location, setLocation] = useState<StoredLocation>(() => getEffectiveLocation());
   const [nearbyConcerts, setNearbyConcerts] = useState<Concert[]>([]);
   const [loadingNearby, setLoadingNearby] = useState(true);
@@ -236,12 +238,13 @@ export function DiscoverHomePage() {
           <SearchAutocomplete placeholder="Search artists, venues, cities…" />
           <LocationChip location={location} onChange={setLocation} />
           <div className="flex flex-wrap gap-2">
-            <Link
-              to="/log"
-              className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground no-underline transition-colors hover:bg-primary/90"
+            <button
+              type="button"
+              onClick={() => requireAuth(() => navigate('/log'), { next: '/log' })}
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               Log a show
-            </Link>
+            </button>
             <Link
               to="/map"
               className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-surface-3 px-3.5 py-1.5 text-xs font-semibold text-foreground no-underline transition-colors hover:bg-primary/15 hover:text-primary"

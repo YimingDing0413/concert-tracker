@@ -4,13 +4,16 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { HttpApiError } from '@/api/http';
 import { useAuth } from '@/context/AuthContext';
+import { sanitizeNextPath, signupPathWithNext } from '@/lib/auth/nextPath';
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
 
 export function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const next = sanitizeNextPath(params.get('next'), '/');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -22,7 +25,7 @@ export function LoginPage() {
     setLoading(true);
     try {
       await login({ email, password });
-      navigate('/');
+      navigate(next);
     } catch (err) {
       const msg =
         err instanceof HttpApiError
@@ -86,7 +89,7 @@ export function LoginPage() {
             </Button>
             <p className="text-center text-sm text-muted-foreground">
               New here?{' '}
-              <Link to="/signup" className="font-medium text-primary hover:underline">
+              <Link to={signupPathWithNext(next)} className="font-medium text-primary hover:underline">
                 Create an account
               </Link>
             </p>

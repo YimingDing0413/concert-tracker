@@ -1,10 +1,15 @@
 import { Button } from '@/components/ui/app-button';
 import { NAV_ITEMS } from '@/components/layout/navItems';
+import { useAuth } from '@/context/AuthContext';
+import { useRequireAuth } from '@/hooks/useRequireAuth';
 import { cn } from '@/lib/utils';
 import { Plus } from 'lucide-react';
-import { Link, NavLink } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 
 export function SidebarNav() {
+  const { user } = useAuth();
+  const requireAuth = useRequireAuth();
+  const navigate = useNavigate();
   const sideItems = NAV_ITEMS.filter((item) => !item.highlight);
 
   return (
@@ -13,10 +18,16 @@ export function SidebarNav() {
         Encore
       </Link>
       <Button
-        render={<Link to="/log" />}
         fullWidth
         className="mb-4 min-h-11 gap-2"
         aria-label="Log a show"
+        onClick={() => {
+          if (user) {
+            navigate('/log');
+            return;
+          }
+          requireAuth(() => navigate('/log'), { next: '/log' });
+        }}
       >
         <Plus className="size-4" aria-hidden />
         Log a show

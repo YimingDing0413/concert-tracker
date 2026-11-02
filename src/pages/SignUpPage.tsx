@@ -3,13 +3,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/context/AuthContext';
+import { isLogNextPath, loginPathWithNext, sanitizeNextPath } from '@/lib/auth/nextPath';
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
 
 export function SignUpPage() {
   const { signUp } = useAuth();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const next = sanitizeNextPath(params.get('next'), '/');
   const [displayName, setDisplayName] = useState('');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -23,7 +26,8 @@ export function SignUpPage() {
     setLoading(true);
     try {
       await signUp({ email, password, displayName, username });
-      navigate('/');
+      // Resume intended destination (including /log) after account creation.
+      navigate(next);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign up failed');
     } finally {
@@ -43,7 +47,11 @@ export function SignUpPage() {
         <div className="rounded-3xl bg-surface-2 p-6 sm:p-8">
           <div className="mb-6 space-y-1">
             <h2 className="font-display text-xl font-semibold">Create account</h2>
-            <p className="text-sm text-muted-foreground">Set up your profile and concert log.</p>
+            <p className="text-sm text-muted-foreground">
+              {isLogNextPath(next)
+                ? 'Create an account, then we’ll take you back to log your show.'
+                : 'Set up your profile and concert log.'}
+            </p>
           </div>
           <form className="space-y-4" onSubmit={handleSubmit}>
             {error && (
@@ -100,7 +108,7 @@ export function SignUpPage() {
             </Button>
             <p className="text-center text-sm text-muted-foreground">
               Have an account?{' '}
-              <Link to="/login" className="font-medium text-primary hover:underline">
+              <Link to={loginPathWithNext(next)} className="font-medium text-primary hover:underline">
                 Log in
               </Link>
             </p>

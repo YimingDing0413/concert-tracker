@@ -1,8 +1,14 @@
 import { NAV_ITEMS } from '@/components/layout/navItems';
+import { useAuth } from '@/context/AuthContext';
+import { useRequireAuth } from '@/hooks/useRequireAuth';
 import { cn } from '@/lib/utils';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 
 export function BottomNav() {
+  const { user } = useAuth();
+  const requireAuth = useRequireAuth();
+  const navigate = useNavigate();
+
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-[900] border-t border-border/60 bg-background/95 backdrop-blur-xl md:hidden"
@@ -18,6 +24,11 @@ export function BottomNav() {
               to={tab.to}
               end={tab.end}
               aria-label={tab.ariaLabel ?? tab.label}
+              onClick={(e) => {
+                if (!isLog || user) return;
+                e.preventDefault();
+                requireAuth(() => navigate('/log'), { next: '/log' });
+              }}
               className={({ isActive }) =>
                 cn(
                   'flex flex-1 flex-col items-center justify-end gap-0.5 pb-2 text-[0.62rem] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
