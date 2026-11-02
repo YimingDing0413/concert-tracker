@@ -14,9 +14,9 @@ const TIMING_FIELDS = [
 
 export function ConcertTimingGrid({ timing }: ConcertTimingProps) {
   return (
-    <section className="timing-section card">
+    <section className="timing-section rounded-[14px] border border-border bg-card p-4">
       <h3>Show timing</h3>
-      <p className="timing-hint muted">
+      <p className="timing-hint text-sm text-muted-foreground">
         Doors, opener, and headliner times are often missing from public APIs. You can add
         them manually or import from a ticket email later.
       </p>

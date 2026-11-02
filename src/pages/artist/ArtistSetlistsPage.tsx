@@ -34,7 +34,7 @@ export function ArtistSetlistsPage() {
         ))
       ) : (
         hasPredicted && (
-          <p className="muted">No past setlists on Setlist.fm yet.</p>
+          <p className="text-sm text-muted-foreground">No past setlists on Setlist.fm yet.</p>
         )
       )}
     </section>

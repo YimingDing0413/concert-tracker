@@ -5,10 +5,12 @@ import {
   type ProfileContentTab,
 } from '@/components/profile/ProfileContentTabs';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
+import { ProfileSettingsSheet } from '@/components/profile/ProfileSettingsSheet';
 import { ProfileTabBar } from '@/components/profile/ProfileTabBar';
 import { Button } from '@/components/ui/app-button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListRowSkeleton } from '@/components/ui/LoadingSkeleton';
+import { FEATURES } from '@/config/features';
 import { useAuth } from '@/context/AuthContext';
 import { useProfileConcerts } from '@/hooks/useProfileConcerts';
 import {
@@ -23,7 +25,6 @@ import {
   getFollowers,
   getFollowing,
 } from '@/lib/social/socialApi';
-import { SpotifyConnectionsSection } from '@/components/spotify/SpotifyConnectionsSection';
 import {
   disconnectSpotify,
   getSpotifyStatus,
@@ -34,19 +35,15 @@ import { spotifyConnectErrorMessage } from '@/lib/spotifyConnectErrors';
 import type { FeedPost, FollowCounts, FollowerItem, FollowItem, UserProfile } from '@/types';
 import type { SpotifyConnectionStatus } from '@/types/spotify';
 import type { ConcertReview } from '@/types/concertReview';
-import { LogOut, Pencil, Sparkles } from 'lucide-react';
+import { resolveConcertForUserConcert } from '@/utils/userConcert';
+import { Settings, Sparkles } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 function parseProfileTab(value: string | null): ProfileContentTab {
   if (value === 'posts') return 'concerts';
-  if (
-    value === 'going' ||
-    value === 'want' ||
-    value === 'reviews' ||
-    value === 'wrapped' ||
-    value === 'concerts'
-  ) {
+  if (value === 'reviews') return 'concerts';
+  if (value === 'going' || value === 'want' || value === 'wrapped' || value === 'concerts') {
     return value;
   }
   return 'concerts';
@@ -71,6 +68,7 @@ export function ProfilePage() {
     parseProfileTab(searchParams.get('tab'))
   );
   const [editorOpen, setEditorOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [socialLoading, setSocialLoading] = useState(true);
   const [spotifyStatus, setSpotifyStatus] = useState<SpotifyConnectionStatus | null>(null);
   const [spotifyLoading, setSpotifyLoading] = useState(true);
@@ -84,11 +82,13 @@ export function ProfilePage() {
     if (!user) return;
     const [prof, counts, fwers, fwing, syncedReviews, posts] = await Promise.all([
       ensureMyProfile(user),
-      getFollowCounts(user.id).catch(() => ({ followersCount: 0, followingCount: 0 })),
-      getFollowers(user.id).catch(() => []),
-      getFollowing(user.id).catch(() => []),
+      FEATURES.social
+        ? getFollowCounts(user.id).catch(() => ({ followersCount: 0, followingCount: 0 }))
+        : Promise.resolve({ followersCount: 0, followingCount: 0 }),
+      FEATURES.social ? getFollowers(user.id).catch(() => []) : Promise.resolve([]),
+      FEATURES.social ? getFollowing(user.id).catch(() => []) : Promise.resolve([]),
       syncConcertReviewsFromServer(user.id),
-      getUserFeed(user.id).catch(() => []),
+      FEATURES.social ? getUserFeed(user.id).catch(() => []) : Promise.resolve([]),
     ]);
     setProfile(prof);
     setFollowCounts(counts);
@@ -106,7 +106,7 @@ export function ProfilePage() {
   }, [user, refreshSocial]);
 
   const refreshSpotify = useCallback(async () => {
-    if (!user) return;
+    if (!user || !FEATURES.spotify) return;
     setSpotifyLoading(true);
     try {
       const status = await getSpotifyStatus();
@@ -128,12 +128,14 @@ export function ProfilePage() {
 
     if (spotify === 'error' && reason) {
       setSpotifyConnectError(spotifyConnectErrorMessage(reason));
+      setSettingsOpen(true);
       setSearchParams({}, { replace: true });
       return;
     }
 
     if (spotify === 'connected' && user) {
       setSpotifyConnectError(null);
+      setSettingsOpen(true);
       void refreshSpotify();
       void syncSpotifyTaste()
         .then(() => refreshSpotify())
@@ -184,8 +186,8 @@ export function ProfilePage() {
     [followingList]
   );
 
-  const attendedCount = useMemo(
-    () => userConcerts.filter((uc) => uc.status === 'attended').length,
+  const attended = useMemo(
+    () => userConcerts.filter((uc) => uc.status === 'attended'),
     [userConcerts]
   );
   const goingCount = useMemo(
@@ -196,6 +198,17 @@ export function ProfilePage() {
     () => userConcerts.filter((uc) => uc.status === 'saved').length,
     [userConcerts]
   );
+
+  const { uniqueArtists, uniqueVenues } = useMemo(() => {
+    const artists = new Set<string>();
+    const venues = new Set<string>();
+    for (const uc of attended) {
+      const c = resolveConcertForUserConcert(uc, concertMap[uc.concertId]);
+      if (c.artistName) artists.add(c.artistName.toLowerCase());
+      if (c.venueName) venues.add(c.venueName.toLowerCase());
+    }
+    return { uniqueArtists: artists.size, uniqueVenues: venues.size };
+  }, [attended, concertMap]);
 
   const loading = socialLoading || concertsLoading;
 
@@ -213,86 +226,44 @@ export function ProfilePage() {
   }
 
   return (
-    <div className="space-y-8 pb-8">
+    <div className="space-y-7 pb-8">
       <ProfileHeader
         displayName={profile?.displayName || user.displayName}
         username={profile?.username || user.username}
         bio={profile?.bio ?? user.bio}
         avatarUrl={profile?.avatarUrl ?? user.avatarUrl}
+        shows={attended.length}
+        artists={uniqueArtists}
+        venues={uniqueVenues}
         followCounts={followCounts}
         socialPanel={socialPanel}
         onToggleFollowers={() => toggleSocialPanel('followers')}
         onToggleFollowing={() => toggleSocialPanel('following')}
         trailingActions={
-          <>
+          <div className="flex items-center gap-1">
             <Button
-              variant="secondary"
-              size="default"
-              onClick={() => setEditorOpen(true)}
-              className="h-10 gap-2 rounded-full px-5 text-sm font-medium"
-            >
-              <Pencil className="size-4" aria-hidden />
-              {profile?.username ? 'Edit profile' : 'Set username'}
-            </Button>
-            <Button
-              variant="primary"
-              size="default"
+              variant="ghost"
+              size="icon"
               render={<Link to="/wrapped" />}
-              className="h-10 gap-2 rounded-full px-5 text-sm font-medium"
+              className="text-muted-foreground hover:text-foreground"
+              aria-label="View Wrapped"
             >
-              <Sparkles className="size-4" aria-hidden />
-              View Wrapped
+              <Sparkles className="size-5" />
             </Button>
             <Button
               variant="ghost"
-              size="default"
-              onClick={() => logout()}
-              className="h-10 gap-2 px-3 text-muted-foreground hover:text-foreground"
-              aria-label="Log out"
+              size="icon"
+              onClick={() => setSettingsOpen(true)}
+              className="text-muted-foreground hover:text-foreground"
+              aria-label="Settings"
             >
-              <LogOut className="size-4" />
+              <Settings className="size-5" />
             </Button>
-          </>
+          </div>
         }
       />
 
-      <SpotifyConnectionsSection
-        status={spotifyStatus}
-        loading={spotifyLoading}
-        syncing={spotifySyncing}
-        disconnecting={spotifyDisconnecting}
-        error={spotifyConnectError}
-        onConnect={async () => {
-          setSpotifyConnectError(null);
-          try {
-            await startSpotifyConnect();
-          } catch (err) {
-            setSpotifyConnectError(
-              err instanceof Error ? err.message : 'Could not connect Spotify.'
-            );
-          }
-        }}
-        onSync={async () => {
-          setSpotifySyncing(true);
-          try {
-            await syncSpotifyTaste();
-            await refreshSpotify();
-          } finally {
-            setSpotifySyncing(false);
-          }
-        }}
-        onDisconnect={async () => {
-          setSpotifyDisconnecting(true);
-          try {
-            await disconnectSpotify();
-            await refreshSpotify();
-          } finally {
-            setSpotifyDisconnecting(false);
-          }
-        }}
-      />
-
-      {socialPanel === 'followers' && (
+      {FEATURES.social && socialPanel === 'followers' && (
         <section className="space-y-3">
           {followers.length === 0 ? (
             <EmptyState
@@ -319,7 +290,7 @@ export function ProfilePage() {
         </section>
       )}
 
-      {socialPanel === 'following' && (
+      {FEATURES.social && socialPanel === 'following' && (
         <section className="space-y-3">
           {followingList.length === 0 ? (
             <EmptyState
@@ -356,11 +327,9 @@ export function ProfilePage() {
           <ProfileTabBar
             tab={contentTab}
             onTabChange={selectContentTab}
-            concertCount={attendedCount}
+            concertCount={attended.length}
             goingCount={goingCount}
             wantCount={wantCount}
-            reviewCount={reviews.length}
-            postCount={feedPosts.length}
           />
 
           <ProfileContentTabs
@@ -374,6 +343,46 @@ export function ProfilePage() {
           />
         </>
       )}
+
+      <ProfileSettingsSheet
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        onEditProfile={() => setEditorOpen(true)}
+        onLogout={() => logout()}
+        spotifyStatus={spotifyStatus}
+        spotifyLoading={spotifyLoading}
+        spotifySyncing={spotifySyncing}
+        spotifyDisconnecting={spotifyDisconnecting}
+        spotifyConnectError={spotifyConnectError}
+        onSpotifyConnect={async () => {
+          setSpotifyConnectError(null);
+          try {
+            await startSpotifyConnect();
+          } catch (err) {
+            setSpotifyConnectError(
+              err instanceof Error ? err.message : 'Could not connect Spotify.'
+            );
+          }
+        }}
+        onSpotifySync={async () => {
+          setSpotifySyncing(true);
+          try {
+            await syncSpotifyTaste();
+            await refreshSpotify();
+          } finally {
+            setSpotifySyncing(false);
+          }
+        }}
+        onSpotifyDisconnect={async () => {
+          setSpotifyDisconnecting(true);
+          try {
+            await disconnectSpotify();
+            await refreshSpotify();
+          } finally {
+            setSpotifyDisconnecting(false);
+          }
+        }}
+      />
 
       <UsernameEditor
         open={editorOpen}

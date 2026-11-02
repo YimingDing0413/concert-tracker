@@ -27,7 +27,9 @@ export function VenueDetailPage() {
   }, [id]);
 
   if (loading) return <LoadingSpinner />;
-  if (error || !venue) return <p className="muted">{error || 'Venue not found.'}</p>;
+  if (error || !venue) {
+    return <p className="text-sm text-muted-foreground">{error || 'Venue not found.'}</p>;
+  }
 
   const location = formatLocation(venue.city, venue.state, venue.country);
 
@@ -55,9 +57,9 @@ export function VenueDetailPage() {
       <section>
         <h2>Upcoming events</h2>
         {venue.upcomingEvents.length === 0 ? (
-          <p className="muted">No upcoming events at this venue.</p>
+          <p className="text-sm text-muted-foreground">No upcoming events at this venue.</p>
         ) : (
-          <div className="card-list">
+          <div className="space-y-3">
             {venue.upcomingEvents.map((c) => (
               <ConcertCard key={c.id} concert={c} backTo={`/venue/${id}`} />
             ))}

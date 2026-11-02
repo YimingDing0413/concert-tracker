@@ -21,8 +21,10 @@ import {
   getFollowStatus,
   getMyProfile,
 } from '@/lib/social/socialApi';
+import { FEATURES } from '@/config/features';
 import type { FollowCounts, FollowerItem, FollowItem, UserProfile } from '@/types';
-import { useCallback, useEffect, useState } from 'react';
+import { resolveConcertForUserConcert } from '@/utils/userConcert';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 
 type SocialPanel = 'followers' | 'following' | null;
@@ -79,6 +81,21 @@ export function MemberProfilePage() {
   const backTo = userId ? `/member/${encodeURIComponent(userId)}` : '/search?mode=members';
   const loading = socialLoading || concertsLoading;
 
+  const attended = useMemo(
+    () => userConcerts.filter((uc) => uc.status === 'attended'),
+    [userConcerts]
+  );
+  const { uniqueArtists, uniqueVenues } = useMemo(() => {
+    const artists = new Set<string>();
+    const venues = new Set<string>();
+    for (const uc of attended) {
+      const c = resolveConcertForUserConcert(uc, concertMap[uc.concertId]);
+      if (c.artistName) artists.add(c.artistName.toLowerCase());
+      if (c.venueName) venues.add(c.venueName.toLowerCase());
+    }
+    return { uniqueArtists: artists.size, uniqueVenues: venues.size };
+  }, [attended, concertMap]);
+
   if (isSelf) return <Navigate to="/profile" replace />;
 
   if (loading) {
@@ -134,23 +151,28 @@ export function MemberProfilePage() {
         username={profile.username}
         bio={profile.bio}
         avatarUrl={profile.avatarUrl}
+        shows={attended.length}
+        artists={uniqueArtists}
+        venues={uniqueVenues}
         followCounts={followCounts}
         socialPanel={socialPanel}
         onToggleFollowers={() => setSocialPanel((p) => (p === 'followers' ? null : 'followers'))}
         onToggleFollowing={() => setSocialPanel((p) => (p === 'following' ? null : 'following'))}
         trailingActions={
-          !isSelf ? (
+          !isSelf && FEATURES.social ? (
             <div className="flex flex-wrap gap-2">
-              <Button
-                variant="secondary"
-                size="default"
-                className="h-10 gap-2 rounded-full px-5"
-                disabled={openingMessage}
-                onClick={() => void handleMessage()}
-              >
-                <MessageCircle className="size-4" aria-hidden />
-                Message
-              </Button>
+              {FEATURES.messages ? (
+                <Button
+                  variant="secondary"
+                  size="default"
+                  className="h-10 gap-2 rounded-full px-5"
+                  disabled={openingMessage}
+                  onClick={() => void handleMessage()}
+                >
+                  <MessageCircle className="size-4" aria-hidden />
+                  Message
+                </Button>
+              ) : null}
               <FollowButton
                 currentUserId={currentUserId}
                 targetUserId={profile.userId}
@@ -167,7 +189,7 @@ export function MemberProfilePage() {
         }
       />
 
-      {socialPanel === 'followers' && (
+      {FEATURES.social && socialPanel === 'followers' && (
         <section className="space-y-3">
           {followers.length === 0 ? (
             <EmptyState title="No followers yet" />
@@ -191,7 +213,7 @@ export function MemberProfilePage() {
         </section>
       )}
 
-      {socialPanel === 'following' && (
+      {FEATURES.social && socialPanel === 'following' && (
         <section className="space-y-3">
           {followingList.length === 0 ? (
             <EmptyState title="Not following anyone" />

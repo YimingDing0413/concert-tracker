@@ -1,11 +1,15 @@
+import { FEATURES } from '@/config/features';
 import type { FollowCounts } from '@/types';
 import { cn } from '@/lib/utils';
 
 interface ProfileStatsBarProps {
-  followCounts: FollowCounts;
-  activePanel: 'followers' | 'following' | null;
-  onFollowers: () => void;
-  onFollowing: () => void;
+  shows?: number;
+  artists?: number;
+  venues?: number;
+  followCounts?: FollowCounts;
+  activePanel?: 'followers' | 'following' | null;
+  onFollowers?: () => void;
+  onFollowing?: () => void;
 }
 
 function StatPill({
@@ -21,13 +25,17 @@ function StatPill({
 }) {
   const inner = (
     <>
-      <span className="text-lg font-bold tabular-nums text-foreground">{value}</span>
+      <span className="font-mono text-lg font-medium tabular-nums text-foreground">{value}</span>
       <span className="text-xs text-muted-foreground">{label}</span>
     </>
   );
 
   if (!onClick) {
-    return <div className="flex min-w-[4.5rem] flex-col items-center text-center md:items-start md:text-left">{inner}</div>;
+    return (
+      <div className="flex min-w-[4.5rem] flex-col items-center text-center md:items-start md:text-left">
+        {inner}
+      </div>
+    );
   }
 
   return (
@@ -45,6 +53,9 @@ function StatPill({
 }
 
 export function ProfileStatsBar({
+  shows = 0,
+  artists = 0,
+  venues = 0,
   followCounts,
   activePanel,
   onFollowers,
@@ -52,18 +63,25 @@ export function ProfileStatsBar({
 }: ProfileStatsBarProps) {
   return (
     <div className="flex flex-wrap items-start justify-center gap-x-8 gap-y-3 sm:justify-start">
-      <StatPill
-        value={followCounts.followersCount}
-        label="Followers"
-        onClick={onFollowers}
-        active={activePanel === 'followers'}
-      />
-      <StatPill
-        value={followCounts.followingCount}
-        label="Following"
-        onClick={onFollowing}
-        active={activePanel === 'following'}
-      />
+      <StatPill value={shows} label="Shows" />
+      <StatPill value={artists} label="Artists" />
+      <StatPill value={venues} label="Venues" />
+      {FEATURES.social && followCounts && onFollowers && onFollowing ? (
+        <>
+          <StatPill
+            value={followCounts.followersCount}
+            label="Followers"
+            onClick={onFollowers}
+            active={activePanel === 'followers'}
+          />
+          <StatPill
+            value={followCounts.followingCount}
+            label="Following"
+            onClick={onFollowing}
+            active={activePanel === 'following'}
+          />
+        </>
+      ) : null}
     </div>
   );
 }

@@ -28,25 +28,25 @@
 
 .dark {
   /* Encore tokens in encore-tokens.css override these when loaded */
-  --background: oklch(0.12 0.012 280);
-  --foreground: oklch(0.96 0.008 280);
-  --card: oklch(0.17 0.014 280);
-  --card-foreground: oklch(0.96 0.008 280);
-  --popover: oklch(0.17 0.014 280);
-  --popover-foreground: oklch(0.96 0.008 280);
-  --primary: oklch(0.68 0.22 295);
-  --primary-foreground: oklch(0.98 0.01 280);
-  --secondary: oklch(0.22 0.018 280);
-  --secondary-foreground: oklch(0.92 0.01 280);
-  --muted: oklch(0.22 0.018 280);
-  --muted-foreground: oklch(0.62 0.02 280);
-  --accent: oklch(0.72 0.16 165);
-  --accent-foreground: oklch(0.14 0.02 165);
-  --destructive: oklch(0.58 0.2 25);
-  --destructive-foreground: oklch(0.98 0.01 270);
-  --border: oklch(0.28 0.02 280);
-  --input: oklch(0.24 0.02 280);
-  --ring: oklch(0.68 0.22 295);
+  --background: #0c0b0a;
+  --foreground: #f6f1e7;
+  --card: #151412;
+  --card-foreground: #f6f1e7;
+  --popover: #1e1c19;
+  --popover-foreground: #f6f1e7;
+  --primary: #ff5a1f;
+  --primary-foreground: #160b05;
+  --secondary: #1e1c19;
+  --secondary-foreground: #cfc8ba;
+  --muted: #1e1c19;
+  --muted-foreground: #8e877a;
+  --accent: #f2c14e;
+  --accent-foreground: #1a1714;
+  --destructive: #ef4444;
+  --destructive-foreground: #fafafa;
+  --border: rgb(246 241 231 / 0.08);
+  --input: #2a2723;
+  --ring: #ff5a1f;
 }
 
 @theme inline {
@@ -76,45 +76,42 @@
   --color-surface-1: var(--encore-surface-1, var(--card));
   --color-surface-2: var(--encore-surface-2, var(--secondary));
   --color-surface-3: var(--encore-surface-3, var(--input));
-  --color-ticket: var(--encore-ticket-amber, #fbbf24);
-  --color-review-gold: var(--encore-review-gold, #f59e0b);
+  --color-ticket: var(--encore-gold, #f2c14e);
+  --color-review-gold: var(--encore-gold, #f2c14e);
   --color-spotify: var(--encore-spotify-green, #1db954);
   --font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
-  --font-display: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+  --font-display: 'Bricolage Grotesque', 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 }
 
 .logo {
   font-family: var(--font-display);
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: -0.03em;
-  background: linear-gradient(135deg, var(--encore-brand-purple, var(--primary)), var(--encore-brand-pink, #ec4899));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--encore-text-primary, var(--foreground));
 }
 
 .glass-panel {
-  border: 1px solid var(--encore-border-subtle, rgb(255 255 255 / 0.06));
-  background: rgb(18 20 28 / 0.72);
-  backdrop-filter: blur(16px);
-  box-shadow: 0 12px 40px rgb(0 0 0 / 35%);
+  border: 1px solid var(--encore-border-subtle, rgb(246 241 231 / 0.08));
+  background: var(--encore-surface-1, var(--card));
+  box-shadow: 0 8px 24px rgb(0 0 0 / 28%);
 }
 
 :root {
-  --bg: #0f1117;
-  --surface: #1a1d27;
-  --surface2: #242836;
-  --border: #2e3345;
-  --text: #e8eaef;
-  --muted: #9aa3b5;
-  --accent: #7c6cff;
-  --accent2: #5b8def;
-  --danger: #ef5b6a;
-  --ok: #3dd68c;
-  --radius: 12px;
+  --bg: #0c0b0a;
+  --surface: #151412;
+  --surface2: #1e1c19;
+  --border: #2a2723;
+  --text: #f6f1e7;
+  --muted: #8e877a;
+  --accent: #ff5a1f;
+  --accent2: #f2c14e;
+  --danger: #ef4444;
+  --ok: #5fbf8a;
+  --radius: 14px;
   --nav-h: 64px;
   --max-w: 480px;
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   line-height: 1.5;
   color: var(--text);
   background: var(--bg);
@@ -207,43 +204,12 @@ p {
   margin: 0 0 0.75rem;
 }
 
-.muted {
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-
-.req {
-  color: var(--danger);
-}
-
 .logo {
   font-size: 1.75rem;
   font-weight: 800;
-  background: linear-gradient(90deg, var(--accent), var(--accent2));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
 }
 
 /* Layout */
-.app-shell {
-  min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  max-width: var(--max-w);
-  margin: 0 auto;
-}
-
-.app-main {
-  flex: 1;
-  padding: 1rem 1rem calc(var(--nav-h) + 1rem);
-  overflow-y: auto;
-}
-
-.page {
-  animation: fadeIn 0.2s ease;
-}
-
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -253,75 +219,6 @@ p {
     opacity: 1;
     transform: none;
   }
-}
-
-.bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 100%;
-  max-width: var(--max-w);
-  height: var(--nav-h);
-  display: flex;
-  background: var(--surface);
-  border-top: 1px solid var(--border);
-  z-index: 20;
-}
-
-.bottom-nav-item {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.15rem;
-  color: var(--muted);
-  font-size: 0.7rem;
-  text-decoration: none;
-  transition: color 0.15s;
-}
-
-.bottom-nav-item.active {
-  color: var(--accent2);
-}
-
-.bottom-nav-icon {
-  font-size: 1.25rem;
-}
-
-/* Cards & forms */
-.card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 1rem;
-}
-
-.card-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.form-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.form-stack label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  font-size: 0.85rem;
-  color: var(--muted);
-}
-
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
 }
 
 input,
@@ -344,41 +241,6 @@ textarea {
   font-size: 0.9rem;
 }
 
-/* Buttons */
-.btn {
-  border: none;
-  border-radius: 999px;
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.15s, transform 0.12s;
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-primary {
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  color: #fff;
-  padding: 0.7rem 1.25rem;
-}
-
-.btn-secondary {
-  background: var(--surface2);
-  color: var(--text);
-  border: 1px solid var(--border);
-  padding: 0.7rem 1.25rem;
-  display: inline-block;
-  text-align: center;
-}
-
-.btn-ghost {
-  background: transparent;
-  color: var(--muted);
-  padding: 0.65rem 1rem;
-}
 
 .btn-danger {
   background: var(--danger);
@@ -615,19 +477,10 @@ textarea {
 }
 
 /* Detail pages */
-.page-header {
-  margin-bottom: 1rem;
-}
-
 .back-link {
   display: inline-block;
   margin-bottom: 0.5rem;
   font-size: 0.9rem;
-}
-
-.page-subtitle {
-  color: var(--muted);
-  margin: 0;
 }
 
 .detail-hero-img {
@@ -1191,10 +1044,6 @@ textarea {
   color: var(--muted);
 }
 
-.rating-form .star-rating {
-  margin-bottom: 0.25rem;
-}
-
 @media (min-width: 520px) {
   :root {
     --max-w: 520px;
@@ -1470,7 +1319,7 @@ textarea {
 }
 
 .discover-venue-card--selected {
-  box-shadow: 0 0 0 2px var(--encore-brand-purple, var(--primary)),
+  box-shadow: 0 0 0 2px var(--encore-accent, var(--primary)),
     0 12px 32px rgb(0 0 0 / 45%);
 }
 
@@ -1609,7 +1458,7 @@ textarea {
 
 .discover-sheet__title {
   margin: 0;
-  font-family: var(--font-display, 'Space Grotesk', system-ui, sans-serif);
+  font-family: var(--font-display, 'Bricolage Grotesque', system-ui, sans-serif);
   font-size: 1.05rem;
   font-weight: 700;
   line-height: 1.25;
@@ -1695,7 +1544,7 @@ textarea {
     rgb(236 72 153 / 0.25) 40%,
     var(--encore-bg, #0a0b10) 100%
   );
-  font-family: var(--font-display, 'Space Grotesk', system-ui, sans-serif);
+  font-family: var(--font-display, 'Bricolage Grotesque', system-ui, sans-serif);
   font-size: 1.1rem;
   font-weight: 700;
   color: rgb(255 255 255 / 0.7);
@@ -1703,7 +1552,7 @@ textarea {
 
 .discover-show-row__artist {
   margin: 0;
-  font-family: var(--font-display, 'Space Grotesk', system-ui, sans-serif);
+  font-family: var(--font-display, 'Bricolage Grotesque', system-ui, sans-serif);
   font-size: 0.88rem;
   font-weight: 700;
   overflow: hidden;

@@ -30,7 +30,7 @@ export type ConcertReviewDraft = Omit<
 
 export type WrapUpTemplateId = 'poster' | 'stats' | 'collage';
 
-export type YearEndTemplateId = 'collage' | 'stats' | 'scrapbook';
+export type YearEndTemplateId = 'tickets' | 'poster' | 'minimal';
 
 /** One attended (or legacy-reviewed) show in a Wrapped year. */
 export type YearEndEntry = {

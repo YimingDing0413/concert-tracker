@@ -1,18 +1,16 @@
-import { ConcertCard } from '@/components/concert/ConcertCard';
 import { FeedPostCard } from '@/components/feed/FeedPostCard';
 import { StartMessageModal } from '@/components/messages/StartMessageModal';
 import { ProfileReviewListItem } from '@/components/review/ProfileReviewListItem';
-import { Button } from '@/components/ui/app-button';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { TicketCard } from '@/components/ui/TicketCard';
+import { FEATURES } from '@/config/features';
+import { useAuth } from '@/context/AuthContext';
 import { getConcertReview } from '@/lib/concertReviewsLocal';
+import { buildTicketPrefill } from '@/lib/social/messagesApi';
 import type { Concert, FeedPost, UserConcert } from '@/types';
 import type { ConcertReview } from '@/types/concertReview';
-import { averageOverallRating, formatOverallRating } from '@/utils/format';
 import { resolveConcertForUserConcert, sortUserConcertsByDate } from '@/utils/userConcert';
-import { Sparkles, Star } from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
-import { buildTicketPrefill } from '@/lib/social/messagesApi';
-import { useState, type MouseEvent, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 export type ProfileContentTab = 'concerts' | 'going' | 'want' | 'reviews' | 'posts' | 'wrapped';
@@ -50,13 +48,15 @@ export function ProfileContentTabs({
   const goingSorted = sortUserConcertsByDate(going, concertMap);
   const wantSorted = sortUserConcertsByDate(want, concertMap);
 
-  const avg = averageOverallRating(reviews.map((r) => r.overallRating));
+  function openConcert(concertId: string) {
+    navigate(`/concert/${concertId}`, { state: { backTo } });
+  }
 
   return (
     <section className="space-y-6">
       {tab === 'concerts' && (
         <TabBody
-          emptyTitle="No concerts yet"
+          emptyTitle="No shows yet"
           emptyDescription="Shows you've been to appear here after you log them."
           emptyAction={
             <Link to="/log" className="text-sm font-medium text-primary">
@@ -65,60 +65,26 @@ export function ProfileContentTabs({
           }
           isEmpty={attendedSorted.length === 0}
         >
-          <ul className="grid gap-4 sm:grid-cols-2">
+          <ul className="space-y-3">
             {attendedSorted.map((uc) => {
-              const hasReview = mode === 'full' && Boolean(getConcertReview(userId, uc.concertId));
-              const reviewState = {
-                backTo,
-                concertSnapshot: concertMap[uc.concertId],
-              };
-              const stop = (e: MouseEvent) => {
-                e.preventDefault();
-                e.stopPropagation();
-              };
-              const rateAction =
-                mode === 'full' ? (
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      variant={hasReview ? 'secondary' : 'primary'}
-                      size="sm"
-                      className="gap-1"
-                      onClick={(e) => {
-                        stop(e);
-                        navigate(`/concert/${uc.concertId}/review`, { state: reviewState });
-                      }}
-                    >
-                      <Star className="size-4" aria-hidden />
-                      {hasReview ? 'Edit rating' : 'Rate'}
-                    </Button>
-                    {hasReview && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="gap-1"
-                        onClick={(e) => {
-                          stop(e);
-                          navigate(`/concert/${uc.concertId}/wrap-up`, { state: reviewState });
-                        }}
-                      >
-                        <Sparkles className="size-4" aria-hidden />
-                        Wrap-up
-                      </Button>
-                    )}
-                  </div>
-                ) : undefined;
+              const concert = resolveConcertForUserConcert(uc, concertMap[uc.concertId]);
+              const review = mode === 'full' ? getConcertReview(userId, uc.concertId) : undefined;
+              const rating = review?.overallRating;
               return (
                 <li key={uc.id}>
-                  <ConcertCard
-                    concert={resolveConcertForUserConcert(uc, concertMap[uc.concertId])}
-                    userConcert={uc}
-                    concertId={uc.concertId}
-                    backTo={backTo}
-                    variant="memory"
-                    showSource={false}
-                    footer={rateAction}
+                  <TicketCard
+                    artist={concert.artistName || 'Unknown artist'}
+                    venue={concert.venueName}
+                    city={concert.city}
+                    date={concert.date || ''}
+                    rating={rating}
+                    variant="paper"
+                    onClick={() => openConcert(uc.concertId)}
+                    footer={
+                      review ? (
+                        <span className="text-label-mono text-[10px] text-black/50">Reviewed</span>
+                      ) : undefined
+                    }
                   />
                 </li>
               );
@@ -132,74 +98,70 @@ export function ProfileContentTabs({
           emptyTitle="Nothing on the calendar"
           emptyDescription="Mark an upcoming show as going and it will show up here."
           emptyAction={
-            <Link to="/" className="text-sm font-medium text-primary">
+            <Link to="/discover" className="text-sm font-medium text-primary">
               Find shows →
             </Link>
           }
           isEmpty={goingSorted.length === 0}
         >
-          <ul className="grid gap-4 sm:grid-cols-2">
-            {goingSorted.map((uc) => (
-              <li key={uc.id}>
-                <ConcertCard
-                  concert={resolveConcertForUserConcert(uc, concertMap[uc.concertId])}
-                  userConcert={uc}
-                  concertId={uc.concertId}
-                  backTo={backTo}
-                  variant="memory"
-                  showSource={false}
-                />
-              </li>
-            ))}
+          <ul className="space-y-3">
+            {goingSorted.map((uc) => {
+              const concert = resolveConcertForUserConcert(uc, concertMap[uc.concertId]);
+              return (
+                <li key={uc.id}>
+                  <TicketCard
+                    artist={concert.artistName || 'Unknown artist'}
+                    venue={concert.venueName}
+                    city={concert.city}
+                    date={concert.date || ''}
+                    variant="outline"
+                    onClick={() => openConcert(uc.concertId)}
+                  />
+                </li>
+              );
+            })}
           </ul>
         </TabBody>
       )}
 
       {mode === 'full' && tab === 'want' && (
         <TabBody
-          emptyTitle="No saved shows yet"
+          emptyTitle="Wishlist is empty"
           emptyDescription="Save concerts you want tickets for — they'll appear here."
           emptyAction={
-            <Link to="/" className="text-sm font-medium text-primary">
+            <Link to="/discover" className="text-sm font-medium text-primary">
               Discover shows →
             </Link>
           }
           isEmpty={wantSorted.length === 0}
         >
-          <ul className="grid gap-4 sm:grid-cols-2">
-            {wantSorted.map((uc) => (
-              <li key={uc.id}>
-                <ConcertCard
-                  concert={resolveConcertForUserConcert(uc, concertMap[uc.concertId])}
-                  userConcert={uc}
-                  concertId={uc.concertId}
-                  backTo={backTo}
-                  variant="memory"
-                  showSource={false}
-                />
-              </li>
-            ))}
+          <ul className="space-y-3">
+            {wantSorted.map((uc) => {
+              const concert = resolveConcertForUserConcert(uc, concertMap[uc.concertId]);
+              return (
+                <li key={uc.id}>
+                  <TicketCard
+                    artist={concert.artistName || 'Unknown artist'}
+                    venue={concert.venueName}
+                    city={concert.city}
+                    date={concert.date || ''}
+                    variant="outline"
+                    onClick={() => openConcert(uc.concertId)}
+                  />
+                </li>
+              );
+            })}
           </ul>
         </TabBody>
       )}
 
-      {mode === 'full' && tab === 'reviews' && (
+      {FEATURES.social && mode === 'full' && tab === 'reviews' && (
         <TabBody
           emptyTitle="No reviews yet"
-          emptyDescription="Rate a concert from your Concerts tab."
-          emptyAction={
-            <Link to="/profile" className="text-sm font-medium text-primary">
-              View concerts →
-            </Link>
-          }
+          emptyDescription="Rate a concert from your Been tab."
           isEmpty={reviews.length === 0}
         >
-          {avg != null && (
-            <p className="text-sm text-muted-foreground">
-              Average: <span className="font-semibold text-foreground">{formatOverallRating(avg)}</span>
-            </p>
-          )}
-          <ul className="grid gap-4 sm:grid-cols-2">
+          <ul className="space-y-3">
             {reviews.map((review) => (
               <li key={review.id}>
                 <ProfileReviewListItem review={review} />
@@ -209,15 +171,10 @@ export function ProfileContentTabs({
         </TabBody>
       )}
 
-      {mode === 'full' && tab === 'posts' && (
+      {FEATURES.social && mode === 'full' && tab === 'posts' && (
         <TabBody
           emptyTitle="No posts yet"
-          emptyDescription="Share a concert memory, review, or ticket request from Create."
-          emptyAction={
-            <Link to="/create/review" className="text-sm font-medium text-primary">
-              Create a post →
-            </Link>
-          }
+          emptyDescription="Share a concert memory when social is enabled."
           isEmpty={feedPosts.length === 0}
         >
           <ul className="space-y-5">
@@ -228,6 +185,7 @@ export function ProfileContentTabs({
                   viewerUserId={viewerUserId}
                   onHaveTickets={() => {
                     if (
+                      FEATURES.messages &&
                       post.type === 'looking_for_tickets' &&
                       viewerUserId &&
                       post.userId !== viewerUserId
@@ -239,7 +197,7 @@ export function ProfileContentTabs({
               </li>
             ))}
           </ul>
-          {messagePost && (
+          {FEATURES.messages && messagePost && (
             <StartMessageModal
               open={Boolean(messagePost)}
               onOpenChange={(open) => {
@@ -259,7 +217,6 @@ export function ProfileContentTabs({
           )}
         </TabBody>
       )}
-
     </section>
   );
 }

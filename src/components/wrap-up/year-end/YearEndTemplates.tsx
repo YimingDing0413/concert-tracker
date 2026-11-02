@@ -1,4 +1,3 @@
-import { toExportImageUrl } from '@/lib/exportImageUrl';
 import type {
   ConcertReview,
   YearEndEntry,
@@ -17,66 +16,47 @@ export interface YearEndTemplateProps {
   entries?: YearEndEntry[];
 }
 
-function EncoreWordmark({ className = '' }: { className?: string }) {
+const DISPLAY_FONT = 'Bricolage Grotesque, Inter, sans-serif';
+const MONO_FONT = 'JetBrains Mono, monospace';
+
+function EncoreFooter({ className = '' }: { className?: string }) {
   return (
-    <p className={`text-[30px] font-black uppercase tracking-[0.35em] text-white/90 ${className}`}>
+    <p
+      className={`text-[28px] font-black uppercase tracking-[0.35em] ${className}`}
+      style={{ fontFamily: DISPLAY_FONT }}
+    >
       Encore
     </p>
   );
 }
 
-function PosterTile({ artistName }: { artistName: string }) {
-  const initial = (artistName.trim()[0] || '?').toUpperCase();
-  return (
-    <div
-      className="flex size-full items-center justify-center"
-      style={{
-        background: 'linear-gradient(145deg, #FF5A1F 0%, #F2C14E 55%, #2A2723 100%)',
-      }}
-    >
-      <span className="text-[120px] font-black text-white/95 drop-shadow-md">{initial}</span>
-    </div>
-  );
+function entryList(entries: YearEndEntry[], reviews: ConcertReview[]): YearEndEntry[] {
+  if (entries.length > 0) return entries;
+  return reviews.map((review) => ({
+    concertId: review.eventId,
+    artistName: review.artistName,
+    venueName: review.venueName,
+    date: (review.eventDate ?? review.createdAt).slice(0, 10),
+    imageUrl: review.photoDataUrls?.[0],
+    review,
+  }));
 }
 
-/**
- * Safe src for html-to-image: data URLs or same-origin proxy only.
- * Never returns a raw cross-origin URL (those capture as blank tiles).
- */
-function visualForEntry(entry: YearEndEntry): { kind: 'photo' | 'image' | 'poster'; src?: string } {
-  const photo = toExportImageUrl(entry.review?.photoDataUrls?.[0]);
-  if (photo) return { kind: 'photo', src: photo };
-  const image = toExportImageUrl(entry.imageUrl);
-  if (image) return { kind: 'image', src: image };
-  return { kind: 'poster' };
+function stubDate(date: string): { monthDay: string; year: string } {
+  const d = new Date(date.slice(0, 10) + 'T12:00:00');
+  if (Number.isNaN(d.getTime())) {
+    return { monthDay: date.slice(0, 10) || '--', year: '' };
+  }
+  return {
+    monthDay: d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toUpperCase(),
+    year: String(d.getFullYear()),
+  };
 }
 
-function exportSafePhotos(photos: string[]): string[] {
-  return photos.map((url) => toExportImageUrl(url)).filter((url): url is string => Boolean(url));
-}
+const STACK_ROTATIONS = ['-7deg', '4deg', '-2deg', '6deg', '-5deg', '3deg'];
 
-/* ------------------------------------------------------------------ */
-/* Template 1 — Photo Collage                                          */
-/* ------------------------------------------------------------------ */
-
-/**
- * Picks a grid that fills exactly `count` cells with no blanks. The first
- * photo absorbs any remainder by spanning extra columns, so e.g. 4 photos
- * render as a clean 2×2 and 3 photos as one wide + two below.
- */
-function collageLayout(count: number): { cols: number; firstSpan: number } {
-  const cols = count <= 1 ? 1 : count <= 4 ? 2 : 3;
-  const rows = Math.ceil(count / cols);
-  const blanks = rows * cols - count;
-  return { cols, firstSpan: blanks + 1 };
-}
-
-export function YearEndPhotoCollageTemplate({ stats, photos, entries = [] }: YearEndTemplateProps) {
-  const cells = exportSafePhotos(photos).slice(0, 12);
-  const artistNames = stats.topArtists.map((a) => a.name).slice(0, 4);
-  const { cols, firstSpan } = collageLayout(cells.length || Math.min(entries.length, 6) || 1);
-  // Prefer entry tiles (poster fallback) when no export-safe photos — never blank cells.
-  const tileEntries = cells.length === 0 ? entries.slice(0, 6) : [];
+export function YearEndTicketStackTemplate({ stats, reviews, entries = [] }: YearEndTemplateProps) {
+  const cards = entryList(entries, reviews).slice(0, 6);
 
   return (
     <div
@@ -84,267 +64,224 @@ export function YearEndPhotoCollageTemplate({ stats, photos, entries = [] }: Yea
       style={{
         width: YEAR_END_WIDTH,
         height: YEAR_END_HEIGHT,
-        background: 'linear-gradient(160deg, #1a0a2e 0%, #2d1b4e 40%, #0b0b12 100%)',
+        background: '#0C0B0A',
+        fontFamily: DISPLAY_FONT,
       }}
     >
-      <div className="absolute inset-0">
-        {cells.length > 0 ? (
-          <div
-            className="h-full gap-2 p-2"
-            style={{
-              display: 'grid',
-              gridTemplateColumns: `repeat(${cols}, 1fr)`,
-              gridAutoRows: '1fr',
-            }}
-          >
-            {cells.map((url, i) => (
-              <img
-                key={`${i}-${url.slice(0, 16)}`}
-                src={url}
-                alt=""
-                className="size-full rounded-2xl object-cover"
-                style={i === 0 && firstSpan > 1 ? { gridColumn: `span ${firstSpan}` } : undefined}
-              />
-            ))}
-          </div>
-        ) : tileEntries.length > 0 ? (
-          <div
-            className="h-full gap-2 p-2"
-            style={{
-              display: 'grid',
-              gridTemplateColumns: `repeat(${cols}, 1fr)`,
-              gridAutoRows: '1fr',
-            }}
-          >
-            {tileEntries.map((entry, i) => {
-              const visual = visualForEntry(entry);
-              return (
-                <div
-                  key={entry.concertId}
-                  className="overflow-hidden rounded-2xl"
-                  style={i === 0 && firstSpan > 1 ? { gridColumn: `span ${firstSpan}` } : undefined}
-                >
-                  {visual.src ? (
-                    <img src={visual.src} alt="" className="size-full object-cover" />
-                  ) : (
-                    <PosterTile artistName={entry.artistName} />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-orange-700/35 via-amber-900/25 to-transparent" />
-        )}
-      </div>
-
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/75 to-black/30" />
-
-      <div className="relative z-10 flex h-full flex-col p-14">
-        <EncoreWordmark />
-        <div className="mt-auto">
-          <p className="text-[34px] font-semibold uppercase tracking-[0.3em] text-orange-200/90">
-            My {stats.year}
-          </p>
-          <h1 className="mt-1 text-[150px] font-black leading-[0.9] tracking-tight">Concerts</h1>
-          <div className="mt-8 flex items-end gap-4">
-            <span className="text-[120px] font-black leading-none tabular-nums text-white">
-              {stats.totalShows}
-            </span>
-            <span className="pb-5 text-[40px] font-semibold text-white/70">
-              {stats.totalShows === 1 ? 'show' : 'shows'}
-            </span>
-          </div>
-          {artistNames.length > 0 && (
-            <p className="mt-6 text-[30px] font-medium leading-snug text-white/80">
-              {artistNames.join('  ·  ')}
-            </p>
-          )}
-          <p className="mt-10 text-[22px] uppercase tracking-[0.35em] text-white/45">Encore</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Template 2 — Wrapped Stats                                          */
-/* ------------------------------------------------------------------ */
-
-function StatRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-baseline justify-between border-b border-white/10 pb-4">
-      <span className="text-[30px] font-medium text-white/55">{label}</span>
-      <span className="max-w-[60%] truncate text-right text-[38px] font-bold text-white">
-        {value}
-      </span>
-    </div>
-  );
-}
-
-export function YearEndStatsTemplate({ stats, photos }: YearEndTemplateProps) {
-  const strip = exportSafePhotos(photos).slice(0, 4);
-  const topArtist = stats.mostSeenArtist?.name ?? stats.topArtists[0]?.name ?? '—';
-  const topVenue = stats.topVenues[0]?.name ?? '—';
-  const sparse = stats.totalShows <= 2;
-
-  return (
-    <div
-      className="flex flex-col p-14 text-white"
-      style={{
-        width: YEAR_END_WIDTH,
-        height: YEAR_END_HEIGHT,
-        background: 'linear-gradient(155deg, #2b0f4a 0%, #120a24 55%, #05050a 100%)',
-      }}
-    >
-      <div className="flex items-center justify-between">
-        <EncoreWordmark />
-        <p className="text-[24px] font-semibold uppercase tracking-widest text-white/40">
+      <div className="px-14 pt-16">
+        <p
+          className="text-[26px] font-medium uppercase tracking-[0.12em] text-[#8E877A]"
+          style={{ fontFamily: MONO_FONT }}
+        >
           {stats.year} Wrapped
         </p>
-      </div>
-
-      <div className="mt-16">
-        <div className="flex items-end gap-5">
-          <span className="text-[200px] font-black leading-[0.8] tabular-nums text-orange-400">
+        <div className="mt-6 flex items-end gap-4">
+          <span className="text-[200px] font-extrabold leading-[0.85] tabular-nums text-[#F6F1E7]">
             {stats.totalShows}
           </span>
+          <span className="pb-8 text-[44px] font-semibold text-[#CFC8BA]">
+            {stats.totalShows === 1 ? 'show' : 'shows'}
+          </span>
         </div>
-        <p className="mt-2 text-[52px] font-black tracking-tight">
-          {stats.totalShows === 1 ? 'concert' : 'concerts'} this year
-        </p>
       </div>
 
-      <div className="mt-14 space-y-6">
-        {stats.averageRating != null && (
-          <StatRow label="Average rating" value={`${stats.averageRating} / 10`} />
-        )}
-        {!sparse && <StatRow label="Top artist" value={topArtist} />}
-        {!sparse && <StatRow label="Top venue" value={topVenue} />}
-        {stats.uniqueArtists > 0 && (
-          <StatRow label="Artists" value={String(stats.uniqueArtists)} />
-        )}
-        {stats.uniqueCities > 0 && <StatRow label="Cities" value={String(stats.uniqueCities)} />}
-        {stats.busiestMonth && !sparse && (
-          <StatRow label="Busiest month" value={stats.busiestMonth.label} />
-        )}
-        <StatRow label="Photos captured" value={String(stats.totalPhotos)} />
-      </div>
-
-      {!sparse && stats.topTags.length > 0 && (
-        <div className="mt-12">
-          <p className="mb-4 text-[26px] uppercase tracking-widest text-white/40">Your vibe</p>
-          <div className="flex flex-wrap gap-3">
-            {stats.topTags.slice(0, 5).map(({ tag }) => (
-              <span
-                key={tag}
-                className="rounded-full border border-orange-400/40 bg-orange-500/15 px-6 py-2.5 text-[26px] font-semibold capitalize text-orange-50"
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="mt-auto">
-        {strip.length > 0 && (
-          <div className="flex gap-3">
-            {strip.map((url, i) => (
-              <img
-                key={`${i}-${url.slice(0, 16)}`}
-                src={url}
-                alt=""
-                className="h-[220px] flex-1 rounded-2xl object-cover"
-              />
-            ))}
-          </div>
-        )}
-        <p className="mt-8 text-center text-[22px] uppercase tracking-[0.35em] text-white/40">
-          Encore
-        </p>
-      </div>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Template 3 — Scrapbook                                              */
-/* ------------------------------------------------------------------ */
-
-const POLAROID_ROTATIONS = ['-6deg', '4deg', '-3deg', '7deg', '-5deg', '3deg'];
-
-export function YearEndScrapbookTemplate({ stats, reviews, entries = [] }: YearEndTemplateProps) {
-  const cards: YearEndEntry[] =
-    entries.length > 0
-      ? entries.slice(0, 6)
-      : reviews.slice(0, 6).map((review) => ({
-          concertId: review.eventId,
-          artistName: review.artistName,
-          venueName: review.venueName,
-          date: (review.eventDate ?? review.createdAt).slice(0, 10),
-          imageUrl: review.photoDataUrls?.[0],
-          review,
-        }));
-
-  return (
-    <div
-      className="flex flex-col p-14 text-white"
-      style={{
-        width: YEAR_END_WIDTH,
-        height: YEAR_END_HEIGHT,
-        background: 'linear-gradient(160deg, #2a1c12 0%, #1a0f1f 45%, #0a0710 100%)',
-      }}
-    >
-      <div className="text-center">
-        <p className="font-serif text-[40px] italic text-amber-200/90">Encore Year-End</p>
-        <h1 className="mt-1 text-[108px] font-black leading-none tracking-tight">{stats.year}</h1>
-        <p className="mt-3 text-[30px] font-medium text-white/60">
-          {stats.totalShows} {stats.totalShows === 1 ? 'memory' : 'memories'} this year
-        </p>
-      </div>
-
-      <div className="mt-12 flex flex-1 flex-wrap content-start items-start justify-center gap-x-6 gap-y-10">
-        {cards.length > 0 ? (
+      <div className="relative mt-8 flex flex-1 items-center justify-center px-10">
+        {cards.length === 0 ? (
+          <p className="text-[36px] text-[#8E877A]">Your tickets will stack here.</p>
+        ) : (
           cards.map((entry, i) => {
-            const visual = visualForEntry(entry);
+            const stub = stubDate(entry.date);
+            const place = [entry.venueName, entry.city].filter(Boolean).join(' · ');
+            const rot = STACK_ROTATIONS[i % STACK_ROTATIONS.length];
+            const offsetY = i * 28;
+            const offsetX = (i % 2 === 0 ? -1 : 1) * (12 + i * 4);
             return (
               <div
                 key={entry.concertId}
-                className="w-[300px] bg-[#f7f3ea] p-4 pb-6 shadow-2xl"
-                style={{ transform: `rotate(${POLAROID_ROTATIONS[i % POLAROID_ROTATIONS.length]})` }}
+                className="absolute w-[780px] overflow-hidden rounded-[22px]"
+                style={{
+                  background: '#F3EBDD',
+                  color: '#1A1714',
+                  transform: `translate(${offsetX}px, ${offsetY - 80}px) rotate(${rot})`,
+                  zIndex: i + 1,
+                  boxShadow: '0 18px 40px rgba(0,0,0,0.35)',
+                }}
               >
-                {visual.src ? (
-                  <img src={visual.src} alt="" className="h-[300px] w-full object-cover" />
-                ) : (
-                  <div className="h-[300px] w-full overflow-hidden">
-                    <PosterTile artistName={entry.artistName} />
+                <div className="flex min-h-[160px]">
+                  <div className="min-w-0 flex-1 px-8 py-7 pr-6">
+                    <p className="truncate text-[42px] font-extrabold leading-tight tracking-tight">
+                      {entry.artistName}
+                    </p>
+                    {place ? (
+                      <p className="mt-2 truncate text-[26px] text-black/55">{place}</p>
+                    ) : null}
                   </div>
-                )}
-                <p className="mt-3 truncate text-center font-serif text-[34px] italic text-neutral-800">
-                  {entry.artistName}
-                </p>
-                {entry.date && (
-                  <p className="text-center font-serif text-[22px] text-neutral-500">
-                    {formatDate(entry.date)}
-                  </p>
-                )}
+                  <div
+                    className="flex w-[180px] shrink-0 flex-col items-center justify-center gap-1 border-l-2 border-dashed border-black/20 px-3"
+                    style={{ fontFamily: MONO_FONT }}
+                  >
+                    <span className="text-[22px] font-medium tracking-[0.08em]">{stub.monthDay}</span>
+                    {stub.year ? (
+                      <span className="text-[18px] tracking-[0.08em] opacity-70">{stub.year}</span>
+                    ) : null}
+                  </div>
+                </div>
               </div>
             );
           })
-        ) : (
-          <p className="mt-20 text-center font-serif text-[34px] italic text-white/60">
-            Your concert memories will appear here.
-          </p>
         )}
       </div>
 
-      <p className="mt-10 text-center text-[26px] uppercase tracking-[0.3em] text-white/40">
-        Made with Encore
-      </p>
+      <div className="px-14 pb-16 text-center text-[#F6F1E7]">
+        <EncoreFooter />
+      </div>
     </div>
   );
 }
+
+export function YearEndPosterTemplate({ stats }: YearEndTemplateProps) {
+  const topArtist = stats.mostSeenArtist?.name ?? stats.topArtists[0]?.name ?? 'Your year';
+  const topVenue = stats.topVenues[0]?.name;
+  const ink = '#160B05';
+  const rule = { borderColor: 'rgba(22, 11, 5, 0.25)' } as const;
+
+  return (
+    <div
+      className="flex flex-col overflow-hidden"
+      style={{
+        width: YEAR_END_WIDTH,
+        height: YEAR_END_HEIGHT,
+        background: '#FF5A1F',
+        color: ink,
+        fontFamily: DISPLAY_FONT,
+      }}
+    >
+      <div className="flex items-center justify-between px-14 pt-14">
+        <EncoreFooter />
+        <p className="text-[24px] font-medium uppercase tracking-[0.12em]" style={{ fontFamily: MONO_FONT }}>
+          {stats.year}
+        </p>
+      </div>
+
+      <div className="flex flex-1 flex-col justify-center px-12">
+        <p
+          className="text-[28px] font-medium uppercase tracking-[0.14em]"
+          style={{ fontFamily: MONO_FONT, opacity: 0.6 }}
+        >
+          Top artist
+        </p>
+        <h1 className="mt-4 break-words text-[120px] font-extrabold leading-[0.9] tracking-tight">
+          {topArtist}
+        </h1>
+      </div>
+
+      <div className="space-y-5 px-14 pb-10" style={{ fontFamily: MONO_FONT }}>
+        <div className="flex items-baseline justify-between border-t pt-5" style={rule}>
+          <span className="text-[28px] uppercase tracking-[0.08em]">Shows</span>
+          <span className="text-[48px] font-medium tabular-nums">{stats.totalShows}</span>
+        </div>
+        {stats.uniqueArtists > 0 && (
+          <div className="flex items-baseline justify-between border-t pt-5" style={rule}>
+            <span className="text-[28px] uppercase tracking-[0.08em]">Artists</span>
+            <span className="text-[48px] font-medium tabular-nums">{stats.uniqueArtists}</span>
+          </div>
+        )}
+        {stats.uniqueCities > 0 && (
+          <div className="flex items-baseline justify-between border-t pt-5" style={rule}>
+            <span className="text-[28px] uppercase tracking-[0.08em]">Cities</span>
+            <span className="text-[48px] font-medium tabular-nums">{stats.uniqueCities}</span>
+          </div>
+        )}
+        {topVenue && (
+          <div className="flex items-baseline justify-between border-t pt-5" style={rule}>
+            <span className="text-[28px] uppercase tracking-[0.08em]">Top venue</span>
+            <span className="max-w-[55%] truncate text-right text-[32px] font-medium">{topVenue}</span>
+          </div>
+        )}
+        {stats.averageRating != null && (
+          <div className="flex items-baseline justify-between border-t pt-5" style={rule}>
+            <span className="text-[28px] uppercase tracking-[0.08em]">Avg rating</span>
+            <span className="text-[48px] font-medium tabular-nums">{stats.averageRating}</span>
+          </div>
+        )}
+      </div>
+
+      <div className="px-14 pb-16 text-center" style={{ opacity: 0.7 }}>
+        <EncoreFooter />
+      </div>
+    </div>
+  );
+}
+
+export function YearEndMinimalTemplate({ stats, reviews, entries = [] }: YearEndTemplateProps) {
+  const cards = entryList(entries, reviews).slice(0, 10);
+
+  return (
+    <div
+      className="flex flex-col overflow-hidden text-[#F6F1E7]"
+      style={{
+        width: YEAR_END_WIDTH,
+        height: YEAR_END_HEIGHT,
+        background: '#0C0B0A',
+        fontFamily: DISPLAY_FONT,
+      }}
+    >
+      <div className="px-14 pt-16">
+        <p
+          className="text-[26px] font-medium uppercase tracking-[0.12em] text-[#8E877A]"
+          style={{ fontFamily: MONO_FONT }}
+        >
+          {stats.year} Wrapped
+        </p>
+        <p
+          className="mt-8 text-[220px] font-extrabold leading-none tabular-nums text-[#F2C14E]"
+          style={{ fontFamily: MONO_FONT }}
+        >
+          {stats.totalShows}
+        </p>
+        <p className="mt-2 text-[44px] font-semibold text-[#CFC8BA]">
+          {stats.totalShows === 1 ? 'concert' : 'concerts'}
+        </p>
+      </div>
+
+      <div className="mt-16 flex-1 space-y-0 px-14">
+        {cards.map((entry) => (
+          <div
+            key={entry.concertId}
+            className="flex items-baseline justify-between gap-6 border-t border-white/10 py-5"
+          >
+            <div className="min-w-0">
+              <p className="truncate text-[36px] font-bold tracking-tight">{entry.artistName}</p>
+              {entry.venueName ? (
+                <p className="mt-1 truncate text-[24px] text-[#8E877A]">{entry.venueName}</p>
+              ) : null}
+            </div>
+            <span
+              className="shrink-0 text-[24px] text-[#F2C14E]"
+              style={{ fontFamily: MONO_FONT }}
+            >
+              {formatDate(entry.date)}
+            </span>
+          </div>
+        ))}
+        {cards.length === 0 && (
+          <p className="text-[32px] text-[#8E877A]">No shows logged this year yet.</p>
+        )}
+      </div>
+
+      <div className="px-14 pb-16 pt-10 text-center text-[#F6F1E7]">
+        <EncoreFooter />
+      </div>
+    </div>
+  );
+}
+
+/** @deprecated Prefer YearEndTicketStackTemplate */
+export const YearEndPhotoCollageTemplate = YearEndTicketStackTemplate;
+/** @deprecated Prefer YearEndPosterTemplate */
+export const YearEndStatsTemplate = YearEndPosterTemplate;
+/** @deprecated Prefer YearEndMinimalTemplate */
+export const YearEndScrapbookTemplate = YearEndMinimalTemplate;
 
 export function YearEndTemplateContent({
   template,
@@ -354,22 +291,22 @@ export function YearEndTemplateContent({
   entries,
 }: { template: YearEndTemplateId } & YearEndTemplateProps) {
   switch (template) {
-    case 'collage':
+    case 'tickets':
       return (
-        <YearEndPhotoCollageTemplate
+        <YearEndTicketStackTemplate
           stats={stats}
           reviews={reviews}
           photos={photos}
           entries={entries}
         />
       );
-    case 'stats':
+    case 'poster':
       return (
-        <YearEndStatsTemplate stats={stats} reviews={reviews} photos={photos} entries={entries} />
+        <YearEndPosterTemplate stats={stats} reviews={reviews} photos={photos} entries={entries} />
       );
-    case 'scrapbook':
+    case 'minimal':
       return (
-        <YearEndScrapbookTemplate
+        <YearEndMinimalTemplate
           stats={stats}
           reviews={reviews}
           photos={photos}

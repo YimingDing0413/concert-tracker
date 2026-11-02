@@ -61,7 +61,7 @@ export function YearEndWrapUp({ userId }: YearEndWrapUpProps) {
     }
   }, [years, year, currentYear]);
 
-  const [template, setTemplate] = useState<YearEndTemplateId>('collage');
+  const [template, setTemplate] = useState<YearEndTemplateId>('tickets');
   const exportRef = useRef<HTMLDivElement>(null);
 
   const entries = useMemo(

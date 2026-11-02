@@ -26,7 +26,7 @@ export function ProfileReviewListItem({ review }: ProfileReviewListItemProps) {
             className="size-20 shrink-0 rounded-xl object-cover"
           />
         ) : (
-          <div className="flex size-20 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600/40 to-fuchsia-900/30 text-sm font-bold text-white/90">
+          <div className="poster-gradient flex size-20 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white/90">
             {review.overallRating > 0 ? review.overallRating : '—'}
           </div>
         )}

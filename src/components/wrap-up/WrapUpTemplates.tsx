@@ -47,7 +47,7 @@ export function PosterTemplate({ review, featuredPhoto }: TemplateProps) {
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-black/20" />
         </>
       ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-violet-950 via-purple-900/80 to-black" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#FF5A1F]/80 via-[#2A2723] to-black" />
       )}
       <div className="relative z-10 flex flex-1 flex-col justify-between p-14">
         <EncoreLogo />
@@ -66,7 +66,7 @@ export function PosterTemplate({ review, featuredPhoto }: TemplateProps) {
               .filter(Boolean)
               .join(' · ')}
           </p>
-          <p className="mt-4 text-[26px] text-violet-200">
+          <p className="mt-4 text-[26px] text-[#F2C14E]/80">
             {OVERALL_VIBE_LABELS[review.overallRating]}
           </p>
           <p className="mt-8 text-[24px] uppercase tracking-widest text-white/50">
@@ -96,7 +96,7 @@ export function StatsTemplate({ review }: TemplateProps) {
       </p>
 
       <div className="my-10 flex items-end gap-4">
-        <span className="text-[140px] font-black leading-none tabular-nums text-violet-400">
+        <span className="text-[140px] font-black leading-none tabular-nums text-[#FF5A1F]">
           {review.overallRating}
         </span>
         <span className="pb-4 text-[32px] text-white/50">/ 10 overall</span>
@@ -127,7 +127,7 @@ export function StatsTemplate({ review }: TemplateProps) {
           </p>
         )}
         {review.wouldSeeAgain != null && (
-          <p className="rounded-2xl bg-violet-600/30 px-5 py-3 text-[24px] font-semibold text-violet-200">
+          <p className="rounded-2xl bg-primary/20 px-5 py-3 text-[24px] font-semibold text-[#F6F1E7]">
             {review.wouldSeeAgain ? 'Would see again ✓' : 'Probably skip next time'}
           </p>
         )}
@@ -176,7 +176,7 @@ export function CollageTemplate({ review, featuredPhoto }: TemplateProps) {
             {[0, 1, 2, 3].map((i) => (
               <div
                 key={i}
-                className="rounded-3xl bg-gradient-to-br from-violet-800/40 to-purple-950/60"
+                className="rounded-3xl bg-gradient-to-br from-[#FF5A1F]/35 to-[#2A2723]"
               />
             ))}
           </>
@@ -193,9 +193,9 @@ export function CollageTemplate({ review, featuredPhoto }: TemplateProps) {
                 .join(' · ')}
             </p>
           </div>
-          <div className="rounded-2xl bg-violet-600 px-6 py-4 text-center">
+          <div className="rounded-2xl bg-primary px-6 py-4 text-center text-primary-foreground">
             <p className="text-[48px] font-black tabular-nums">{review.overallRating}</p>
-            <p className="text-[18px] text-violet-200">/10</p>
+            <p className="text-[18px] opacity-70">/10</p>
           </div>
         </div>
         <div className="mt-6">

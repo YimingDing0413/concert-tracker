@@ -79,28 +79,34 @@ export function RatingPage() {
   }
 
   if (loading) return <LoadingSpinner />;
-  if (!concert) return <p className="muted">Concert not found.</p>;
+  if (!concert) {
+    return <p className="text-sm text-muted-foreground">Concert not found.</p>;
+  }
 
   return (
-    <div className="page">
+    <div className="mx-auto max-w-lg space-y-6 pb-8">
       <PageHeader
         title="Rate show"
         subtitle={`${concert.artistName} @ ${concert.venueName}`}
         backTo={`/concert/${id}`}
       />
-      <form className="card form-stack rating-form" onSubmit={handleSubmit}>
+      <form
+        className="space-y-5 rounded-[14px] border border-border bg-card p-4"
+        onSubmit={handleSubmit}
+      >
         <StarRating label="Overall" value={input.overall} onChange={(v) => setField('overall', v)} />
         <StarRating label="Venue" value={input.venue} onChange={(v) => setField('venue', v)} />
         <StarRating label="Crowd / energy" value={input.crowd} onChange={(v) => setField('crowd', v)} />
         <StarRating label="Sound" value={input.sound} onChange={(v) => setField('sound', v)} />
         <StarRating label="Setlist" value={input.setlist} onChange={(v) => setField('setlist', v)} />
-        <label>
+        <label className="block space-y-2 text-sm font-medium text-foreground">
           Review (optional)
           <textarea
             value={input.review}
             onChange={(e) => setField('review', e.target.value)}
             rows={4}
             placeholder="How was the night?"
+            className="w-full rounded-[14px] border border-border bg-input px-3 py-2 text-sm text-foreground outline-none ring-ring focus:ring-2"
           />
         </label>
         <Button type="submit" fullWidth disabled={saving || input.overall === 0}>

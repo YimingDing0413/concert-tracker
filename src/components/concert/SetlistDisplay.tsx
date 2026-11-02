@@ -8,7 +8,7 @@ interface SetlistDisplayProps {
 
 export function SetlistDisplay({ setlist, title }: SetlistDisplayProps) {
   if (!setlist) {
-    return <p className="muted">No setlist available yet.</p>;
+    return <p className="text-sm text-muted-foreground">No setlist available yet.</p>;
   }
 
   const heading =
@@ -16,24 +16,24 @@ export function SetlistDisplay({ setlist, title }: SetlistDisplayProps) {
   const hasSongs = setlist.songs.length > 0;
 
   return (
-    <section className="setlist-block card">
+    <section className="setlist-block rounded-[14px] border border-border bg-card p-4">
       <div className="setlist-head">
         <h3>{heading}</h3>
         <Badge type={setlist.source} />
       </div>
       {setlist.source === 'predicted' && setlist.predictionBasis === 'same-tour' && (
-        <p className="setlist-hint muted">
+        <p className="setlist-hint text-sm text-muted-foreground">
           Copied from the latest show on the same tour
           {setlist.tourName ? ` (${setlist.tourName})` : ''}. Actual setlist may vary.
         </p>
       )}
       {setlist.source === 'predicted' && setlist.predictionBasis === 'recent-frequency' && (
-        <p className="setlist-hint muted">
+        <p className="setlist-hint text-sm text-muted-foreground">
           Based on songs played most often on recent shows — actual setlist may vary.
         </p>
       )}
       {setlist.source === 'predicted' && !setlist.predictionBasis && (
-        <p className="setlist-hint muted">
+        <p className="setlist-hint text-sm text-muted-foreground">
           Based on recent shows — actual setlist may vary.
         </p>
       )}
@@ -47,7 +47,9 @@ export function SetlistDisplay({ setlist, title }: SetlistDisplayProps) {
           ))}
         </ol>
       ) : (
-        <p className="muted">Song list unavailable — open Setlist.fm for full details.</p>
+        <p className="text-sm text-muted-foreground">
+          Song list unavailable — open Setlist.fm for full details.
+        </p>
       )}
       {setlist.setlistFmUrl && (
         <a href={setlist.setlistFmUrl} target="_blank" rel="noreferrer" className="link-out">

@@ -19,7 +19,7 @@ export function FeedEventPreview({ post }: FeedEventPreviewProps) {
           className="size-16 shrink-0 rounded-lg object-cover"
         />
       ) : (
-        <div className="flex size-16 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600/50 to-fuchsia-900/40">
+        <div className="poster-gradient flex size-16 shrink-0 items-center justify-center rounded-lg">
           <Music2 className="size-6 text-white/80" aria-hidden />
         </div>
       )}

@@ -4,8 +4,8 @@
   "description": "Track concerts, rate shows, and discover live music near you.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f1117",
-  "theme_color": "#0f1117",
+  "background_color": "#0C0B0A",
+  "theme_color": "#0C0B0A",
   "orientation": "portrait-primary",
   "icons": [
     {

@@ -1,8 +1,6 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/app-button';
 import { ProfileStatsBar } from '@/components/profile/ProfileStatsBar';
 import type { FollowCounts } from '@/types';
-import { Pencil, Sparkles } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 interface ProfileHeaderProps {
@@ -10,13 +8,13 @@ interface ProfileHeaderProps {
   username?: string;
   bio?: string;
   avatarUrl?: string;
-  followCounts: FollowCounts;
-  socialPanel: 'followers' | 'following' | null;
-  onToggleFollowers: () => void;
-  onToggleFollowing: () => void;
-  onEditProfile?: () => void;
-  onCreateWrapUp?: () => void;
-  editLabel?: string;
+  shows: number;
+  artists: number;
+  venues: number;
+  followCounts?: FollowCounts;
+  socialPanel?: 'followers' | 'following' | null;
+  onToggleFollowers?: () => void;
+  onToggleFollowing?: () => void;
   trailingActions?: ReactNode;
 }
 
@@ -25,75 +23,52 @@ export function ProfileHeader({
   username,
   bio,
   avatarUrl,
+  shows,
+  artists,
+  venues,
   followCounts,
-  socialPanel,
+  socialPanel = null,
   onToggleFollowers,
   onToggleFollowing,
-  onEditProfile,
-  onCreateWrapUp,
-  editLabel = 'Edit profile',
   trailingActions,
 }: ProfileHeaderProps) {
   const initial = displayName.replace('@', '').slice(0, 1).toUpperCase();
 
   return (
     <header className="space-y-5 pb-2">
-      <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start sm:gap-5">
-        <Avatar className="size-24 shrink-0 ring-2 ring-primary/30">
-          <AvatarImage src={avatarUrl} alt="" />
-          <AvatarFallback className="bg-gradient-to-br from-primary/30 to-violet-900/40 text-3xl font-semibold text-primary">
-            {initial}
-          </AvatarFallback>
-        </Avatar>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-1 flex-col items-center gap-4 sm:flex-row sm:items-start sm:gap-5">
+          <Avatar className="size-24 shrink-0 ring-1 ring-border">
+            <AvatarImage src={avatarUrl} alt="" />
+            <AvatarFallback className="bg-surface-2 font-display text-3xl font-bold text-primary">
+              {initial}
+            </AvatarFallback>
+          </Avatar>
 
-        <div className="min-w-0 flex-1 text-center sm:text-left">
-          <h1 className="font-display text-display-lg text-foreground">{displayName}</h1>
-          {username ? (
-            <p className="mt-0.5 text-muted-foreground">@{username}</p>
-          ) : (
-            <p className="mt-0.5 text-muted-foreground">No username yet</p>
-          )}
-          {bio && (
-            <p className="mt-3 max-w-xl text-sm leading-relaxed text-foreground/85">{bio}</p>
-          )}
+          <div className="min-w-0 flex-1 text-center sm:text-left">
+            <h1 className="font-display text-display-lg text-foreground">{displayName}</h1>
+            {username ? (
+              <p className="mt-0.5 text-muted-foreground">@{username}</p>
+            ) : (
+              <p className="mt-0.5 text-muted-foreground">No username yet</p>
+            )}
+            {bio && (
+              <p className="mt-3 max-w-xl text-sm leading-relaxed text-foreground/85">{bio}</p>
+            )}
+          </div>
         </div>
+        {trailingActions ? <div className="shrink-0">{trailingActions}</div> : null}
       </div>
 
       <ProfileStatsBar
+        shows={shows}
+        artists={artists}
+        venues={venues}
         followCounts={followCounts}
         activePanel={socialPanel}
         onFollowers={onToggleFollowers}
         onFollowing={onToggleFollowing}
       />
-
-      <div className="flex flex-wrap justify-center gap-2 sm:justify-start">
-        {trailingActions ?? (
-          <>
-            {onEditProfile && (
-              <Button
-                variant="secondary"
-                size="default"
-                onClick={onEditProfile}
-                className="h-10 gap-2 rounded-full px-5 text-sm font-medium"
-              >
-                <Pencil className="size-4" aria-hidden />
-                {editLabel}
-              </Button>
-            )}
-            {onCreateWrapUp && (
-              <Button
-                variant="primary"
-                size="default"
-                onClick={onCreateWrapUp}
-                className="h-10 gap-2 rounded-full px-5 text-sm font-medium"
-              >
-                <Sparkles className="size-4" aria-hidden />
-                Create Year Wrap-Up
-              </Button>
-            )}
-          </>
-        )}
-      </div>
     </header>
   );
 }

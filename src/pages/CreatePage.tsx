@@ -16,7 +16,7 @@ const OPTIONS = [
     title: 'Review a concert',
     subtitle: 'Share your rating, photos, and recap.',
     icon: Star,
-    accent: 'from-violet-500/20 to-fuchsia-900/20 text-violet-300',
+    accent: 'from-primary/20 to-[#2A2723] text-primary',
   },
   {
     to: '/create/post',

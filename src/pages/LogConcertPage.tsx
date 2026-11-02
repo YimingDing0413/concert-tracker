@@ -681,6 +681,7 @@ export function LogConcertPage() {
             </p>
           )}
           <TicketCard
+            className="ticket-enter"
             artist={successArtist}
             venue={successVenue}
             city={successCity}

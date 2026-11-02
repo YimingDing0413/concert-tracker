@@ -1,11 +1,11 @@
 import { cn } from '@/lib/utils';
 import type { YearEndTemplateId } from '@/types/concertReview';
-import { Images, LayoutGrid, Sticker } from 'lucide-react';
+import { LayoutTemplate, Ticket, Type } from 'lucide-react';
 
-const OPTIONS: { id: YearEndTemplateId; label: string; icon: typeof Images }[] = [
-  { id: 'collage', label: 'Photo collage', icon: Images },
-  { id: 'stats', label: 'Wrapped stats', icon: LayoutGrid },
-  { id: 'scrapbook', label: 'Scrapbook', icon: Sticker },
+const OPTIONS: { id: YearEndTemplateId; label: string; icon: typeof Ticket }[] = [
+  { id: 'tickets', label: 'Ticket stack', icon: Ticket },
+  { id: 'poster', label: 'Poster', icon: Type },
+  { id: 'minimal', label: 'Minimal', icon: LayoutTemplate },
 ];
 
 interface YearEndTemplateSelectorProps {
@@ -25,9 +25,9 @@ export function YearEndTemplateSelector({ value, onChange }: YearEndTemplateSele
             onClick={() => onChange(id)}
             aria-pressed={active}
             className={cn(
-              'flex flex-col items-center gap-2 rounded-2xl border p-4 text-center text-xs font-semibold transition-colors',
+              'flex flex-col items-center gap-2 rounded-[14px] border p-4 text-center text-xs font-semibold transition-colors',
               active
-                ? 'border-primary/60 bg-primary/15 text-foreground shadow-[0_0_16px_-4px] shadow-primary/50'
+                ? 'border-primary/70 bg-primary/15 text-foreground'
                 : 'border-border/60 bg-card/60 text-muted-foreground hover:border-primary/30 hover:text-foreground'
             )}
           >

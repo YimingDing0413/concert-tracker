@@ -37,7 +37,7 @@ export function ConcertDetailReviewSection({
   }
 
   return (
-    <section className="overflow-hidden rounded-3xl border border-border/50 bg-gradient-to-br from-violet-950/20 via-card to-card shadow-xl">
+    <section className="overflow-hidden rounded-[14px] border border-border/50 bg-card shadow-xl">
       <div className="border-b border-border/40 px-5 py-4">
         <div className="flex items-center gap-2">
           <Sparkles className="size-4 text-primary" />

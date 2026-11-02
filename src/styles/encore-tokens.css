@@ -1,23 +1,27 @@
 /**
- * Encore design tokens — dark-first social concert app.
+ * Encore design tokens — warm ticket-stub visual system.
  * Maps semantic tokens to Tailwind via @theme in index.css.
  */
 
 .dark {
-  --encore-bg: #0a0b10;
-  --encore-surface-1: #12141c;
-  --encore-surface-2: #1a1d28;
-  --encore-surface-3: #242836;
-  --encore-text-primary: #f4f4f7;
-  --encore-text-secondary: #c4c8d4;
-  --encore-text-muted: #8b92a8;
-  --encore-brand-purple: #a855f7;
-  --encore-brand-pink: #ec4899;
-  --encore-ticket-amber: #fbbf24;
-  --encore-review-gold: #f59e0b;
+  --encore-bg: #0c0b0a;
+  --encore-surface-1: #151412;
+  --encore-surface-2: #1e1c19;
+  --encore-surface-3: #2a2723;
+  --encore-text-primary: #f6f1e7;
+  --encore-text-secondary: #cfc8ba;
+  --encore-text-muted: #8e877a;
+  --encore-accent: #ff5a1f;
+  --encore-accent-hover: #ff7440;
+  --encore-gold: #f2c14e;
+  --encore-paper: #f3ebdd;
+  --encore-ink: #1a1714;
+  --encore-success: #5fbf8a;
+  --encore-ticket-amber: var(--encore-gold);
+  --encore-review-gold: var(--encore-gold);
   --encore-spotify-green: #1db954;
-  --encore-border-subtle: rgb(255 255 255 / 0.06);
-  --encore-border-strong: rgb(255 255 255 / 0.12);
+  --encore-border-subtle: rgb(246 241 231 / 0.08);
+  --encore-border-strong: rgb(246 241 231 / 0.16);
 
   /* Bridge to existing shadcn tokens */
   --background: var(--encore-bg);
@@ -26,37 +30,41 @@
   --card-foreground: var(--encore-text-primary);
   --popover: var(--encore-surface-2);
   --popover-foreground: var(--encore-text-primary);
-  --primary: var(--encore-brand-purple);
-  --primary-foreground: #fafafa;
+  --primary: var(--encore-accent);
+  --primary-foreground: #160b05;
   --secondary: var(--encore-surface-2);
   --secondary-foreground: var(--encore-text-secondary);
   --muted: var(--encore-surface-2);
   --muted-foreground: var(--encore-text-muted);
-  --accent: var(--encore-brand-pink);
-  --accent-foreground: var(--encore-text-primary);
+  --accent: var(--encore-gold);
+  --accent-foreground: #1a1714;
   --destructive: #ef4444;
   --destructive-foreground: #fafafa;
   --border: var(--encore-border-subtle);
   --input: var(--encore-surface-3);
-  --ring: var(--encore-brand-purple);
+  --ring: var(--encore-accent);
 }
 
 /* Typography */
 .font-display {
-  font-family: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+  font-family: 'Bricolage Grotesque', 'Inter', system-ui, sans-serif;
   letter-spacing: -0.025em;
 }
 
+.font-mono {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
 .text-display-xl {
-  font-family: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+  font-family: 'Bricolage Grotesque', 'Inter', system-ui, sans-serif;
   font-size: clamp(1.75rem, 5vw, 2.5rem);
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1.1;
 }
 
 .text-display-lg {
-  font-family: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+  font-family: 'Bricolage Grotesque', 'Inter', system-ui, sans-serif;
   font-size: clamp(1.35rem, 4vw, 1.75rem);
   font-weight: 700;
   letter-spacing: -0.025em;
@@ -64,10 +72,18 @@
 }
 
 .text-display-md {
-  font-family: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+  font-family: 'Bricolage Grotesque', 'Inter', system-ui, sans-serif;
   font-size: 1.125rem;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: -0.02em;
+}
+
+.text-label-mono {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 /* Surfaces — prefer over bordered cards */
@@ -83,22 +99,16 @@
   background: var(--encore-surface-3);
 }
 
-.glass-encore {
-  background: rgb(18 20 28 / 0.72);
-  backdrop-filter: blur(16px);
-  border: 1px solid var(--encore-border-subtle);
-}
-
 .divide-subtle {
   border-color: var(--encore-border-subtle);
 }
 
 .text-ticket {
-  color: var(--encore-ticket-amber);
+  color: var(--encore-gold);
 }
 
 .text-review-gold {
-  color: var(--encore-review-gold);
+  color: var(--encore-gold);
 }
 
 .text-spotify {
@@ -106,33 +116,23 @@
 }
 
 .bg-ticket-soft {
-  background: rgb(251 191 36 / 0.1);
+  background: rgb(242 193 78 / 0.12);
 }
 
 .bg-review-soft {
-  background: rgb(245 158 11 / 0.1);
+  background: rgb(242 193 78 / 0.12);
 }
 
 .bg-spotify-soft {
   background: rgb(29 185 84 / 0.12);
 }
 
-.brand-gradient {
-  background: linear-gradient(135deg, var(--encore-brand-purple), var(--encore-brand-pink));
-}
-
-.brand-gradient-text {
-  background: linear-gradient(135deg, var(--encore-brand-purple), var(--encore-brand-pink));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
+/* Warm fallback for missing poster art (no purple/pink) */
 .poster-gradient {
   background: linear-gradient(
     160deg,
-    rgb(168 85 247 / 0.45) 0%,
-    rgb(236 72 153 / 0.25) 40%,
+    rgb(255 90 31 / 0.35) 0%,
+    rgb(242 193 78 / 0.18) 42%,
     var(--encore-bg) 100%
   );
 }
@@ -156,4 +156,21 @@
 .carousel-scroll > * {
   scroll-snap-align: start;
   flex-shrink: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ticket-enter {
+    animation: ticket-slide-down 250ms ease-out both;
+  }
+}
+
+@keyframes ticket-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

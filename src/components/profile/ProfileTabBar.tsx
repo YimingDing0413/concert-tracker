@@ -1,13 +1,10 @@
 import type { ProfileContentTab } from '@/components/profile/ProfileContentTabs';
 import { cn } from '@/lib/utils';
 
-const TAB_LABELS: Record<ProfileContentTab, string> = {
-  concerts: 'Concerts',
+const TAB_LABELS: Partial<Record<ProfileContentTab, string>> = {
+  concerts: 'Been',
   going: 'Going',
-  want: 'Want',
-  reviews: 'Reviews',
-  posts: 'Posts',
-  wrapped: 'Wrap-Ups',
+  want: 'Wishlist',
 };
 
 interface ProfileTabBarProps {
@@ -16,8 +13,6 @@ interface ProfileTabBarProps {
   concertCount?: number;
   goingCount?: number;
   wantCount?: number;
-  reviewCount?: number;
-  postCount?: number;
   mode?: 'full' | 'concerts-only';
 }
 
@@ -27,19 +22,15 @@ export function ProfileTabBar({
   concertCount = 0,
   goingCount = 0,
   wantCount = 0,
-  reviewCount = 0,
-  postCount = 0,
   mode = 'full',
 }: ProfileTabBarProps) {
   const tabs: ProfileContentTab[] =
-    mode === 'full' ? ['concerts', 'going', 'want', 'reviews'] : ['concerts', 'going'];
+    mode === 'full' ? ['concerts', 'going', 'want'] : ['concerts', 'going'];
 
   function countFor(t: ProfileContentTab): number | undefined {
     if (t === 'concerts') return concertCount;
     if (t === 'going') return goingCount;
     if (t === 'want') return wantCount;
-    if (t === 'reviews') return reviewCount;
-    if (t === 'posts') return postCount;
     return undefined;
   }
 
@@ -61,9 +52,9 @@ export function ProfileTabBar({
                 active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground/80'
               )}
             >
-              {TAB_LABELS[t]}
+              {TAB_LABELS[t] ?? t}
               {count != null && count > 0 && (
-                <span className="ml-1 tabular-nums text-muted-foreground">{count}</span>
+                <span className="ml-1 font-mono text-muted-foreground tabular-nums">{count}</span>
               )}
               {active && (
                 <span className="absolute inset-x-1 bottom-0 h-0.5 rounded-full bg-primary" />
