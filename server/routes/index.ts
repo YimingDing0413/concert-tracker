@@ -18,10 +18,12 @@ import { feedRouter } from './feed.js';
 import { messagesRouter } from './messages.js';
 import { spotifyRouter } from './spotify.js';
 import { recommendationsRouter } from './recommendations.js';
+import { imageProxyRouter } from './imageProxy.js';
 import { hasSpotify, hasTicketmaster, env } from '../env.js';
 
 export const apiRouter = Router();
 
+apiRouter.use('/image-proxy', imageProxyRouter);
 apiRouter.use('/search', searchRouter);
 apiRouter.use('/events', eventsRouter);
 apiRouter.use('/venues', venuesRouter);

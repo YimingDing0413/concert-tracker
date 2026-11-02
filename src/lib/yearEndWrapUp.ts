@@ -1,4 +1,3 @@
-import { getAllConcertReviews } from '@/lib/concertReviewsLocal';
 import type { Concert, UserConcert } from '@/types';
 import type { ConcertReview, YearEndEntry, YearEndStats } from '@/types/concertReview';
 import { resolveConcertForUserConcert } from '@/utils/userConcert';
@@ -52,24 +51,37 @@ function resolveAttendedDate(uc: UserConcert, concert?: Partial<Concert>): strin
   return (uc.createdAt ?? '').slice(0, 10);
 }
 
-/** All locally saved reviews for the given user whose year matches `year`. */
-export function getReviewsForYear(userId: string, year: number): ConcertReview[] {
-  return getAllConcertReviews(userId).filter((review) => getReviewYear(review) === year);
+/** Trim, lowercase, strip diacritics — used for dedupe + ranking keys. */
+export function normalizeLabelKey(value: string): string {
+  return value
+    .trim()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase();
 }
 
-/** Flattened photo data URLs from every review in the given year. */
-export function getPhotosForYear(userId: string, year: number): string[] {
-  return getReviewsForYear(userId, year).flatMap((review) => review.photoDataUrls ?? []);
+function artistDateKey(artistName: string, date: string): string {
+  return `${normalizeLabelKey(artistName)}|${date.slice(0, 10)}`;
 }
 
-/** Distinct years that have at least one review, most recent first. */
-export function getYearsWithReviews(userId: string): number[] {
-  const years = new Set<number>();
-  for (const review of getAllConcertReviews(userId)) {
-    const year = getReviewYear(review);
-    if (year != null) years.add(year);
-  }
-  return [...years].sort((a, b) => b - a);
+function entryHasImage(entry: YearEndEntry): boolean {
+  return Boolean(entry.imageUrl || entry.review?.photoDataUrls?.[0]);
+}
+
+/** Prefer the entry that carries a review, else one with an image. */
+function preferEntry(a: YearEndEntry, b: YearEndEntry): YearEndEntry {
+  const aReview = Boolean(a.review);
+  const bReview = Boolean(b.review);
+  if (aReview !== bReview) return aReview ? a : b;
+  const aImg = entryHasImage(a);
+  const bImg = entryHasImage(b);
+  if (aImg !== bImg) return aImg ? a : b;
+  return a;
+}
+
+function upsertByKey(map: Map<string, YearEndEntry>, key: string, entry: YearEndEntry): void {
+  const existing = map.get(key);
+  map.set(key, existing ? preferEntry(existing, entry) : entry);
 }
 
 /**
@@ -99,7 +111,8 @@ export function getYearsWithEntries(
 
 /**
  * Attended shows for `year`, enriched with matching reviews.
- * Legacy reviews with no matching UserConcert are included (deduped by eventId).
+ * Deduped by concertId, then by normalized artist + date.
+ * Legacy reviews with no matching UserConcert are included.
  */
 export function getYearEntries(
   userConcerts: UserConcert[],
@@ -116,8 +129,7 @@ export function getYearEntries(
     }
   }
 
-  const entries: YearEndEntry[] = [];
-  const seen = new Set<string>();
+  const byConcertId = new Map<string, YearEndEntry>();
 
   for (const uc of userConcerts) {
     if (uc.status !== 'attended') continue;
@@ -127,7 +139,7 @@ export function getYearEntries(
     if (entryDateYear(date) !== year) continue;
 
     const review = reviewsByEvent.get(uc.concertId);
-    entries.push({
+    const entry: YearEndEntry = {
       concertId: uc.concertId,
       artistName: resolved.artistName ?? review?.artistName ?? 'Unknown artist',
       venueName: resolved.venueName || review?.venueName,
@@ -135,45 +147,72 @@ export function getYearEntries(
       date,
       imageUrl: resolved.imageUrl ?? review?.photoDataUrls?.[0],
       review,
-    });
-    seen.add(uc.concertId);
+    };
+    upsertByKey(byConcertId, uc.concertId, entry);
   }
 
   for (const review of reviews) {
-    if (seen.has(review.eventId)) continue;
+    if (byConcertId.has(review.eventId)) continue;
     if (getReviewYear(review) !== year) continue;
     const date = (review.eventDate ?? review.createdAt).slice(0, 10);
-    entries.push({
+    const entry: YearEndEntry = {
       concertId: review.eventId,
       artistName: review.artistName,
       venueName: review.venueName,
       date,
       imageUrl: review.photoDataUrls?.[0],
       review,
-    });
-    seen.add(review.eventId);
+    };
+    upsertByKey(byConcertId, review.eventId, entry);
   }
 
-  return entries.sort((a, b) => a.date.localeCompare(b.date));
+  // Collapse same artist (normalized) + same calendar date across catalog/manual ids.
+  const byArtistDate = new Map<string, YearEndEntry>();
+  for (const entry of byConcertId.values()) {
+    upsertByKey(byArtistDate, artistDateKey(entry.artistName, entry.date), entry);
+  }
+
+  return [...byArtistDate.values()].sort((a, b) => a.date.localeCompare(b.date));
 }
 
-function rankCounts(values: string[], limit: number): { name: string; count: number }[] {
-  const counts = new Map<string, number>();
+/**
+ * Group by normalized key; display the most frequent original spelling.
+ */
+export function rankCountsNormalized(
+  values: string[],
+  limit: number
+): { name: string; count: number }[] {
+  const byKey = new Map<string, { count: number; spellings: Map<string, number> }>();
+
   for (const raw of values) {
-    const value = raw.trim();
-    if (!value) continue;
-    counts.set(value, (counts.get(value) ?? 0) + 1);
+    const trimmed = raw.trim();
+    if (!trimmed) continue;
+    const key = normalizeLabelKey(trimmed);
+    if (!key) continue;
+    let bucket = byKey.get(key);
+    if (!bucket) {
+      bucket = { count: 0, spellings: new Map() };
+      byKey.set(key, bucket);
+    }
+    bucket.count += 1;
+    bucket.spellings.set(trimmed, (bucket.spellings.get(trimmed) ?? 0) + 1);
   }
-  return [...counts.entries()]
-    .sort((a, b) => b[1] - a[1])
+
+  return [...byKey.entries()]
+    .sort((a, b) => b[1].count - a[1].count)
     .slice(0, limit)
-    .map(([name, count]) => ({ name, count }));
+    .map(([, bucket]) => {
+      const name = [...bucket.spellings.entries()].sort(
+        (a, b) => b[1] - a[1] || a[0].localeCompare(b[0])
+      )[0][0];
+      return { name, count: bucket.count };
+    });
 }
 
 function uniqueCount(values: string[]): number {
   const set = new Set<string>();
   for (const raw of values) {
-    const v = raw.trim().toLowerCase();
+    const v = normalizeLabelKey(raw);
     if (v) set.add(v);
   }
   return set.size;
@@ -190,15 +229,15 @@ export function getYearEndStats(entries: YearEndEntry[], year: number): YearEndS
       ? Math.round((ratings.reduce((sum, n) => sum + n, 0) / ratings.length) * 10) / 10
       : undefined;
 
-  const topArtists = rankCounts(
+  const topArtists = rankCountsNormalized(
     entries.map((e) => e.artistName).filter(Boolean),
     5
   );
-  const topVenues = rankCounts(
+  const topVenues = rankCountsNormalized(
     entries.map((e) => e.venueName).filter((v): v is string => Boolean(v)),
     5
   );
-  const topTags = rankCounts(
+  const topTags = rankCountsNormalized(
     reviews.flatMap((r) => r.tags ?? []),
     6
   ).map(({ name, count }) => ({ tag: name, count }));

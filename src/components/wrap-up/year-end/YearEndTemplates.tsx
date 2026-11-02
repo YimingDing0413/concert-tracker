@@ -1,3 +1,4 @@
+import { toExportImageUrl } from '@/lib/exportImageUrl';
 import type {
   ConcertReview,
   YearEndEntry,
@@ -38,11 +39,20 @@ function PosterTile({ artistName }: { artistName: string }) {
   );
 }
 
+/**
+ * Safe src for html-to-image: data URLs or same-origin proxy only.
+ * Never returns a raw cross-origin URL (those capture as blank tiles).
+ */
 function visualForEntry(entry: YearEndEntry): { kind: 'photo' | 'image' | 'poster'; src?: string } {
-  const photo = entry.review?.photoDataUrls?.[0];
+  const photo = toExportImageUrl(entry.review?.photoDataUrls?.[0]);
   if (photo) return { kind: 'photo', src: photo };
-  if (entry.imageUrl) return { kind: 'image', src: entry.imageUrl };
+  const image = toExportImageUrl(entry.imageUrl);
+  if (image) return { kind: 'image', src: image };
   return { kind: 'poster' };
+}
+
+function exportSafePhotos(photos: string[]): string[] {
+  return photos.map((url) => toExportImageUrl(url)).filter((url): url is string => Boolean(url));
 }
 
 /* ------------------------------------------------------------------ */
@@ -62,9 +72,10 @@ function collageLayout(count: number): { cols: number; firstSpan: number } {
 }
 
 export function YearEndPhotoCollageTemplate({ stats, photos, entries = [] }: YearEndTemplateProps) {
-  const cells = photos.slice(0, 12);
+  const cells = exportSafePhotos(photos).slice(0, 12);
   const artistNames = stats.topArtists.map((a) => a.name).slice(0, 4);
   const { cols, firstSpan } = collageLayout(cells.length || Math.min(entries.length, 6) || 1);
+  // Prefer entry tiles (poster fallback) when no export-safe photos — never blank cells.
   const tileEntries = cells.length === 0 ? entries.slice(0, 6) : [];
 
   return (
@@ -172,7 +183,7 @@ function StatRow({ label, value }: { label: string; value: string }) {
 }
 
 export function YearEndStatsTemplate({ stats, photos }: YearEndTemplateProps) {
-  const strip = photos.slice(0, 4);
+  const strip = exportSafePhotos(photos).slice(0, 4);
   const topArtist = stats.mostSeenArtist?.name ?? stats.topArtists[0]?.name ?? '—';
   const topVenue = stats.topVenues[0]?.name ?? '—';
   const sparse = stats.totalShows <= 2;

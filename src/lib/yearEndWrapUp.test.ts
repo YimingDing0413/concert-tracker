@@ -127,6 +127,62 @@ describe('getYearEntries', () => {
     ];
     expect(getYearEntries(concerts, [], 2024)).toHaveLength(1);
   });
+
+  it('dedupes two attended rows with the same concertId', () => {
+    const concerts = [
+      uc({
+        id: '1',
+        concertId: 'e1',
+        status: 'attended',
+        concertSnapshot: { artistName: 'A', date: '2026-03-01' },
+      }),
+      uc({
+        id: '2',
+        concertId: 'e1',
+        status: 'attended',
+        concertSnapshot: {
+          artistName: 'A',
+          date: '2026-03-01',
+          imageUrl: 'https://s1.ticketm.net/dam/a.jpg',
+        },
+      }),
+    ];
+    const entries = getYearEntries(concerts, [], 2026);
+    expect(entries).toHaveLength(1);
+    expect(entries[0].concertId).toBe('e1');
+    expect(entries[0].imageUrl).toContain('ticketm.net');
+  });
+
+  it('collapses the same show under a catalog id and a manual id', () => {
+    const concerts = [
+      uc({
+        id: '1',
+        concertId: 'tm-event-1',
+        status: 'attended',
+        concertSnapshot: { artistName: 'The Weeknd', date: '2026-06-15' },
+      }),
+      uc({
+        id: '2',
+        concertId: 'manual-abc',
+        status: 'attended',
+        isManual: true,
+        concertSnapshot: { artistName: 'the weeknd', date: '2026-06-15' },
+        manualConcert: { artistName: 'the weeknd', date: '2026-06-15' },
+      }),
+    ];
+    const reviews = [
+      review({
+        id: 'r1',
+        eventId: 'manual-abc',
+        artistName: 'the weeknd',
+        eventDate: '2026-06-15',
+        overallRating: 9,
+      }),
+    ];
+    const entries = getYearEntries(concerts, reviews, 2026);
+    expect(entries).toHaveLength(1);
+    expect(entries[0].review?.overallRating).toBe(9);
+  });
 });
 
 describe('getYearsWithEntries', () => {
@@ -236,5 +292,36 @@ describe('getYearEndStats', () => {
     const stats = getYearEndStats(getYearEntries(concerts, [], 2026), 2026);
     expect(stats.totalShows).toBe(3);
     expect(stats.photos).toEqual([]);
+  });
+
+  it('groups Drake and drake as one top artist', () => {
+    const entries = getYearEntries(
+      [
+        uc({
+          id: '1',
+          concertId: 'e1',
+          status: 'attended',
+          concertSnapshot: { artistName: 'Drake', date: '2026-01-10' },
+        }),
+        uc({
+          id: '2',
+          concertId: 'e2',
+          status: 'attended',
+          concertSnapshot: { artistName: 'drake', date: '2026-03-10' },
+        }),
+        uc({
+          id: '3',
+          concertId: 'e3',
+          status: 'attended',
+          concertSnapshot: { artistName: 'Drake', date: '2026-05-10' },
+        }),
+      ],
+      [],
+      2026
+    );
+    const stats = getYearEndStats(entries, 2026);
+    expect(stats.uniqueArtists).toBe(1);
+    expect(stats.topArtists).toEqual([{ name: 'Drake', count: 3 }]);
+    expect(stats.mostSeenArtist).toEqual({ name: 'Drake', count: 3 });
   });
 });
